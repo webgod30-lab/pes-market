@@ -1,0 +1,437 @@
+// PES Escrow — database schema
+//
+// This is NOT a marketplace. There is no shopfront, no browsing, no search.
+// Two people have already agreed on an account and a price somewhere else
+// (Discord, WhatsApp, ...). They come here only to execute that trade safely,
+// with the admin as the trusted third party.
+//
+//   one party opens a Deal  →  sends the invite code to the other party
+//   →  seller deposits the account credentials (encrypted)
+//   →  buyer pays  →  ADMIN confirms payment, funds held
+//   →  ADMIN verifies the account still works
+//   →  ADMIN approves delivery  →  credentials released to buyer
+//   →  buyer claims (changes email + password) and confirms
+//   →  funds released to seller, minus the middleman fee
+//                                    └── dispute freezes everything
+//
+// Six models. A Deal is one trade: it carries the agreed price, the account, and
+// the escrow state. There is no separate "listing", because nothing is ever
+// advertised.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// In Prisma 7 the connection URL no longer lives here. Migrations read it from
+// `datasource.url` in prisma.config.ts; the runtime client gets it from the
+// driver adapter in src/lib/prisma.ts. Both read DATABASE_URL from .env.
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Account-level role. Being a buyer or a seller is a per-deal position, not a
+/// property of the person: the same user can sell an account this week and buy
+/// one next week. Only "admin" is a standing role.
+enum Role {
+  user
+  admin
+}
+
+/// Which position a user holds in a given deal.
+enum DealSide {
+  seller
+  buyer
+}
+
+/// The escrow lifecycle. Money and credentials only ever move on an admin
+/// action — never automatically.
+enum DealStatus {
+  awaiting_counterparty // created; the other party has not joined yet
+  awaiting_credentials // both parties in; seller must deposit the account
+  awaiting_payment // account deposited; buyer must pay
+  payment_submitted // buyer sent proof; admin has not confirmed it yet
+  admin_verifying // payment confirmed and held; admin checks the account
+  credentials_released // admin approved delivery; buyer can read the login
+  claiming // buyer is changing the email/password to take ownership
+  completed // buyer confirmed; funds released to seller
+  disputed // frozen, admin case open
+  refunded // buyer refunded
+  cancelled // abandoned before payment
+}
+
+enum PaymentMethod {
+  crypto
+  card
+  bank_transfer
+}
+
+enum DisputeStatus {
+  open
+  under_review
+  resolved_buyer // decided for the buyer (refund)
+  resolved_seller // decided for the seller (payout)
+  cancelled // withdrawn
+}
+
+enum PaymentIntentStatus {
+  pending // created, waiting for the provider to tell us it settled
+  confirmed // provider confirmed; funds are with us
+  failed // provider says it failed
+  expired // never completed in time
+}
+
+// ---------------------------------------------------------------------------
+// User
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+  displayName  String
+  role         Role   @default(user)
+
+  // Moderation (phase 5)
+  isBanned  Boolean   @default(false)
+  bannedAt  DateTime?
+  banReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Deals, from either side
+  dealsCreated  Deal[] @relation("DealCreator")
+  dealsAsSeller Deal[] @relation("DealSeller")
+  dealsAsBuyer  Deal[] @relation("DealBuyer")
+
+  // Admin actions
+  confirmedPayments   Deal[]       @relation("PaymentConfirmer")
+  approvedDeliveries  Deal[]       @relation("DeliveryApprover")
+  verifiedCredentials Credential[] @relation("CredentialVerifier")
+
+  messages         Message[]
+  reviewsWritten   Review[]  @relation("ReviewAuthor")
+  reviewsReceived  Review[]  @relation("ReviewSubject")
+  disputesOpened   Dispute[] @relation("DisputeOpener")
+  disputesResolved Dispute[] @relation("DisputeResolver")
+
+  @@index([role])
+}
+
+// ---------------------------------------------------------------------------
+// Deal — one trade, held in escrow
+// ---------------------------------------------------------------------------
+
+model Deal {
+  id String @id @default(cuid())
+
+  /// Short reference both parties can quote, e.g. "ESC-7F3K9Q".
+  reference String @unique
+
+  /// Secret code the creator sends to the counterparty so they can join.
+  /// Single-use: cleared once accepted, so a leaked link stops working.
+  inviteCode       String?   @unique
+  inviteAcceptedAt DateTime?
+
+  createdById String
+  /// Which side the creator took. The other side is the one still open.
+  createdSide DealSide
+
+  /// Exactly one of these is set at creation; the other fills in on join.
+  sellerId String?
+  buyerId  String?
+
+  // --- what is being traded (agreed off-site, recorded here) ---
+  /// Plain description so both parties and the admin agree on the same thing.
+  accountSummary String  @db.Text
+  game           String  @default("eFootball")
+  platform       String?
+  level          Int?
+
+  // --- money, in integer minor units ("cents"); never floats ---
+  /// What the buyer pays. Agreed between the parties before they got here.
+  agreedPriceCents Int
+  currency         String @default("USD")
+
+  /// Middleman commission, in basis points (500 = 5%). Snapshotted per deal so
+  /// changing your rate never rewrites the terms of an existing deal.
+  feeBps Int @default(0)
+  /// The fee in cents, derived from agreedPriceCents and feeBps at creation.
+  feeCents Int @default(0)
+  /// agreedPriceCents - feeCents. What the seller actually receives.
+  sellerPayoutCents Int
+
+  status DealStatus @default(awaiting_counterparty)
+
+  // --- payment (manual settlement; no gateway) ---
+  paymentMethod        PaymentMethod?
+  /// Crypto transaction hash pasted by the buyer.
+  paymentTxHash        String?
+  /// Card/bank reference or note pasted by the buyer.
+  paymentReference     String?
+  /// Exactly what the buyer was told to pay to, captured when they submitted.
+  /// If the wallet address is later edited, a dispute can still show what was
+  /// on screen at the time.
+  paymentInstructionsSnapshot String? @db.Text
+  paymentSubmittedAt   DateTime?
+  paymentConfirmedAt   DateTime?
+  paymentConfirmedById String?
+
+  // --- admin verification + delivery approval ---
+  verificationStartedAt DateTime?
+  deliveryApprovedAt    DateTime?
+  deliveryApprovedById  String?
+
+  /// What was actually handed over, encrypted the same way as Credential.
+  /// Snapshotted at release so a later edit cannot rewrite history.
+  deliveredCiphertext   String?   @db.Text
+  credentialsReleasedAt DateTime?
+
+  // --- buyer claim window (24-48h) ---
+  confirmationDeadline DateTime?
+  buyerConfirmedAt     DateTime?
+  lastReminderSentAt   DateTime?
+
+  // --- terminal states ---
+  completedAt DateTime?
+  refundedAt  DateTime?
+  cancelledAt DateTime?
+
+  /// The status a deal was in when a dispute froze it. Withdrawing the dispute
+  /// puts it back, rather than guessing where it should resume.
+  preDisputeStatus DealStatus?
+
+  /// Set when the payout to the seller is actually sent (manual).
+  payoutAt        DateTime?
+  payoutReference String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy          User        @relation("DealCreator", fields: [createdById], references: [id])
+  seller             User?       @relation("DealSeller", fields: [sellerId], references: [id])
+  buyer              User?       @relation("DealBuyer", fields: [buyerId], references: [id])
+  paymentConfirmedBy User?       @relation("PaymentConfirmer", fields: [paymentConfirmedById], references: [id], onDelete: SetNull)
+  deliveryApprovedBy User?       @relation("DeliveryApprover", fields: [deliveryApprovedById], references: [id], onDelete: SetNull)
+  credential         Credential?
+  messages           Message[]
+  reviews            Review[]
+  disputes           Dispute[]
+  paymentIntents     PaymentIntent[]
+
+  @@index([status])
+  @@index([sellerId, status])
+  @@index([buyerId, status])
+  @@index([createdById])
+}
+
+// ---------------------------------------------------------------------------
+// PaymentMethodConfig — how the admin tells buyers to pay
+// ---------------------------------------------------------------------------
+
+/// There is no payment gateway. The admin settles by hand, so these rows are
+/// simply the instructions shown to a buyer: a wallet address and network for
+/// crypto, or whatever manual arrangement the admin uses for card and bank.
+///
+/// Deactivate rather than delete: a deal that already quoted a method should
+/// still make sense afterwards.
+model PaymentMethodConfig {
+  id     String        @id @default(cuid())
+  method PaymentMethod
+
+  /// Shown to the buyer, e.g. "USDT (TRC-20)".
+  label     String
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  /// Free text shown under the method. Supports plain line breaks.
+  instructions String @db.Text
+
+  /// When true the payment is confirmed by a provider webhook instead of the
+  /// admin checking a wallet by hand. Requires `provider` to be set.
+  isAutomatic Boolean @default(false)
+  /// Which adapter in src/lib/payments handles it, e.g. "sandbox".
+  provider    String?
+
+  // --- crypto only ---
+  walletAddress String?
+  network       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// PaymentIntent — one attempt to pay a deal through a provider
+// ---------------------------------------------------------------------------
+
+/// Created when a buyer starts an automatic payment. The provider later tells us
+/// what happened over a webhook.
+///
+/// `externalId` is unique on purpose: it is the provider's own id for the
+/// payment, so a replayed or duplicated webhook updates the same row instead of
+/// creating a second one and crediting the deal twice.
+model PaymentIntent {
+  id       String @id @default(cuid())
+  dealId   String
+  provider String
+
+  externalId String @unique
+
+  amountCents Int
+  currency    String @default("USD")
+
+  status PaymentIntentStatus @default(pending)
+
+  /// The last thing the provider told us, kept for support. Providers are sent
+  /// no card data by this app, and none is stored here.
+  lastPayload String?   @db.Text
+  confirmedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// WebhookEvent — replay protection
+// ---------------------------------------------------------------------------
+
+/// Every webhook a provider sends has an id. Recording it, with a unique index,
+/// is what makes delivery idempotent: providers retry on any non-2xx, and
+/// without this a retry would confirm a payment twice.
+model WebhookEvent {
+  id       String @id @default(cuid())
+  provider String
+  eventId  String
+
+  receivedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([receivedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Credential — the account login, ENCRYPTED AT REST
+// ---------------------------------------------------------------------------
+
+/// One row per deal. `ciphertext` is an AES-256-GCM payload produced by
+/// src/lib/crypto.ts in the format v1:<iv>:<authTag>:<data>. It decrypts to a
+/// JSON object (loginEmail, loginPassword, recoveryEmail, ...).
+///
+/// NEVER log this, and never show it to the buyer before the admin has approved
+/// delivery on the deal.
+model Credential {
+  id     String @id @default(cuid())
+  dealId String @unique
+
+  ciphertext String @db.Text
+
+  // Admin re-checks the account works before approving delivery
+  lastVerifiedAt   DateTime?
+  lastVerifiedById String?
+  verificationNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deal           Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  lastVerifiedBy User? @relation("CredentialVerifier", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------
+// Message — per-deal chat
+// ---------------------------------------------------------------------------
+
+model Message {
+  id       String @id @default(cuid())
+  dealId   String
+  senderId String
+  body     String @db.Text
+
+  /// Admin-only note: visible in the admin case view, not to the two parties.
+  isAdminNote Boolean   @default(false)
+  readAt      DateTime?
+
+  createdAt DateTime @default(now())
+
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([dealId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Review — one per completed deal
+// ---------------------------------------------------------------------------
+
+/// Both sides review each other after a completed deal — one review per person
+/// per deal, enforced by the composite unique below. A buyer who never pays on
+/// time is as worth knowing about as a seller who hands over a dead account.
+model Review {
+  id        String @id @default(cuid())
+  dealId    String
+  authorId  String
+  subjectId String
+
+  /// Which side the *subject* was on for this deal, so a profile can show
+  /// "as a seller" and "as a buyer" separately.
+  subjectSide DealSide
+
+  /// 1..5, enforced in application code.
+  rating  Int
+  comment String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  deal    Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  author  User @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  subject User @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, authorId])
+  @@index([subjectId, createdAt])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Dispute — freezes a deal and opens an admin case
+// ---------------------------------------------------------------------------
+
+/// A deal can have more than one of these over its life: a dispute may be
+/// withdrawn and a new one opened later if things go wrong again. Every case is
+/// kept — overwriting the previous one would destroy the evidence the admin
+/// needs. Application code always works on the most recent, and refuses to open
+/// a second while one is still open.
+model Dispute {
+  id          String @id @default(cuid())
+  dealId      String
+  openedById  String
+  reason      String
+  description String @db.Text
+
+  status       DisputeStatus @default(open)
+  resolution   String?       @db.Text
+  resolvedById String?
+  resolvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deal       Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  openedBy   User  @relation("DisputeOpener", fields: [openedById], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("DisputeResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([dealId, createdAt])
+}

@@ -1,0 +1,30 @@
+import type { Metadata } from "next";
+
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "PES Escrow — trusted third party for account trades",
+  description:
+    "Already agreed a price for an eFootball / PES account? Trade it safely: the account is held encrypted, the money is held in escrow, and neither moves until the trade works.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className="h-full antialiased">
+      {/* overflow-x-hidden is a safety net: a single wide element (a long wallet
+          address, a pasted transaction hash) should never make the whole page
+          scroll sideways on a phone. */}
+      <body className="flex min-h-full flex-col overflow-x-hidden">
+        <SiteHeader />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">{children}</main>
+        <SiteFooter />
+      </body>
+    </html>
+  );
+}
