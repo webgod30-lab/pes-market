@@ -14,11 +14,17 @@ export const SITE = {
   telegram: "",
 
   /**
-   * TODO: the legal entity or person operating this service, and where.
-   * Privacy law in most places requires naming who controls the data.
+   * TODO: the legal entity or person operating this service.
+   *
+   * Must be the real operator — your own name, or the exact name on your UAE
+   * trade licence. This is the entity the terms make responsible for holding
+   * escrow funds, and the data controller named in the privacy policy, so a
+   * borrowed or invented name is not a placeholder problem but a legal one.
    */
   operator: "[Your name or company]",
-  jurisdiction: "[Your country]",
+
+  /** Where the service is operated from. Determines which privacy law applies. */
+  jurisdiction: "Dubai, United Arab Emirates",
 
   /** Used in "last updated" lines on the legal pages. */
   legalLastUpdated: "31 July 2026",
