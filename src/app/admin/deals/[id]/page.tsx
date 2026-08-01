@@ -10,6 +10,8 @@ import { revealForAdminAction } from "@/app/actions/admin-actions";
 import { listMessages } from "@/lib/messages";
 import { getDisputeForDeal } from "@/lib/disputes";
 import { getReputation } from "@/lib/reviews";
+import { listTransferCodes, CODE_EXCHANGE_STATUSES } from "@/lib/transfer-codes";
+import { TransferCodePanel } from "@/components/transfer-code-panel";
 import { DealTimeline } from "@/components/deal-timeline";
 import { DealChat } from "@/components/deal-chat";
 import { ResolveDisputeForm, WithdrawDisputeForm } from "@/components/dispute-forms";
@@ -41,11 +43,14 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
 
   const { deal } = result;
 
-  const [messages, dispute, sellerReputation, buyerReputation] = await Promise.all([
+  const [messages, dispute, sellerReputation, buyerReputation, transferCodes] = await Promise.all([
     listMessages(deal.id, auth.user),
     getDisputeForDeal(deal.id),
     deal.seller ? getReputation(deal.seller.id) : Promise.resolve(null),
     deal.buyer ? getReputation(deal.buyer.id) : Promise.resolve(null),
+    CODE_EXCHANGE_STATUSES.includes(deal.status)
+      ? listTransferCodes(deal.id, auth.user)
+      : Promise.resolve(null),
   ]);
 
   const disputeIsOpen = dispute?.status === "open" || dispute?.status === "under_review";
@@ -214,6 +219,19 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
             {deal.verification.lastVerifiedAt.toLocaleString("en-GB")}
           </p>
           <p className="mt-2 whitespace-pre-line text-sm">{deal.verification.note}</p>
+        </Card>
+      ) : null}
+
+      {/* The commonest reason a claim sits there doing nothing. Read-only for you:
+          the code lands in the seller's inbox, so only they can supply it. */}
+      {transferCodes ? (
+        <Card className="mt-3">
+          <h2 className="text-sm font-semibold">Konami verification codes</h2>
+          <p className="mt-1 mb-4 text-xs text-[var(--muted)]">
+            The buyer cannot finish the transfer without these, and only the seller receives them.
+            If one has gone unanswered, chase the seller — do not invent a code.
+          </p>
+          <TransferCodePanel dealId={deal.id} codes={transferCodes} role="admin" />
         </Card>
       ) : null}
 

@@ -32,6 +32,11 @@ import { listMessages, postMessage } from "../src/lib/messages";
 import { getReputation, leaveReview } from "../src/lib/reviews";
 import { openDispute, resolveDispute, withdrawDispute } from "../src/lib/disputes";
 import { banUser, forceCancel, forceRefundCompleted, unbanUser } from "../src/lib/admin";
+import {
+  listTransferCodes,
+  provideTransferCode,
+  requestTransferCode,
+} from "../src/lib/transfer-codes";
 import type { CurrentUser } from "../src/lib/dal";
 
 let passed = 0;
@@ -505,6 +510,75 @@ async function main() {
 
   assert.equal((await forceCancel(admin, awaitingPayment)).ok, true);
   ok("a stalled pre-payment deal can be force-cancelled");
+
+  // -------------------------------------------------------------------------
+  // Konami transfer codes
+  // -------------------------------------------------------------------------
+  //
+  // A live transfer code grants access to the account, so who may raise, answer
+  // and read one matters as much as the credentials themselves.
+
+  const codeDeal = await makeDeal(sami, karim, admin, "credentials_released");
+
+  assert.equal((await requestTransferCode(yassine, codeDeal, "let me in")).ok, false);
+  assert.equal(await listTransferCodes(codeDeal, yassine), null);
+  ok("an outsider can neither request nor read a transfer code");
+
+  // The seller asking themselves for a code would be meaningless, and would let
+  // them fabricate the appearance of a completed exchange.
+  const sellerAsks = await requestTransferCode(sami, codeDeal, "asking myself");
+  assert.equal(sellerAsks.ok, false);
+  assert.match((sellerAsks as { error: string }).error, /Only the buyer/i);
+  ok("the seller cannot raise a code request");
+
+  assert.equal((await requestTransferCode(karim, codeDeal, "Konami wants a code")).ok, true);
+  ok("the buyer can ask for a code");
+
+  const duplicate = await requestTransferCode(karim, codeDeal, "again");
+  assert.equal(duplicate.ok, false);
+  assert.match((duplicate as { error: string }).error, /already have a code request/i);
+  ok("a second request cannot be stacked while one is unanswered");
+
+  const openRequest = (await listTransferCodes(codeDeal, karim))![0];
+  assert.equal(openRequest.code, null);
+  ok("the code reads as null until the seller answers");
+
+  assert.equal((await provideTransferCode(karim, openRequest.id, "111111")).ok, false);
+  ok("the buyer cannot answer their own request");
+
+  // Deliberate: if the admin could invent a code, the seller would no longer
+  // need to stay reachable, which is the entire point of this step.
+  const adminAnswers = await provideTransferCode(admin, openRequest.id, "222222");
+  assert.equal(adminAnswers.ok, false);
+  assert.match((adminAnswers as { error: string }).error, /Only the seller/i);
+  ok("not even the admin can supply the code on the seller's behalf");
+
+  assert.equal((await provideTransferCode(sami, openRequest.id, "")).ok, false);
+  ok("an empty code is refused");
+
+  assert.equal((await provideTransferCode(sami, openRequest.id, "483920")).ok, true);
+  assert.equal((await provideTransferCode(sami, openRequest.id, "999999")).ok, false);
+  ok("the seller answers once, and cannot overwrite it afterwards");
+
+  const answered = (await listTransferCodes(codeDeal, karim))!;
+  assert.equal(answered[0].code, "483920");
+  assert.ok(answered[0].providedAt !== null);
+  ok("the buyer reads back exactly the code the seller sent");
+
+  // Stored encrypted, like the credentials.
+  const storedCode = await prisma.transferCode.findFirstOrThrow({
+    where: { dealId: codeDeal },
+    select: { ciphertext: true },
+  });
+  assert.ok(storedCode.ciphertext?.startsWith("v1:"));
+  assert.equal(storedCode.ciphertext?.includes("483920"), false);
+  ok("the code is encrypted at rest, not stored in the clear");
+
+  // Once settled there is nothing left to verify.
+  await confirmClaimed(karim, codeDeal);
+  const afterSettled = await requestTransferCode(karim, codeDeal, "one more");
+  assert.equal(afterSettled.ok, false);
+  ok("codes cannot be requested once the deal has settled");
 
   console.log(`\n${passed} guard checks passed.`);
 }

@@ -5,6 +5,7 @@
 // so "the page already checked" is not good enough.
 import { prisma } from "@/lib/prisma";
 import { OPEN_STATUSES, PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
+import { countUnansweredCodeRequests } from "@/lib/transfer-codes";
 import type { CurrentUser } from "@/lib/dal";
 import type { DealStatus, Role } from "@/generated/prisma/client";
 
@@ -19,6 +20,8 @@ export type ConsoleStats = {
   deliveriesToApprove: number;
   payoutsToSend: number;
   buyersGoneQuiet: number;
+  /** Buyers stuck waiting on a seller for a Konami verification code. */
+  codesAwaitingSeller: number;
   openDisputes: number;
   dealsInFlight: number;
   users: number;
@@ -31,6 +34,7 @@ export async function getConsoleStats(now = new Date()): Promise<ConsoleStats> {
     deliveriesToApprove,
     payoutsToSend,
     buyersGoneQuiet,
+    codesAwaitingSeller,
     openDisputes,
     dealsInFlight,
     users,
@@ -45,6 +49,7 @@ export async function getConsoleStats(now = new Date()): Promise<ConsoleStats> {
         confirmationDeadline: { lt: now },
       },
     }),
+    countUnansweredCodeRequests(),
     prisma.dispute.count({ where: { status: { in: ["open", "under_review"] } } }),
     prisma.deal.count({ where: { status: { in: OPEN_STATUSES } } }),
     prisma.user.count(),
@@ -56,6 +61,7 @@ export async function getConsoleStats(now = new Date()): Promise<ConsoleStats> {
     deliveriesToApprove,
     payoutsToSend,
     buyersGoneQuiet,
+    codesAwaitingSeller,
     openDisputes,
     dealsInFlight,
     users,

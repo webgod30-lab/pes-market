@@ -44,9 +44,15 @@ const STEPS = [
   },
   {
     n: 6,
+    who: "Seller",
+    title: "Pass on the Konami code",
+    body: "Changing the email makes Konami send a verification code to the address still on the account — yours. The buyer asks for it on the deal page, you paste it in. You are not paid until they are through this.",
+  },
+  {
+    n: 7,
     who: "Buyer",
     title: "Claim it, then confirm",
-    body: `Change the email and password immediately, check the account is really yours, then confirm. You have ${CONFIRMATION_WINDOW_HOURS} hours. The seller is paid only after you confirm.`,
+    body: `Change the email and password, check the account is really yours, then confirm. You have ${CONFIRMATION_WINDOW_HOURS} hours. The seller is paid only after you confirm.`,
   },
 ];
 
@@ -117,6 +123,7 @@ export default function HowItWorksPage() {
             "Check the terms on the invite before you join. If the price or the account is not what you agreed, do not join.",
             "Buyers: change the email and password the moment you get the account, then confirm. The confirmation window exists for you, not against you.",
             "Sellers: do not touch the account after depositing it. Recovering an account you have sold is the fastest way to lose a dispute.",
+            "Sellers: stay reachable until the buyer confirms. Konami sends the transfer code to your inbox, and the buyer cannot finish without it — going quiet at that point is what turns a normal deal into a dispute.",
           ]}
         />
       </Section>

@@ -108,6 +108,37 @@ function buildFaqs(feeLabel: string, feeOn: boolean): { group: string; items: Fa
           ),
         },
         {
+          q: "Konami is asking for a verification code I never received.",
+          a: (
+            <>
+              It went to the seller. Changing the email sends the code to the address still on the
+              account, which is theirs until the transfer completes. Ask for it on the deal page —
+              there is a button for it during the claim — and it appears there once they paste it in.
+              Your money stays held the whole time.
+            </>
+          ),
+        },
+        {
+          q: "I am the seller. Why am I still getting emails from Konami?",
+          a: (
+            <>
+              Because the account is still registered to you until the buyer finishes the transfer.
+              You need to pass those codes on through the deal page. You are not paid until the buyer
+              confirms, and they cannot confirm without them — so going quiet here only delays your
+              own payout.
+            </>
+          ),
+        },
+        {
+          q: "The seller has gone silent and I am stuck on a code.",
+          a: (
+            <>
+              Open a dispute. It freezes everything, and the admin can see exactly when you asked and
+              that nobody answered. Your money has not gone anywhere.
+            </>
+          ),
+        },
+        {
           q: "Who can see the account login?",
           a: (
             <>

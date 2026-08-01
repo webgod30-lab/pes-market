@@ -187,6 +187,19 @@ export const resolveDisputeSchema = z.object({
     .max(4000, "Keep it under 4000 characters."),
 });
 
+export const requestTransferCodeSchema = z.object({
+  note: z.string().trim().max(300, "Keep it under 300 characters."),
+});
+
+export const provideTransferCodeSchema = z.object({
+  requestId: z.string().trim().min(1, "Missing request."),
+  code: z
+    .string()
+    .trim()
+    .min(1, "Enter the code Konami sent you.")
+    .max(64, "That does not look like a verification code."),
+});
+
 export const banUserSchema = z.object({
   userId: z.string().trim().min(1, "Missing user."),
   reason: z

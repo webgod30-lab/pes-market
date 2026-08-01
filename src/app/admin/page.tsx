@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { requireUserOrProblem } from "@/lib/dal";
 import { getConsoleStats, listDealsForAdmin } from "@/lib/admin";
+import { listStalledCodeRequests } from "@/lib/transfer-codes";
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { AdminNav } from "@/components/admin-nav";
 import { AdminDealRow } from "@/components/admin-deal-row";
@@ -19,9 +20,10 @@ export default async function AdminPage() {
   const admin = auth.user;
   const now = new Date();
 
-  const [stats, queue] = await Promise.all([
+  const [stats, queue, stalledCodes] = await Promise.all([
     getConsoleStats(now),
     listDealsForAdmin("needs_action", "", now),
+    listStalledCodeRequests(),
   ]);
 
   const feeBps = defaultFeeBps();
@@ -33,6 +35,9 @@ export default async function AdminPage() {
     { label: "Deliveries to approve", value: stats.deliveriesToApprove, href: "/admin/deals?filter=admin_verifying" },
     { label: "Payouts to send", value: stats.payoutsToSend, href: "/admin/deals?filter=completed" },
     { label: "Buyers gone quiet", value: stats.buyersGoneQuiet, href: "/admin/deals?filter=claiming" },
+    // Not a status filter: a stalled code can sit on a released deal or a
+    // claiming one, so it gets its own list below.
+    { label: "Sellers owing a code", value: stats.codesAwaitingSeller, href: "#codes" },
   ];
 
   const context = [
@@ -51,7 +56,7 @@ export default async function AdminPage() {
       <AdminNav current="hub" />
 
       <h2 className="mb-3 text-sm font-semibold">Waiting on you</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {queues.map((stat) => (
           <Link key={stat.label} href={stat.href} className="block">
             <Card className="p-4 transition-colors hover:border-emerald-500/40">
@@ -74,6 +79,39 @@ export default async function AdminPage() {
           </Link>
         ))}
       </div>
+
+      {stalledCodes.length > 0 ? (
+        <section id="codes" className="mt-8 scroll-mt-4">
+          <h2 className="mb-1 text-sm font-semibold">Buyers waiting on a Konami code</h2>
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            The buyer has paid and cannot finish the transfer. Only the seller can answer — chase
+            them, oldest first.
+          </p>
+          <ul className="space-y-2">
+            {stalledCodes.map((request) => (
+              <li key={request.id}>
+                <Link href={`/admin/deals/${request.deal.id}`} className="block">
+                  <Card className="p-4 transition-colors hover:border-emerald-500/40">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-mono text-sm">{request.deal.reference}</span>
+                      <span className="text-xs text-amber-300">
+                        asked {request.requestedAt.toLocaleString("en-GB")}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {request.deal.buyer?.displayName ?? "—"} is waiting on{" "}
+                      {request.deal.seller?.displayName ?? "—"}
+                    </p>
+                    {request.requestNote ? (
+                      <p className="mt-1.5 text-sm">{request.requestNote}</p>
+                    ) : null}
+                  </Card>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mt-8 mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Needs your attention</h2>

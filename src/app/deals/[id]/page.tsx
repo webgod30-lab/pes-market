@@ -16,6 +16,8 @@ import { CredentialsPanel } from "@/components/credentials-panel";
 import { ConfirmClaimForm } from "@/components/confirm-claim-form";
 import { revealForBuyerAction } from "@/app/actions/payment-actions";
 import { listMessages } from "@/lib/messages";
+import { listTransferCodes, CODE_EXCHANGE_STATUSES } from "@/lib/transfer-codes";
+import { TransferCodePanel } from "@/components/transfer-code-panel";
 import { getDisputeForDeal, DISPUTABLE_STATUSES } from "@/lib/disputes";
 import { getReputation, getReviewsForDeal, hasReviewed } from "@/lib/reviews";
 import { DealChat } from "@/components/deal-chat";
@@ -64,7 +66,7 @@ export default async function DealPage({
   // Who the reader is dealing with, and how they have behaved before.
   const counterparty = role === "seller" ? deal.buyer : deal.seller;
 
-  const [messages, dispute, reviews, counterpartyReputation, alreadyReviewed] = await Promise.all([
+  const [messages, dispute, reviews, counterpartyReputation, alreadyReviewed, transferCodes] = await Promise.all([
     listMessages(deal.id, auth.user),
     getDisputeForDeal(deal.id),
     deal.status === "completed" ? getReviewsForDeal(deal.id) : Promise.resolve([]),
@@ -72,6 +74,9 @@ export default async function DealPage({
     deal.status === "completed" && isParty
       ? hasReviewed(deal.id, auth.user.id)
       : Promise.resolve(true),
+    CODE_EXCHANGE_STATUSES.includes(deal.status)
+      ? listTransferCodes(deal.id, auth.user)
+      : Promise.resolve(null),
   ]);
 
   const canDispute = isParty && DISPUTABLE_STATUSES.includes(deal.status);
@@ -169,6 +174,19 @@ export default async function DealPage({
       <div className="mt-3">
         <NextStep deal={deal} role={role} paymentMethods={paymentMethods} />
       </div>
+
+      {/* --- publisher verification codes, during the handover --- */}
+      {transferCodes ? (
+        <Card className="mt-3">
+          <h2 className="text-sm font-semibold">Konami verification codes</h2>
+          <p className="mt-1 mb-4 text-xs text-[var(--muted)]">
+            Changing the email on the account makes Konami send a code to the address still on file —
+            the seller&apos;s. The buyer cannot finish the transfer without it, so it gets passed
+            here rather than in chat, where it is on the record.
+          </p>
+          <TransferCodePanel dealId={deal.id} codes={transferCodes} role={role} />
+        </Card>
+      ) : null}
 
       {/* --- the dispute, if there is one --- */}
       {dispute ? (

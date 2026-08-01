@@ -115,6 +115,8 @@ model User {
   verifiedCredentials Credential[] @relation("CredentialVerifier")
 
   messages         Message[]
+  codesRequested   TransferCode[] @relation("CodeRequester")
+  codesProvided    TransferCode[] @relation("CodeProvider")
   reviewsWritten   Review[]  @relation("ReviewAuthor")
   reviewsReceived  Review[]  @relation("ReviewSubject")
   disputesOpened   Dispute[] @relation("DisputeOpener")
@@ -223,6 +225,7 @@ model Deal {
   reviews            Review[]
   disputes           Dispute[]
   paymentIntents     PaymentIntent[]
+  transferCodes      TransferCode[]
 
   @@index([status])
   @@index([sellerId, status])
@@ -348,6 +351,44 @@ model Credential {
 
   deal           Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
   lastVerifiedBy User? @relation("CredentialVerifier", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------
+// TransferCode — the publisher's verification code, passed seller to buyer
+// ---------------------------------------------------------------------------
+
+/// Handing over a game account is not finished when the login changes hands.
+/// Changing the email on an eFootball account makes Konami send a verification
+/// code to the address currently on file — the SELLER's address. The buyer
+/// physically cannot complete the transfer without it.
+///
+/// So this is a request the buyer raises and the seller fills in. There can be
+/// several per deal, because the publisher sends a fresh code for each attempt
+/// and codes expire quickly.
+///
+/// The code itself is encrypted: while it is live it grants access to the
+/// account, so it is treated exactly like the credentials.
+model TransferCode {
+  id     String @id @default(cuid())
+  dealId String
+
+  /// What the buyer is stuck on, e.g. "Konami sent a code to the account email".
+  requestNote   String?
+  requestedById String
+  requestedAt   DateTime @default(now())
+
+  /// Null until the seller supplies it. Format matches src/lib/crypto.ts.
+  ciphertext    String?   @db.Text
+  providedById  String?
+  providedAt    DateTime?
+
+  deal        Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  requestedBy User  @relation("CodeRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  providedBy  User? @relation("CodeProvider", fields: [providedById], references: [id], onDelete: SetNull)
+
+  @@index([dealId, requestedAt])
+  // Finding requests nobody has answered yet.
+  @@index([providedAt])
 }
 
 // ---------------------------------------------------------------------------
