@@ -51,6 +51,90 @@ export async function getReputation(userId: string): Promise<Reputation> {
   };
 }
 
+/**
+ * Reputation for many people at once, in a fixed number of queries.
+ *
+ * The admin user list needs a reputation per row. Calling getReputation() in a
+ * loop meant four queries per user — 400 on a hundred-row page, which is slow
+ * on a good database and fatal on a small one. This does three queries
+ * regardless of how many users are asked for.
+ */
+export async function getReputationsFor(userIds: string[]): Promise<Map<string, Reputation>> {
+  const empty = (): Reputation => ({
+    count: 0,
+    average: null,
+    completedSales: 0,
+    completedPurchases: 0,
+    asSeller: { count: 0, average: null },
+    asBuyer: { count: 0, average: null },
+  });
+
+  const result = new Map<string, Reputation>(userIds.map((id) => [id, empty()]));
+
+  if (userIds.length === 0) return result;
+
+  const [reviewRows, sales, purchases] = await Promise.all([
+    // Sum and count rather than avg, so the overall average can be recombined
+    // across sides exactly instead of averaging two averages.
+    prisma.review.groupBy({
+      by: ["subjectId", "subjectSide"],
+      where: { subjectId: { in: userIds } },
+      _sum: { rating: true },
+      _count: { _all: true },
+    }),
+    prisma.deal.groupBy({
+      by: ["sellerId"],
+      where: { sellerId: { in: userIds }, status: "completed" },
+      _count: { _all: true },
+    }),
+    prisma.deal.groupBy({
+      by: ["buyerId"],
+      where: { buyerId: { in: userIds }, status: "completed" },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const totals = new Map<string, { sum: number; count: number }>();
+
+  for (const row of reviewRows) {
+    const rep = result.get(row.subjectId);
+    if (!rep) continue;
+
+    const count = row._count._all;
+    const sum = row._sum.rating ?? 0;
+    const side = row.subjectSide === "seller" ? rep.asSeller : rep.asBuyer;
+
+    side.count = count;
+    side.average = count > 0 ? sum / count : null;
+
+    const running = totals.get(row.subjectId) ?? { sum: 0, count: 0 };
+    running.sum += sum;
+    running.count += count;
+    totals.set(row.subjectId, running);
+  }
+
+  for (const [id, { sum, count }] of totals) {
+    const rep = result.get(id);
+    if (!rep) continue;
+    rep.count = count;
+    rep.average = count > 0 ? sum / count : null;
+  }
+
+  for (const row of sales) {
+    if (!row.sellerId) continue;
+    const rep = result.get(row.sellerId);
+    if (rep) rep.completedSales = row._count._all;
+  }
+
+  for (const row of purchases) {
+    if (!row.buyerId) continue;
+    const rep = result.get(row.buyerId);
+    if (rep) rep.completedPurchases = row._count._all;
+  }
+
+  return result;
+}
+
 export type ReviewView = {
   id: string;
   rating: number;

@@ -19,6 +19,7 @@
     "make:admin": "tsx scripts/make-admin.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "test:guards": "tsx scripts/check-deal-guards.ts",
+    "test:load": "tsx scripts/load-test.ts",
     "reminders": "tsx scripts/send-reminders.ts",
     "simulate:payment": "tsx scripts/simulate-payment.ts",
     "generate:key": "node -e \"console.log(require('node:crypto').randomBytes(32).toString('hex'))\""

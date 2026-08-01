@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { requireUserOrProblem } from "@/lib/dal";
 import { listUsersForAdmin } from "@/lib/admin";
-import { getReputation } from "@/lib/reviews";
+import { getReputationsFor } from "@/lib/reviews";
 import { AdminNav } from "@/components/admin-nav";
 import { BanUserForm, UnbanUserForm } from "@/components/user-moderation";
 import { ReputationLine } from "@/components/reputation";
@@ -24,8 +24,8 @@ export default async function AdminUsersPage({
 
   const users = await listUsersForAdmin(search);
 
-  // Reputation per user, so you can see a track record before judging someone.
-  const reputations = await Promise.all(users.map((user) => getReputation(user.id)));
+  // Reputation for every row in three queries, not four per row.
+  const reputations = await getReputationsFor(users.map((user) => user.id));
 
   return (
     <div>
@@ -63,7 +63,7 @@ export default async function AdminUsersPage({
         <EmptyState>Nobody matches.</EmptyState>
       ) : (
         <ul className="space-y-2">
-          {users.map((user, index) => (
+          {users.map((user) => (
             <li key={user.id}>
               <Card className={user.isBanned ? "border-red-500/30" : ""}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -82,7 +82,7 @@ export default async function AdminUsersPage({
                     <p className="mt-1 text-xs text-[var(--muted)]">{user.email}</p>
 
                     <div className="mt-1">
-                      <ReputationLine reputation={reputations[index]} />
+                      <ReputationLine reputation={reputations.get(user.id)!} />
                     </div>
 
                     <p className="mt-1 text-xs text-[var(--muted)]">
