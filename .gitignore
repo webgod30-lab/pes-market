@@ -32,8 +32,6 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-# ...but the template must be committed so others know what to fill in.
-!.env.example
 
 # Prisma client is generated from schema.prisma by `npm run db:generate`
 # (also runs automatically on `npm install`).
@@ -48,3 +46,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*
+
+# ...but the template must be committed so others know what to fill in.
+# This negation has to come after every .env* rule above, including the ones
+# `vercel link` appends — gitignore takes the LAST matching rule.
+!.env.example
