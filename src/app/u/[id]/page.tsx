@@ -5,6 +5,9 @@ import { getPublicProfile } from "@/lib/reviews";
 import { ReputationLine, Stars } from "@/components/reputation";
 import { Card, EmptyState, PageHeading } from "@/components/ui";
 
+/** Per request, not prerendered — see the note in /reviews. */
+export const dynamic = "force-dynamic";
+
 /**
  * A public record for one trader.
  *

@@ -21,7 +21,7 @@ export const SITE = {
    * escrow funds, and the data controller named in the privacy policy, so a
    * borrowed or invented name is not a placeholder problem but a legal one.
    */
-  operator: "[Your name or company]",
+  operator: "Pes Escrow WORKS-LLC",
 
   /** Where the service is operated from. Determines which privacy law applies. */
   jurisdiction: "Dubai, United Arab Emirates",

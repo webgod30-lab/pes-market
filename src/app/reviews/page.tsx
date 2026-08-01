@@ -4,6 +4,15 @@ import { getTrustStats, listPublicReviews } from "@/lib/reviews";
 import { Stars } from "@/components/reputation";
 import { Card, EmptyState, PageHeading } from "@/components/ui";
 
+/**
+ * Rendered per request, not prerendered at build.
+ *
+ * This page reads the database but uses no dynamic API, so Next would otherwise
+ * try to bake it at build time — which fails the whole deploy if the database
+ * happens to be asleep (Neon scales to zero). Reviews should be current anyway.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Reviews — PES Escrow",
   description:

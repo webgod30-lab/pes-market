@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getCurrentUserQuietly } from "@/lib/dal";
 import { signOutAction } from "@/app/actions/auth-actions";
 import { MobileMenu } from "@/components/mobile-menu";
+import { LogoLink } from "@/components/logo";
 import { Badge, Button, ButtonLink } from "@/components/ui";
 
 /** Shown to everyone, in both the desktop bar and the mobile sheet. */
@@ -18,14 +19,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
-        <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
-          <span className="grid size-7 place-items-center rounded-md bg-emerald-500 text-sm font-bold text-emerald-950">
-            P
-          </span>
-          <span className="text-sm sm:text-base">
-            PES<span className="text-emerald-400">Escrow</span>
-          </span>
-        </Link>
+        <LogoLink size={28} />
 
         {/* Desktop navigation. Hidden on phones, where the sheet takes over. */}
         <nav className="hidden items-center gap-1 text-sm md:flex">

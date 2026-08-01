@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { LogoLink } from "@/components/logo";
 import { SITE } from "@/lib/site";
 
 const COLUMNS = [
@@ -38,14 +39,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-              <span className="grid size-7 place-items-center rounded-md bg-emerald-500 text-sm font-bold text-emerald-950">
-                P
-              </span>
-              <span>
-                PES<span className="text-emerald-400">Escrow</span>
-              </span>
-            </Link>
+            <LogoLink size={28} />
             <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
               {SITE.tagline}. We hold the account and the money until both sides are proven — so
               whoever goes first is not the one taking the risk.

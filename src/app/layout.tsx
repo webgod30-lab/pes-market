@@ -5,6 +5,9 @@ import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  // Without this, the social preview image resolves against localhost and the
+  // card breaks everywhere the link is shared. AUTH_URL is the deployed origin.
+  metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
   title: "PES Escrow — trusted third party for account trades",
   description:
     "Already agreed a price for an eFootball / PES account? Trade it safely: the account is held encrypted, the money is held in escrow, and neither moves until the trade works.",
