@@ -34,7 +34,7 @@ export function ReviewForm({
                 className="sr-only"
               />
               <span
-                className={`text-2xl ${value <= rating ? "text-amber-300" : "text-[var(--border)]"}`}
+                className={`text-2xl ${value <= rating ? "text-[var(--tone-warning)]" : "text-[var(--border)]"}`}
                 aria-label={`${value} star${value === 1 ? "" : "s"}`}
               >
                 ★
@@ -43,7 +43,7 @@ export function ReviewForm({
           ))}
         </div>
         {state?.fieldErrors?.rating ? (
-          <p className="mt-1.5 text-xs text-red-400">{state.fieldErrors.rating}</p>
+          <p className="mt-1.5 text-xs text-[var(--tone-danger)]">{state.fieldErrors.rating}</p>
         ) : null}
       </fieldset>
 

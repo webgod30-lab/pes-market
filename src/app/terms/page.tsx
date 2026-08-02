@@ -42,7 +42,7 @@ export default function TermsPage() {
           We do not sell, list, advertise or broker game accounts. We are not party to your agreement
           with the other person; we hold and release what you both place with us according to the
           process described in{" "}
-          <Link href="/how-it-works" className="text-emerald-400 hover:underline">
+          <Link href="/how-it-works" className="text-[var(--accent)] hover:underline">
             How it works
           </Link>
           .
@@ -149,7 +149,7 @@ export default function TermsPage() {
         </p>
         <p>
           Questions:{" "}
-          <Link href="/contact" className="text-emerald-400 hover:underline">
+          <Link href="/contact" className="text-[var(--accent)] hover:underline">
             contact us
           </Link>
           .

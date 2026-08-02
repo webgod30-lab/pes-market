@@ -33,8 +33,8 @@ export function Notice({ children, tone = "warning" }: { children: ReactNode; to
     <div
       className={`rounded-lg border px-4 py-3 text-sm ${
         tone === "warning"
-          ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-          : "border-sky-500/30 bg-sky-500/10 text-sky-200"
+          ? "border-amber-500/30 bg-amber-500/10 text-[var(--tone-warning)]"
+          : "border-sky-500/30 bg-sky-500/10 text-[var(--tone-info)]"
       }`}
     >
       {children}

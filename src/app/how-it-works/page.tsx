@@ -137,7 +137,7 @@ export default function HowItWorksPage() {
 
       <p className="mt-6 text-xs text-[var(--muted)]">
         Still unsure?{" "}
-        <Link href="/contact" className="text-emerald-400 hover:underline">
+        <Link href="/contact" className="text-[var(--accent)] hover:underline">
           Get in touch
         </Link>{" "}
         before you send anything.

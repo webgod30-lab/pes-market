@@ -48,7 +48,7 @@ export default function ContactPage() {
         </p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Open the deal from{" "}
-          <Link href="/dashboard" className="text-emerald-400 hover:underline">
+          <Link href="/dashboard" className="text-[var(--accent)] hover:underline">
             your deals
           </Link>{" "}
           and scroll to Messages.

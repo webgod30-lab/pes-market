@@ -47,7 +47,7 @@ export function LoginForm({ next }: { next?: string }) {
 
       <p className="text-center text-sm text-[var(--muted)]">
         No account yet?{" "}
-        <Link href="/register" className="text-emerald-400 hover:underline">
+        <Link href="/register" className="text-[var(--accent)] hover:underline">
           Create one
         </Link>
       </p>

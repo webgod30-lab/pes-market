@@ -26,7 +26,7 @@ export default async function PaymentMethodsPage() {
 
       <AdminNav current="payments" />
 
-      <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200">
+      <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
         The seeded addresses are placeholders. Replace them with your own before taking real money —
         a buyer paying a placeholder address loses their funds permanently.
       </div>
@@ -47,7 +47,7 @@ export default async function PaymentMethodsPage() {
       </Card>
 
       <p className="mt-6 text-center text-xs text-[var(--muted)]">
-        <Link href="/admin" className="text-emerald-400 hover:underline">
+        <Link href="/admin" className="text-[var(--accent)] hover:underline">
           Back to the admin console
         </Link>
       </p>

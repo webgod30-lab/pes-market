@@ -33,7 +33,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
           <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Overall</p>
-          <p className="mt-2 text-2xl font-semibold text-amber-300">
+          <p className="mt-2 text-2xl font-semibold text-[var(--tone-warning)]">
             {reputation.average ? `${reputation.average.toFixed(1)} ★` : "—"}
           </p>
           <p className="mt-1 text-xs text-[var(--muted)]">
@@ -96,7 +96,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       )}
 
       <p className="mt-6 text-center text-xs text-[var(--muted)]">
-        <Link href="/reviews" className="text-emerald-400 hover:underline">
+        <Link href="/reviews" className="text-[var(--accent)] hover:underline">
           All reviews
         </Link>
       </p>

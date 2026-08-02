@@ -43,7 +43,7 @@ export function LogoLockup({
     <span className={`flex shrink-0 items-center gap-2 font-semibold tracking-tight ${className}`}>
       <LogoMark size={size} />
       <span>
-        PES<span className="text-emerald-400">Escrow</span>
+        PES<span className="text-[var(--accent)]">Escrow</span>
       </span>
     </span>
   );

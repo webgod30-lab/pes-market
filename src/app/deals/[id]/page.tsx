@@ -160,7 +160,7 @@ export default async function DealPage({
             </div>
             <div className="flex justify-between border-t border-[var(--border)] pt-1.5">
               <dt className="text-[var(--muted)]">Seller receives</dt>
-              <dd className="font-semibold text-emerald-400">
+              <dd className="font-semibold text-[var(--accent)]">
                 {formatCents(deal.sellerPayoutCents, deal.currency)}
               </dd>
             </div>
@@ -294,7 +294,7 @@ export default async function DealPage({
       ) : null}
 
       <p className="mt-6 text-center text-xs text-[var(--muted)]">
-        <Link href="/dashboard" className="text-emerald-400 hover:underline">
+        <Link href="/dashboard" className="text-[var(--accent)] hover:underline">
           Back to your deals
         </Link>
       </p>
@@ -315,7 +315,7 @@ function Banner({ children, tone }: { children: React.ReactNode; tone: "success"
     <div
       className={`mb-6 rounded-lg border px-3 py-2.5 text-sm ${
         tone === "success"
-          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+          ? "border-emerald-500/30 bg-emerald-500/10 text-[var(--tone-success)]"
           : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]"
       }`}
     >
@@ -463,7 +463,7 @@ function NextStep({
               until you do.
             </p>
             {deal.confirmationDeadline ? (
-              <p className="mt-2 text-xs text-amber-300">
+              <p className="mt-2 text-xs text-[var(--tone-warning)]">
                 Please confirm by {deal.confirmationDeadline.toLocaleString("en-GB")}. If you go
                 quiet, the admin will chase you.
               </p>
@@ -513,7 +513,7 @@ function NextStep({
               : ""}
           </p>
           {deal.payoutAt ? (
-            <p className="mt-2 text-xs text-emerald-300">
+            <p className="mt-2 text-xs text-[var(--tone-success)]">
               Payout sent {deal.payoutAt.toLocaleDateString("en-GB")}
               {deal.payoutReference ? ` · ref ${deal.payoutReference}` : ""}
             </p>
@@ -593,7 +593,7 @@ function PaymentReceipt({ deal }: { deal: DealView }) {
       {deal.paymentConfirmedAt ? (
         <div className="flex justify-between gap-4">
           <dt className="text-[var(--muted)]">Confirmed by admin</dt>
-          <dd className="text-emerald-300">{deal.paymentConfirmedAt.toLocaleString("en-GB")}</dd>
+          <dd className="text-[var(--tone-success)]">{deal.paymentConfirmedAt.toLocaleString("en-GB")}</dd>
         </div>
       ) : null}
     </dl>

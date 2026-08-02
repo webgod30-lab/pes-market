@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         </Card>
         <Card>
           <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Unread messages</p>
-          <p className={`mt-2 text-2xl font-semibold ${unread > 0 ? "text-amber-300" : ""}`}>
+          <p className={`mt-2 text-2xl font-semibold ${unread > 0 ? "text-[var(--tone-warning)]" : ""}`}>
             {unread}
           </p>
         </Card>
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
 
       <p className="mt-6 text-xs text-[var(--muted)]">
         Open a deal to see how it works, or{" "}
-        <Link href="/" className="text-emerald-400 hover:underline">
+        <Link href="/" className="text-[var(--accent)] hover:underline">
           read how a trade works
         </Link>
         .

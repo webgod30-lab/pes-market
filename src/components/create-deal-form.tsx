@@ -59,7 +59,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
           ))}
         </div>
         {state?.fieldErrors?.side ? (
-          <p className="mt-1.5 text-xs text-red-400">{state.fieldErrors.side}</p>
+          <p className="mt-1.5 text-xs text-[var(--tone-danger)]">{state.fieldErrors.side}</p>
         ) : null}
       </fieldset>
 
@@ -151,7 +151,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
             </div>
             <div className="flex justify-between border-t border-[var(--border)] pt-1.5">
               <dt className="text-[var(--muted)]">Seller receives</dt>
-              <dd className="font-semibold text-emerald-400">
+              <dd className="font-semibold text-[var(--accent)]">
                 {formatCents(split.sellerPayoutCents)}
               </dd>
             </div>

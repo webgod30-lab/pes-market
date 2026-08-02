@@ -78,7 +78,7 @@ export function SiteFooter() {
             Game publishers generally prohibit selling or transferring accounts, and can suspend a
             traded account. Escrow protects you from the other person in the trade — not from the
             publisher. See the{" "}
-            <Link href="/terms" className="text-emerald-400 hover:underline">
+            <Link href="/terms" className="text-[var(--accent)] hover:underline">
               terms
             </Link>{" "}
             before you trade.

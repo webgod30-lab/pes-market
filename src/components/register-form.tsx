@@ -75,7 +75,7 @@ export function RegisterForm() {
 
       <p className="text-center text-sm text-[var(--muted)]">
         Already registered?{" "}
-        <Link href="/login" className="text-emerald-400 hover:underline">
+        <Link href="/login" className="text-[var(--accent)] hover:underline">
           Sign in
         </Link>
       </p>

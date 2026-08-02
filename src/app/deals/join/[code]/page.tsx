@@ -33,7 +33,7 @@ export default async function JoinByCodePage({
           </p>
           <p className="mt-3 text-sm text-[var(--muted)]">
             Ask the other person to check it, or{" "}
-            <Link href="/deals/join" className="text-emerald-400 hover:underline">
+            <Link href="/deals/join" className="text-[var(--accent)] hover:underline">
               paste a different code
             </Link>
             .
@@ -97,7 +97,7 @@ export default async function JoinByCodePage({
           </div>
           <div className="flex justify-between">
             <dt className="text-[var(--muted)]">Seller receives</dt>
-            <dd className="font-semibold text-emerald-400">
+            <dd className="font-semibold text-[var(--accent)]">
               {formatCents(invite.sellerPayoutCents, invite.currency)}
             </dd>
           </div>

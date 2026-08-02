@@ -63,12 +63,12 @@ export function DealChat({
                   {message.mine ? "You" : message.sender.displayName}
                 </span>
                 {message.sender.role === "admin" ? (
-                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 text-[10px] text-[var(--tone-warning)]">
                     admin
                   </span>
                 ) : null}
                 {message.isAdminNote ? (
-                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 text-[10px] text-[var(--tone-warning)]">
                     internal note — not shown to buyer or seller
                   </span>
                 ) : null}

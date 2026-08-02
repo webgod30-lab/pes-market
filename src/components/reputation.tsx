@@ -31,7 +31,7 @@ export function ReputationLine({
 
   return (
     <p className="text-xs text-[var(--muted)]">
-      <span className="font-medium text-amber-300">{average?.toFixed(1)} ★</span> from {count} review
+      <span className="font-medium text-[var(--tone-warning)]">{average?.toFixed(1)} ★</span> from {count} review
       {count === 1 ? "" : "s"}
       {dealsSuffix}
     </p>
@@ -41,7 +41,7 @@ export function ReputationLine({
 /** Five stars, filled to the rating. */
 export function Stars({ rating }: { rating: number }) {
   return (
-    <span aria-label={`${rating} out of 5`} className="text-amber-300">
+    <span aria-label={`${rating} out of 5`} className="text-[var(--tone-warning)]">
       {"★".repeat(rating)}
       <span className="text-[var(--border)]">{"★".repeat(5 - rating)}</span>
     </span>

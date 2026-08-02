@@ -149,7 +149,7 @@ export function PaymentMethodForm({
               ))}
             </select>
             {state?.fieldErrors?.provider ? (
-              <p className="mt-1.5 text-xs text-red-400">{state.fieldErrors.provider}</p>
+              <p className="mt-1.5 text-xs text-[var(--tone-danger)]">{state.fieldErrors.provider}</p>
             ) : null}
           </div>
         ) : null}

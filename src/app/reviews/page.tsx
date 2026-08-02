@@ -39,7 +39,7 @@ export default async function ReviewsPage() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Average rating</p>
-          <p className="mt-2 text-2xl font-semibold text-amber-300">
+          <p className="mt-2 text-2xl font-semibold text-[var(--tone-warning)]">
             {stats.averageRating ? `${stats.averageRating.toFixed(1)} ★` : "—"}
           </p>
         </Card>
@@ -87,7 +87,7 @@ export default async function ReviewsPage() {
                   {review.authorName} on{" "}
                   <Link
                     href={`/u/${review.subjectId}`}
-                    className="text-emerald-400 hover:underline"
+                    className="text-[var(--accent)] hover:underline"
                   >
                     {review.subjectName}
                   </Link>{" "}

@@ -298,7 +298,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       ) : null}
 
       <p className="mt-6 text-center text-xs text-[var(--muted)]">
-        <Link href="/admin" className="text-emerald-400 hover:underline">
+        <Link href="/admin" className="text-[var(--accent)] hover:underline">
           Back to the admin console
         </Link>
       </p>

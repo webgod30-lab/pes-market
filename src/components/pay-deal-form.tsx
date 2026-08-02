@@ -32,7 +32,7 @@ export function PayDealForm({
 
   if (methods.length === 0) {
     return (
-      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200">
+      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
         The admin has not set up any payment methods yet. Nothing to pay to — contact them before
         sending anything.
       </p>
@@ -62,7 +62,7 @@ export function PayDealForm({
                 <span className="text-xs text-[var(--muted)]">{method.network}</span>
               ) : null}
               {method.isAutomatic ? (
-                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] text-sky-300">
+                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 text-[10px] text-[var(--tone-info)]">
                   confirmed automatically
                 </span>
               ) : null}
@@ -73,7 +73,7 @@ export function PayDealForm({
 
       <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
         <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Send exactly</p>
-        <p className="mt-1 text-2xl font-semibold text-emerald-300">{amountLabel}</p>
+        <p className="mt-1 text-2xl font-semibold text-[var(--tone-success)]">{amountLabel}</p>
       </div>
 
       {selected?.isAutomatic ? (
@@ -108,7 +108,7 @@ function AutomaticPayment({ dealId, method }: { dealId: string; method: PaymentM
           {state.redirectUrl ? (
             <a
               href={state.redirectUrl}
-              className="mt-2 inline-block text-sm text-emerald-400 hover:underline"
+              className="mt-2 inline-block text-sm text-[var(--accent)] hover:underline"
             >
               Continue to the payment page →
             </a>

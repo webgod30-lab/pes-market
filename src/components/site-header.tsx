@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getCurrentUserQuietly } from "@/lib/dal";
 import { signOutAction } from "@/app/actions/auth-actions";
 import { MobileMenu } from "@/components/mobile-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoLink } from "@/components/logo";
 import { Badge, Button, ButtonLink } from "@/components/ui";
 
@@ -35,6 +36,10 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Outside the Suspense boundaries below: switching theme must not
+              wait on a database round trip. */}
+          <ThemeToggle />
+
           {/* Session lookup hits the database, so it streams in separately
               instead of delaying the whole header. */}
           <Suspense

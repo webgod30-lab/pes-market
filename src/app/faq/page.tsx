@@ -162,7 +162,7 @@ function buildFaqs(feeLabel: string, feeOn: boolean): { group: string; items: Fa
           a: (
             <>
               Check their record before you join — the invite shows their rating, and{" "}
-              <Link href="/reviews" className="text-emerald-400 hover:underline">
+              <Link href="/reviews" className="text-[var(--accent)] hover:underline">
                 every review is public
               </Link>
               . Both sides review each other, so a buyer who never pays is as visible as a bad seller.
@@ -233,7 +233,7 @@ export default function FaqPage() {
 
       <p className="mt-10 text-sm text-[var(--muted)]">
         Not answered here?{" "}
-        <Link href="/contact" className="text-emerald-400 hover:underline">
+        <Link href="/contact" className="text-[var(--accent)] hover:underline">
           Contact us
         </Link>
         .

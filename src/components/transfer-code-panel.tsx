@@ -43,7 +43,7 @@ export function TransferCodePanel({
       ) : null}
 
       {role === "admin" && pending ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200">
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
           The buyer is waiting on the seller for a code. This is the usual reason a claim stalls.
         </p>
       ) : null}
@@ -64,11 +64,11 @@ export function TransferCodePanel({
                   {entry.requestedByName} asked · {entry.requestedAt.toLocaleString("en-GB")}
                 </span>
                 {entry.providedAt ? (
-                  <span className="text-emerald-300">
+                  <span className="text-[var(--tone-success)]">
                     answered {entry.providedAt.toLocaleString("en-GB")}
                   </span>
                 ) : (
-                  <span className="text-amber-300">waiting on the seller</span>
+                  <span className="text-[var(--tone-warning)]">waiting on the seller</span>
                 )}
               </div>
 
@@ -120,7 +120,7 @@ function BuyerSide({ dealId, pending }: { dealId: string; pending: boolean }) {
 
   if (pending) {
     return (
-      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200">
+      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
         Waiting on the seller to send the code. If they go quiet, open a dispute — your money is still
         held and has not gone anywhere.
       </p>
@@ -171,7 +171,7 @@ function SellerSide({
       <input type="hidden" name="dealId" value={dealId} />
       <input type="hidden" name="requestId" value={requestId} />
 
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200">
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
         <strong>The buyer is waiting on you.</strong> Konami has sent a verification code to the email
         that is still on the account — your inbox. Paste it below.
         {note ? <p className="mt-1.5 text-amber-100/80">&ldquo;{note}&rdquo;</p> : null}

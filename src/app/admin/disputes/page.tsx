@@ -44,7 +44,7 @@ export default async function AdminDisputesPage({
           href="/admin/disputes"
           className={`rounded-full border px-3 py-1 text-xs ${
             onlyOpen
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+              ? "border-emerald-500/40 bg-emerald-500/10 text-[var(--tone-success)]"
               : "border-[var(--border)] text-[var(--muted)]"
           }`}
         >
@@ -54,7 +54,7 @@ export default async function AdminDisputesPage({
           href="/admin/disputes?show=all"
           className={`rounded-full border px-3 py-1 text-xs ${
             !onlyOpen
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+              ? "border-emerald-500/40 bg-emerald-500/10 text-[var(--tone-success)]"
               : "border-[var(--border)] text-[var(--muted)]"
           }`}
         >

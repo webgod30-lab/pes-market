@@ -91,7 +91,7 @@ export default async function AdminUsersPage({
                     </p>
 
                     {user.isBanned && user.banReason ? (
-                      <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+                      <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-[var(--tone-danger)]">
                         Banned {user.bannedAt?.toLocaleDateString("en-GB")}: {user.banReason}
                       </p>
                     ) : null}

@@ -1,7 +1,13 @@
 @import "tailwindcss";
 
-/* Dark marketplace theme. Emerald reads as "safe / verified", which is the
-   whole promise of an escrow marketplace. */
+/* Two palettes. Emerald reads as "safe / verified" in both, which is the whole
+   promise of an escrow service.
+
+   Dark is the default: it is what a signed-out visitor sees if their device
+   expresses no preference, and it is what this service looked like first.
+   The light palette is not the dark one inverted — on white, the same emerald
+   is too bright to sit under body text, so the accent darkens and the borders
+   lighten. */
 :root {
   --background: #0b0f14;
   --surface: #121821;
@@ -9,6 +15,94 @@
   --border: #263140;
   --foreground: #e7edf4;
   --muted: #94a3b8;
+  /* Accent that text can sit on. Separate from the emerald-500 fills, which
+     are identical in both themes because they always carry dark text. */
+  --accent: #34d399;
+  --accent-strong: #6ee7b7;
+  /* Texture. Both are drawn over --background, so they invert with it. */
+  --grid-line: rgba(255, 255, 255, 0.045);
+  --grid-dot: rgba(255, 255, 255, 0.07);
+  --glow-1: rgba(52, 211, 153, 0.16);
+  --glow-2: rgba(56, 189, 248, 0.1);
+  /* Ring shadow used instead of heavy drop shadows. */
+  --ring: rgba(255, 255, 255, 0.06);
+  --tone-neutral: #cbd5e1;
+  --tone-success: #6ee7b7;
+  --tone-warning: #fcd34d;
+  --tone-danger: #fca5a5;
+  --tone-info: #7dd3fc;
+  color-scheme: dark;
+}
+
+/* The visitor's system preference, when they have not chosen for themselves. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --background: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --border: #e2e8f0;
+    --foreground: #020817;
+    --muted: #64748b;
+    --accent: #047857;
+    --accent-strong: #065f46;
+    --grid-line: rgba(2, 8, 23, 0.04);
+    --grid-dot: rgba(2, 8, 23, 0.06);
+    --glow-1: rgba(16, 185, 129, 0.12);
+    --glow-2: rgba(56, 189, 248, 0.08);
+    --ring: rgba(2, 8, 23, 0.05);
+    --tone-neutral: #475569;
+    --tone-success: #047857;
+    --tone-warning: #b45309;
+    --tone-danger: #b91c1c;
+    --tone-info: #0369a1;
+    color-scheme: light;
+  }
+}
+
+/* An explicit choice always wins over the system preference, in both
+   directions — a visitor on a light device who picks dark must get dark. */
+:root[data-theme="light"] {
+  --background: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e2e8f0;
+  --foreground: #020817;
+  --muted: #64748b;
+  --accent: #047857;
+  --accent-strong: #065f46;
+  --grid-line: rgba(2, 8, 23, 0.04);
+  --grid-dot: rgba(2, 8, 23, 0.06);
+  --glow-1: rgba(16, 185, 129, 0.12);
+  --glow-2: rgba(56, 189, 248, 0.08);
+  --ring: rgba(2, 8, 23, 0.05);
+  --tone-neutral: #475569;
+  --tone-success: #047857;
+  --tone-warning: #b45309;
+  --tone-danger: #b91c1c;
+  --tone-info: #0369a1;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --background: #0b0f14;
+  --surface: #121821;
+  --surface-2: #1a222d;
+  --border: #263140;
+  --foreground: #e7edf4;
+  --muted: #94a3b8;
+  --accent: #34d399;
+  --accent-strong: #6ee7b7;
+  --grid-line: rgba(255, 255, 255, 0.045);
+  --grid-dot: rgba(255, 255, 255, 0.07);
+  --glow-1: rgba(52, 211, 153, 0.16);
+  --glow-2: rgba(56, 189, 248, 0.1);
+  --ring: rgba(255, 255, 255, 0.06);
+  --tone-neutral: #cbd5e1;
+  --tone-success: #6ee7b7;
+  --tone-warning: #fcd34d;
+  --tone-danger: #fca5a5;
+  --tone-info: #7dd3fc;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -18,6 +112,7 @@
   --color-border-subtle: var(--border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-accent: var(--accent);
   /* System font stack: no network fetch at build time, instant first paint. */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -33,7 +128,49 @@ body {
 /* Visible focus ring for keyboard users on every interactive element. */
 @layer base {
   :focus-visible {
-    outline: 2px solid #34d399;
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Faint graph paper. Purely decorative, so it is masked out at the edges
+     rather than stopping on a hard line. */
+  .texture-grid {
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+
+  .texture-dots {
+    background-image: radial-gradient(var(--grid-dot) 1.4px, transparent 1.4px);
+    background-size: 22px 22px;
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, #000 30%, transparent 100%);
+  }
+
+  /* Brand-coloured wash behind the hero. */
+  .glow-hero {
+    background-image:
+      radial-gradient(circle at 15% 20%, var(--glow-1), transparent 45%),
+      radial-gradient(circle at 85% 10%, var(--glow-2), transparent 40%);
+  }
+
+  /* Hairline ring instead of a drop shadow: reads as crisp on white and does
+     not turn into a dark smudge on the dark theme. */
+  .ring-hairline {
+    box-shadow: 0 0 0 1px var(--ring);
+  }
+}
+
+/* Someone who asks for less motion gets the diagram static, not animated. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

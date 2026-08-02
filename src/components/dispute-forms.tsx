@@ -154,7 +154,7 @@ export function ResolveDisputeForm({
           </label>
         </div>
         {state?.fieldErrors?.outcome ? (
-          <p className="mt-1.5 text-xs text-red-400">{state.fieldErrors.outcome}</p>
+          <p className="mt-1.5 text-xs text-[var(--tone-danger)]">{state.fieldErrors.outcome}</p>
         ) : null}
       </fieldset>
 

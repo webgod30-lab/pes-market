@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { themeBootScript } from "@/components/theme-toggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        {/* Blocking, and deliberately before anything paints: a visitor who
+            chose light must not see a dark frame first. suppressHydrationWarning
+            above is because this script edits <html> before React sees it. */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+      </head>
       {/* overflow-x-hidden is a safety net: a single wide element (a long wallet
           address, a pasted transaction hash) should never make the whole page
           scroll sideways on a phone. */}

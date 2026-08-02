@@ -139,7 +139,7 @@ export default function PrivacyPage() {
           Passwords are hashed, credentials are encrypted, and every action that moves money or
           releases an account is checked against who you are on the server rather than trusted from
           the browser. No system is perfect. If you find a problem, please{" "}
-          <Link href="/contact" className="text-emerald-400 hover:underline">
+          <Link href="/contact" className="text-[var(--accent)] hover:underline">
             tell us
           </Link>{" "}
           rather than exploiting it — we would rather hear it from you.

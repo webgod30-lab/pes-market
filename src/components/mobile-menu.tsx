@@ -76,7 +76,7 @@ export function MobileMenu({
             onClick={() => setOpen(false)}
             className={`rounded-lg px-3 py-3 text-base ${
               pathname === link.href
-                ? "bg-emerald-500/10 font-medium text-emerald-300"
+                ? "bg-emerald-500/10 font-medium text-[var(--tone-success)]"
                 : "text-[var(--foreground)] hover:bg-[var(--surface-2)]"
             }`}
           >

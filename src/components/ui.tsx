@@ -73,12 +73,16 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
   );
 }
 
+// The tints and borders are alpha, so they sit correctly over either
+// background unchanged. Only the text has to change: a -300 shade is legible
+// on the dark surfaces and far too pale on white, so it comes from a variable
+// that each palette sets for itself.
 const TONES = {
-  neutral: "border-slate-500/30 bg-slate-500/10 text-slate-300",
-  success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  warning: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-  danger: "border-red-500/30 bg-red-500/10 text-red-300",
-  info: "border-sky-500/30 bg-sky-500/10 text-sky-300",
+  neutral: "border-slate-500/30 bg-slate-500/10 text-[var(--tone-neutral)]",
+  success: "border-emerald-500/30 bg-emerald-500/10 text-[var(--tone-success)]",
+  warning: "border-amber-500/40 bg-amber-500/10 text-[var(--tone-warning)]",
+  danger: "border-red-500/30 bg-red-500/10 text-[var(--tone-danger)]",
+  info: "border-sky-500/30 bg-sky-500/10 text-[var(--tone-info)]",
 } as const;
 
 export type Tone = keyof typeof TONES;
@@ -105,7 +109,7 @@ export function Field({
       {children}
       {hint && !error ? <p className="mt-1.5 text-xs text-[var(--muted)]">{hint}</p> : null}
       {error ? (
-        <p id={`${name}-error`} className="mt-1.5 text-xs text-red-400">
+        <p id={`${name}-error`} className="mt-1.5 text-xs text-[var(--tone-danger)]">
           {error}
         </p>
       ) : null}
@@ -114,7 +118,7 @@ export function Field({
 }
 
 export const inputClassName =
-  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-slate-500";
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)]";
 
 /** Top-of-form error banner. */
 export function FormError({ message }: { message?: string }) {
@@ -123,7 +127,7 @@ export function FormError({ message }: { message?: string }) {
   return (
     <div
       role="alert"
-      className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300"
+      className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-[var(--tone-danger)]"
     >
       {message}
     </div>

@@ -57,7 +57,7 @@ export default async function AdminDealsPage({
             href={`/admin/deals?filter=${option.value}${search ? `&q=${encodeURIComponent(search)}` : ""}`}
             className={`rounded-full border px-3 py-1 text-xs transition-colors ${
               filter === option.value
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-[var(--tone-success)]"
                 : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
             }`}
           >

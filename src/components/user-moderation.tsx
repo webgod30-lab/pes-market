@@ -35,7 +35,7 @@ export function BanUserForm({
       <input type="hidden" name="userId" value={userId} />
 
       {openDeals > 0 ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-[var(--tone-warning)]">
           {displayName} has {openDeals} deal{openDeals === 1 ? "" : "s"} still in progress. Banning
           does not resolve them — settle or refund those first, or the other party is left waiting.
         </p>
@@ -50,7 +50,7 @@ export function BanUserForm({
         placeholder={`Why is ${displayName} being banned?`}
       />
       {state?.fieldErrors?.reason ? (
-        <p className="text-xs text-red-400">{state.fieldErrors.reason}</p>
+        <p className="text-xs text-[var(--tone-danger)]">{state.fieldErrors.reason}</p>
       ) : null}
 
       <div className="flex flex-wrap gap-2">

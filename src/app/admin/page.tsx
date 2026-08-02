@@ -61,7 +61,7 @@ export default async function AdminPage() {
           <Link key={stat.label} href={stat.href} className="block">
             <Card className="p-4 transition-colors hover:border-emerald-500/40">
               <p className="text-xs uppercase tracking-wide text-[var(--muted)]">{stat.label}</p>
-              <p className={`mt-2 text-2xl font-semibold ${stat.value > 0 ? "text-amber-300" : ""}`}>
+              <p className={`mt-2 text-2xl font-semibold ${stat.value > 0 ? "text-[var(--tone-warning)]" : ""}`}>
                 {stat.value}
               </p>
             </Card>
@@ -94,7 +94,7 @@ export default async function AdminPage() {
                   <Card className="p-4 transition-colors hover:border-emerald-500/40">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-mono text-sm">{request.deal.reference}</span>
-                      <span className="text-xs text-amber-300">
+                      <span className="text-xs text-[var(--tone-warning)]">
                         asked {request.requestedAt.toLocaleString("en-GB")}
                       </span>
                     </div>
@@ -115,7 +115,7 @@ export default async function AdminPage() {
 
       <div className="mt-8 mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Needs your attention</h2>
-        <Link href="/admin/deals" className="text-xs text-emerald-400 hover:underline">
+        <Link href="/admin/deals" className="text-xs text-[var(--accent)] hover:underline">
           All deals →
         </Link>
       </div>
