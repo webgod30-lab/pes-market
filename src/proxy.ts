@@ -21,6 +21,18 @@ const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // One canonical host. Session cookies use the __Host- prefix, which binds them
+  // to the exact hostname that set them — so a visitor who signs in on www and
+  // later types the bare domain would look signed out. Collapse the two before
+  // anything reads a cookie.
+  const host = request.headers.get("host");
+
+  if (host?.startsWith("www.")) {
+    const canonical = new URL(request.url);
+    canonical.host = host.slice(4);
+    return NextResponse.redirect(canonical, 308);
+  }
+
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
