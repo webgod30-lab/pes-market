@@ -13,14 +13,7 @@ import { registerSchema, loginSchema } from "@/lib/validation";
 import { fieldErrorsFrom, type FormState } from "@/lib/form-state";
 import { databaseProblemMessage } from "@/lib/db-errors";
 import { clientIp } from "@/lib/client-ip";
-import {
-  clearRateLimit,
-  describeRetryAfter,
-  hitRateLimits,
-  LOGIN_BY_ACCOUNT,
-  LOGIN_BY_IP,
-  REGISTER_BY_IP,
-} from "@/lib/rate-limit";
+import { describeRetryAfter, hitRateLimits, REGISTER_BY_IP } from "@/lib/rate-limit";
 
 /**
  * Only allow relative, single-slash paths as a redirect target, so a crafted
@@ -150,31 +143,11 @@ export async function loginAction(
   // forwards admins to /admin.
   const redirectTo = safeRedirectTarget(formData.get("next"), "/dashboard");
 
-  // Counted before the password is checked, not after it fails. A limiter that
-  // only counts failures lets an attacker who lands an occasional correct guess
-  // keep going forever.
-  const accountKey = `login:email:${email}`;
-
-  try {
-    const limit = await hitRateLimits([
-      { key: accountKey, rule: LOGIN_BY_ACCOUNT },
-      { key: `login:ip:${await clientIp()}`, rule: LOGIN_BY_IP },
-    ]);
-
-    if (!limit.allowed) {
-      // Says nothing about whether the account exists — the same message
-      // appears for an address that was never registered.
-      return {
-        message: `Too many sign-in attempts. Try again in ${describeRetryAfter(limit.retryAfterSeconds)}.`,
-        values: echo,
-      };
-    }
-  } catch (error) {
-    const dbProblem = databaseProblemMessage(error);
-    if (dbProblem) return { message: dbProblem, values: echo };
-    throw error;
-  }
-
+  // Sign-in attempts are NOT counted here. They are counted inside
+  // authorize(), which is the one place both this form and a direct POST to
+  // /api/auth/callback/credentials must pass through. Limiting in both would
+  // double-count every attempt from the form and silently halve the real
+  // limit for the only people using it honestly.
   const totp = String(formData.get("totp") ?? "").trim();
 
   try {
@@ -191,6 +164,15 @@ export async function loginAction(
       if (dbProblem) return { message: dbProblem, values: echo };
 
       const code = secondFactorCode(error);
+
+      if (code === "rate_limited") {
+        // Says nothing about whether the account exists — the same message
+        // appears for an address that was never registered.
+        return {
+          message: "Too many sign-in attempts. Wait a few minutes and try again.",
+          values: echo,
+        };
+      }
 
       if (code === "totp_required") {
         // Password was right. Ask for the code and keep the form filled in.
@@ -247,11 +229,11 @@ function secondFactorCode(error: AuthError): string | null {
 
     const code = (candidate as { code?: unknown }).code;
 
-    if (code === "totp_required" || code === "totp_invalid" || code === "totp_replayed") return code;
+    if (code === "totp_required" || code === "totp_invalid" || code === "totp_replayed" || code === "rate_limited") return code;
 
     const nested = (candidate as { err?: { code?: unknown } }).err?.code;
 
-    if (nested === "totp_required" || nested === "totp_invalid" || nested === "totp_replayed") return nested;
+    if (nested === "totp_required" || nested === "totp_invalid" || nested === "totp_replayed" || nested === "rate_limited") return nested;
   }
 
   return null;

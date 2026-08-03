@@ -15,7 +15,14 @@ import { prisma } from "@/lib/prisma";
 import { equalizeFailedLoginTiming, verifyPassword } from "@/lib/passwords";
 import { loginSchema } from "@/lib/validation";
 import { checkSecondFactor } from "@/lib/totp";
-import { clearRateLimit, hitRateLimit, TOTP_BY_ACCOUNT } from "@/lib/rate-limit";
+import {
+  clearRateLimit,
+  hitRateLimit,
+  hitRateLimits,
+  LOGIN_BY_ACCOUNT,
+  LOGIN_BY_IP,
+  TOTP_BY_ACCOUNT,
+} from "@/lib/rate-limit";
 
 /**
  * Thrown when the password was right but the second factor was not supplied.
@@ -46,6 +53,32 @@ export class SecondFactorReplayed extends CredentialsSignin {
   code = "totp_replayed";
 }
 
+/** Thrown when too many sign-in attempts have been made. */
+export class TooManyAttempts extends CredentialsSignin {
+  code = "rate_limited";
+}
+
+/**
+ * Client address for rate limiting, taken from the request authorize() is
+ * given rather than from next/headers — authorize() runs inside the Auth.js
+ * handler, which is not a request scope next/headers can read.
+ *
+ * Behind Vercel the leftmost x-forwarded-for entry is written by the proxy.
+ * Anywhere else it is forgeable, which is why nothing depends on it alone:
+ * the per-account limit below uses the submitted email, which no header can
+ * influence.
+ */
+function addressOf(request: Request | undefined): string {
+  const forwarded = request?.headers.get("x-forwarded-for");
+
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+
+  return request?.headers.get("x-real-ip")?.trim() || "unknown";
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
@@ -64,7 +97,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
         totp: { label: "Authentication code", type: "text" },
       },
-      async authorize(rawCredentials) {
+      async authorize(rawCredentials, request) {
         const parsed = loginSchema.safeParse(rawCredentials);
 
         if (!parsed.success) return null;
@@ -72,6 +105,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { email, password } = parsed.data;
         const submittedTotp =
           typeof rawCredentials?.totp === "string" ? rawCredentials.totp : undefined;
+
+        // Rate limiting lives HERE, not in the sign-in server action, because
+        // /api/auth/callback/credentials is a public endpoint that reaches
+        // this function without going near the action. Limiting the action
+        // alone protected only people using the form — which is nobody an
+        // attacker cares about.
+        //
+        // Counted before the password is checked. A limiter that only counts
+        // failures lets an attacker who occasionally guesses right keep going
+        // indefinitely.
+        const attemptLimit = await hitRateLimits([
+          { key: `login:email:${email}`, rule: LOGIN_BY_ACCOUNT },
+          { key: `login:ip:${addressOf(request)}`, rule: LOGIN_BY_IP },
+        ]);
+
+        if (!attemptLimit.allowed) throw new TooManyAttempts();
 
         const user = await prisma.user.findUnique({
           where: { email },
