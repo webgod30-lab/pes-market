@@ -20,16 +20,21 @@ function createPrismaClient() {
 
   // Pool settings matter more than they look.
   //
-  // Postgres servers close connections that have been sitting idle — the local
-  // `npm run db:dev` server is aggressive about it, and hosted databases like
-  // Neon suspend entirely. An unconfigured pool happily hands out a socket the
-  // server has already dropped, which surfaces as "Server has closed the
-  // connection" on a perfectly healthy database. Recycling idle connections
-  // quickly means we reconnect instead.
+  // Postgres servers close connections that have been sitting idle — hosted
+  // databases like Neon suspend entirely — and an unconfigured pool happily
+  // hands out a socket the server already dropped, which surfaces as "Server
+  // has closed the connection" on a perfectly healthy database.
+  //
+  // The fix for that is recycling idle connections, but the first attempt set
+  // this to one second, which was far too aggressive: every brief gap between
+  // queries tore a connection down and built a new one, and the local wasm
+  // Postgres fell over under the churn several times an hour. Thirty seconds
+  // is comfortably under every provider's idle cutoff while leaving a normal
+  // page render on a single connection throughout.
   const adapter = new PrismaPg({
     connectionString,
     max: 10,
-    idleTimeoutMillis: 1_000,
+    idleTimeoutMillis: 30_000,
     // Fail fast rather than hanging a page render on an unreachable database.
     connectionTimeoutMillis: 10_000,
     keepAlive: true,

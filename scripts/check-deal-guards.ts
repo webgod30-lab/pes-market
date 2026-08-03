@@ -36,6 +36,7 @@ import {
   listTransferCodes,
   provideTransferCode,
   requestTransferCode,
+  sendTransferCode,
 } from "../src/lib/transfer-codes";
 import type { CurrentUser } from "../src/lib/dal";
 
@@ -574,11 +575,51 @@ async function main() {
   assert.equal(storedCode.ciphertext?.includes("483920"), false);
   ok("the code is encrypted at rest, not stored in the clear");
 
-  // Once settled there is nothing left to verify.
+  // The seller can hand a code over without being asked for one. Before this
+  // existed, a seller holding a code sat looking at "nothing waiting on you"
+  // with no way to send it — the exact stall the feature was built to remove.
+  const unprompted = await sendTransferCode(sami, codeDeal, "550120");
+  assert.equal(unprompted.ok, true);
+
+  const allCodes = (await listTransferCodes(codeDeal, karim))!;
+  const volunteered = allCodes.find((c) => c.code === "550120");
+  assert.ok(volunteered, "the unprompted code should be readable by the buyer");
+  assert.equal(volunteered!.unprompted, true);
+  ok("the seller can send a code without the buyer asking first");
+
+  assert.equal((await sendTransferCode(karim, codeDeal, "111111")).ok, false);
+  assert.equal((await sendTransferCode(admin, codeDeal, "111111")).ok, false);
+  ok("neither the buyer nor the admin can send a code as the seller");
+
+  // An open request is answered rather than duplicated, so the buyer is never
+  // left choosing between two entries.
+  await requestTransferCode(karim, codeDeal, "stuck again");
+  const before = (await listTransferCodes(codeDeal, karim))!.length;
+  assert.equal((await sendTransferCode(sami, codeDeal, "660130")).ok, true);
+  const after = (await listTransferCodes(codeDeal, karim))!;
+  assert.equal(after.length, before);
+  assert.equal(after.find((c) => c.requestNote === "stuck again")?.code, "660130");
+  ok("sending while a request is open answers it instead of adding a second entry");
+
+  // Settling does NOT end the exchange. Konami keeps sending codes after the
+  // buyer confirms, and a completed deal cannot be disputed — so closing the
+  // channel here left the buyer with no route at all.
   await confirmClaimed(karim, codeDeal);
-  const afterSettled = await requestTransferCode(karim, codeDeal, "one more");
-  assert.equal(afterSettled.ok, false);
-  ok("codes cannot be requested once the deal has settled");
+  const settled = await prisma.deal.findUniqueOrThrow({
+    where: { id: codeDeal },
+    select: { status: true },
+  });
+  assert.equal(settled.status, "completed");
+
+  assert.equal((await requestTransferCode(karim, codeDeal, "one more")).ok, true);
+  ok("the buyer can still ask for a code after confirming");
+
+  assert.equal((await sendTransferCode(sami, codeDeal, "770140")).ok, true);
+  assert.equal(
+    (await listTransferCodes(codeDeal, karim))!.some((c) => c.code === "770140"),
+    true,
+  );
+  ok("the seller can still answer after the deal has settled");
 
   console.log(`\n${passed} guard checks passed.`);
 }

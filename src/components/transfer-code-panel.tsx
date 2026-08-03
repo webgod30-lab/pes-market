@@ -31,15 +31,16 @@ export function TransferCodePanel({
     <div className="space-y-4">
       {role === "buyer" ? <BuyerSide dealId={dealId} pending={Boolean(pending)} /> : null}
 
-      {role === "seller" && pending ? (
-        <SellerSide dealId={dealId} requestId={pending.id} note={pending.requestNote} />
-      ) : null}
-
-      {role === "seller" && !pending ? (
-        <p className="text-sm text-[var(--muted)]">
-          Nothing waiting on you. If the buyer hits a verification step, a request will appear here —
-          stay reachable until they confirm.
-        </p>
+      {/* The seller always gets a form. Originally this only appeared once the
+          buyer had raised a request, which meant a seller staring at a code in
+          their inbox had no way to hand it over and was told "nothing waiting
+          on you" instead. */}
+      {role === "seller" ? (
+        <SellerSide
+          dealId={dealId}
+          requestId={pending?.id ?? null}
+          note={pending?.requestNote ?? null}
+        />
       ) : null}
 
       {role === "admin" && pending ? (
@@ -61,7 +62,10 @@ export function TransferCodePanel({
             >
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted)]">
                 <span>
-                  {entry.requestedByName} asked · {entry.requestedAt.toLocaleString("en-GB")}
+                  {entry.unprompted
+                    ? `${entry.requestedByName} sent this`
+                    : `${entry.requestedByName} asked`}{" "}
+                  · {entry.requestedAt.toLocaleString("en-GB")}
                 </span>
                 {entry.providedAt ? (
                   <span className="text-[var(--tone-success)]">
@@ -160,7 +164,8 @@ function SellerSide({
   note,
 }: {
   dealId: string;
-  requestId: string;
+  /** Null when nobody has asked — the seller is sending it unprompted. */
+  requestId: string | null;
   note: string | null;
 }) {
   const [state, formAction, isPending] = useActionState(provideTransferCodeAction, undefined);
@@ -169,13 +174,21 @@ function SellerSide({
     <form action={formAction} className="space-y-3">
       <FormError message={state?.message} />
       <input type="hidden" name="dealId" value={dealId} />
-      <input type="hidden" name="requestId" value={requestId} />
+      {requestId ? <input type="hidden" name="requestId" value={requestId} /> : null}
 
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
-        <strong>The buyer is waiting on you.</strong> Konami has sent a verification code to the email
-        that is still on the account — your inbox. Paste it below.
-        {note ? <p className="mt-1.5 text-amber-100/80">&ldquo;{note}&rdquo;</p> : null}
-      </div>
+      {requestId ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
+          <strong>The buyer is waiting on you.</strong> Konami has sent a verification code to the
+          email that is still on the account — your inbox. Paste it below.
+          {note ? <p className="mt-1.5 opacity-80">&ldquo;{note}&rdquo;</p> : null}
+        </div>
+      ) : (
+        <p className="text-sm text-[var(--muted)]">
+          Konami sends the transfer code to the email still on the account — yours. When one arrives,
+          paste it here straight away. You do not have to wait for the buyer to ask, and it is faster
+          if you do not.
+        </p>
+      )}
 
       <Field
         label="Code from Konami"
@@ -200,7 +213,8 @@ function SellerSide({
 
       <p className="text-xs text-[var(--muted)]">
         You are not paid until the buyer confirms they have the account, and they cannot confirm
-        without this.
+        without these. Konami often sends more than one, so keep checking your inbox until they are
+        through.
       </p>
     </form>
   );

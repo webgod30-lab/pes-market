@@ -55,6 +55,24 @@ function timeStepFrom(result: { valid: true }): number | null {
   return Math.floor(result.epoch / TOTP_PERIOD_SECONDS);
 }
 
+/**
+ * verify(), with a bad argument treated as a failed check rather than a crash.
+ *
+ * This runs inside authorize(), where anything thrown is flattened into a
+ * generic sign-in failure. A library-level validation error there would lock
+ * someone out of their own account and tell them their password was wrong, so
+ * the only safe reading of a rejected input is "this code does not verify".
+ */
+async function verifyQuietly(
+  options: Parameters<typeof verify>[0],
+): Promise<{ valid: false } | Awaited<ReturnType<typeof verify>>> {
+  try {
+    return await verify(options);
+  } catch {
+    return { valid: false };
+  }
+}
+
 function randomRecoveryCode(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(10));
   const chars = Array.from(bytes, (b) => RECOVERY_ALPHABET[b % RECOVERY_ALPHABET.length]);
@@ -221,13 +239,27 @@ export async function checkSecondFactor(
 
   const secret = decryptString(user.totpSecret);
 
-  const result = await verify({
+  // The library rejects an afterTimeStep that sits ahead of the current step,
+  // by throwing rather than returning invalid — and a throw in here surfaces as
+  // a plain "incorrect email or password", locking the account owner out with
+  // no way to work out why.
+  //
+  // A stored step CAN end up ahead of now. The tolerance above accepts a code
+  // one step early, so a phone running slightly fast writes a future step; a
+  // clock correction on the server does the same thing. Clamping keeps the
+  // replay guard doing its job in the normal case and makes the abnormal one
+  // harmless.
+  const currentStep = Math.floor(Date.now() / 1000 / TOTP_PERIOD_SECONDS);
+  const replayGuard =
+    user.totpLastStep === null ? null : Math.min(user.totpLastStep, currentStep);
+
+  const result = await verifyQuietly({
     secret,
     token: code,
     epochTolerance: CLOCK_TOLERANCE_SECONDS,
     // Refuses a code from a step already used, so one seen over a shoulder or
     // captured in a screenshot cannot be replayed while it is still in date.
-    ...(user.totpLastStep === null ? {} : { afterTimeStep: user.totpLastStep }),
+    ...(replayGuard === null ? {} : { afterTimeStep: replayGuard }),
   });
 
   if (!result.valid) {
@@ -235,8 +267,8 @@ export async function checkSecondFactor(
     // who signed in seconds ago, is looking at a code their app still shows as
     // current — telling them it is incorrect sends them checking their clock
     // and their app when all they need to do is wait for the next one.
-    if (user.totpLastStep !== null) {
-      const withoutReplayGuard = await verify({
+    if (replayGuard !== null) {
+      const withoutReplayGuard = await verifyQuietly({
         secret,
         token: code,
         epochTolerance: CLOCK_TOLERANCE_SECONDS,

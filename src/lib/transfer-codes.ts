@@ -17,14 +17,23 @@ import type { DealStatus } from "@/generated/prisma/client";
 export type CodeResult<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
 /**
- * Stages where a code exchange makes sense: the buyer has the credentials and
- * is mid-transfer. Before release there is nothing to verify; once the deal is
- * settled or refunded the exchange is over.
+ * Stages where a code exchange makes sense.
+ *
+ * "completed" is in this list and that is deliberate. Konami does not stop
+ * sending verification codes because the buyer pressed confirm — changing the
+ * password, or the recovery address, or signing in from a new device days
+ * later all trigger another one. Ending the exchange at confirmation stranded
+ * the buyer completely: they could no longer ask for a code, and a completed
+ * deal is not disputable either, so there was no route left at all.
+ *
+ * The seller's reason to keep answering after settlement is that the review is
+ * still to be written.
  */
 export const CODE_EXCHANGE_STATUSES: DealStatus[] = [
   "credentials_released",
   "claiming",
   "disputed",
+  "completed",
 ];
 
 export type TransferCodeView = {
@@ -36,6 +45,11 @@ export type TransferCodeView = {
   code: string | null;
   providedAt: Date | null;
   providedByName: string | null;
+  /**
+   * True when the seller pushed the code without being asked, rather than
+   * answering a request. The two read very differently on the record.
+   */
+  unprompted: boolean;
 };
 
 type Party = { role: "seller" | "buyer" | "admin"; deal: { id: string; status: DealStatus } };
@@ -85,8 +99,10 @@ export async function listTransferCodes(
       id: true,
       requestNote: true,
       requestedAt: true,
+      requestedById: true,
       ciphertext: true,
       providedAt: true,
+      providedById: true,
       requestedBy: { select: { displayName: true } },
       providedBy: { select: { displayName: true } },
     },
@@ -100,6 +116,9 @@ export async function listTransferCodes(
     code: row.ciphertext ? decryptString(row.ciphertext) : null,
     providedAt: row.providedAt,
     providedByName: row.providedBy?.displayName ?? null,
+    // Opened and answered by the same person means the seller pushed it out
+    // rather than replying to anyone.
+    unprompted: row.providedById !== null && row.providedById === row.requestedById,
   }));
 }
 
@@ -203,6 +222,67 @@ export async function provideTransferCode(
   });
 
   if (result.count !== 1) return { ok: false, error: "That request was just answered." };
+
+  return { ok: true };
+}
+
+/**
+ * The seller pushes a code across without waiting to be asked.
+ *
+ * This was the hole in the original design. The code arrives in the seller's
+ * inbox the moment the buyer touches the account — often before the buyer has
+ * worked out that they need to ask for it, or knows the button exists. Without
+ * this the seller sat looking at "nothing waiting on you" holding a code they
+ * could not hand over, which is precisely the stall the feature was built to
+ * remove.
+ *
+ * Stored as a record opened and answered by the same person, so the history
+ * shows it was volunteered rather than dragged out of them.
+ */
+export async function sendTransferCode(
+  user: CurrentUser,
+  dealId: string,
+  code: string,
+): Promise<CodeResult> {
+  const trimmed = code.trim();
+
+  if (!trimmed) return { ok: false, error: "Enter the code Konami sent you." };
+  if (trimmed.length > 64) return { ok: false, error: "That does not look like a verification code." };
+
+  const party = await partyFor(dealId, user);
+
+  if (!party) return { ok: false, error: "You are not part of this deal." };
+
+  if (party.role !== "seller") {
+    return { ok: false, error: "Only the seller can send a transfer code." };
+  }
+
+  if (!CODE_EXCHANGE_STATUSES.includes(party.deal.status)) {
+    return { ok: false, error: "This deal is not at the transfer stage." };
+  }
+
+  // An open request already covers this — answer it rather than opening a
+  // second entry, or the buyer sees two and cannot tell which is current.
+  const open = await prisma.transferCode.findFirst({
+    where: { dealId, providedAt: null },
+    select: { id: true },
+  });
+
+  if (open) return provideTransferCode(user, open.id, trimmed);
+
+  const now = new Date();
+
+  await prisma.transferCode.create({
+    data: {
+      dealId,
+      requestedById: user.id,
+      requestedAt: now,
+      requestNote: null,
+      ciphertext: encryptString(trimmed),
+      providedById: user.id,
+      providedAt: now,
+    },
+  });
 
   return { ok: true };
 }

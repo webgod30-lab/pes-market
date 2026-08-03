@@ -95,19 +95,31 @@ async function main() {
     assert.equal((await checkSecondFactor(user.id, "000000")).status, "rejected");
     ok("a wrong code is rejected");
 
-    // Confirmation spent this step, so the code the app is still showing is
-    // correct but already used. That is the replay guard, not a bad code.
-    const live = await generateTotpForTesting(secret);
-    assert.equal((await checkSecondFactor(user.id, live)).status, "replayed");
-    ok("a code from an already-spent step is reported as replayed, not wrong");
+    // A stored step ahead of the current one must not lock the owner out.
+    //
+    // It can genuinely happen: the clock tolerance accepts a code one step
+    // early, so a phone running fast writes a future step, and a clock
+    // correction on the server does the same. Left unclamped the library threw
+    // on the next sign-in, and a throw inside authorize() reaches the user as
+    // "incorrect email or password" — locked out, with the wrong reason.
+    // 2_000_000_000 is far ahead and still inside the int32 column.
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { totpLastStep: 2_000_000_000 },
+    });
+    const fromTheFuture = await checkSecondFactor(user.id, await generateTotpForTesting(secret));
+    assert.notEqual(fromTheFuture.status, "rejected");
+    ok("a stored step ahead of the clock does not lock the account out");
 
     // Fresh account state stands in for the clock having moved to a new step.
     await prisma.user.update({ where: { id: user.id }, data: { totpLastStep: null } });
+    const live = await generateTotpForTesting(secret);
     assert.equal((await checkSecondFactor(user.id, live)).status, "accepted");
     ok("a code from an unspent step is accepted");
 
+    // Immediately afterwards, so the pair cannot straddle a 30-second boundary.
     assert.equal((await checkSecondFactor(user.id, live)).status, "replayed");
-    ok("and immediately cannot be used again");
+    ok("the same code cannot be used twice, and is reported as used, not wrong");
 
     assert.equal((await checkSecondFactor(user.id, recovery[0])).status, "accepted");
     ok("a recovery code works in place of the app");
