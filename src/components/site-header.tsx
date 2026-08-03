@@ -132,10 +132,22 @@ async function AccountArea() {
         </Link>
       )}
 
+      {/* The name is hidden on phones for space, and a plain user has no admin
+          badge — which left this link with nothing inside it at all: an
+          invisible, unlabelled 16x12 target that still navigated to the
+          dashboard. The initial gives it something to draw and something to
+          announce at every width. */}
       <Link
         href={user.role === "admin" ? "/admin" : "/dashboard"}
-        className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--surface-2)]"
+        aria-label={`${user.displayName} — your deals`}
+        className="flex items-center gap-2 rounded-lg py-1.5 pl-1 pr-2 hover:bg-[var(--surface-2)]"
       >
+        <span
+          aria-hidden="true"
+          className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-xs font-semibold text-[var(--accent)]"
+        >
+          {user.displayName.trim().charAt(0).toUpperCase() || "?"}
+        </span>
         <span className="hidden max-w-[10ch] truncate text-sm sm:inline">{user.displayName}</span>
         {user.role === "admin" ? <Badge tone="warning">admin</Badge> : null}
       </Link>

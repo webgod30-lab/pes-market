@@ -24,7 +24,11 @@ export function EscrowDiagram({ className = "" }: { className?: string }) {
   return (
     <>
       <EscrowDiagramWide className={`hidden sm:block ${className}`} />
-      <EscrowDiagramStacked className={`sm:hidden ${className}`} />
+      {/* Capped and centred. The stacked drawing is sized for a phone, and
+          without a ceiling it stretched to fill a 639px viewport — a 300-wide
+          viewBox at 574px, so every label rendered at nearly twice its
+          intended size right up to the breakpoint. */}
+      <EscrowDiagramStacked className={`mx-auto max-w-[340px] sm:hidden ${className}`} />
     </>
   );
 }
@@ -120,16 +124,16 @@ function EscrowDiagramWide({ className = "" }: { className?: string }) {
       </text>
 
       {/* what each line carries */}
-      <text x={178} y={104} textAnchor="middle" fill="var(--muted)" fontSize="10" fontFamily="inherit">
+      <text x={178} y={104} textAnchor="middle" fill="var(--muted)" fontSize="11" fontFamily="inherit">
         money
       </text>
-      <text x={178} y={146} textAnchor="middle" fill="var(--muted)" fontSize="10" fontFamily="inherit">
+      <text x={178} y={146} textAnchor="middle" fill="var(--muted)" fontSize="11" fontFamily="inherit">
         account
       </text>
-      <text x={382} y={104} textAnchor="middle" fill="var(--muted)" fontSize="10" fontFamily="inherit">
+      <text x={382} y={104} textAnchor="middle" fill="var(--muted)" fontSize="11" fontFamily="inherit">
         payout
       </text>
-      <text x={382} y={146} textAnchor="middle" fill="var(--muted)" fontSize="10" fontFamily="inherit">
+      <text x={382} y={146} textAnchor="middle" fill="var(--muted)" fontSize="11" fontFamily="inherit">
         login
       </text>
     </svg>
@@ -179,12 +183,12 @@ function EscrowDiagramStacked({ className = "" }: { className?: string }) {
       <text x={104} y={33} fill="var(--foreground)" fontSize="15" fontWeight="600" fontFamily="inherit">
         Buyer
       </text>
-      <text x={104} y={51} fill="var(--muted)" fontSize="12" fontFamily="inherit">
+      <text x={104} y={51} fill="var(--muted)" fontSize="13" fontFamily="inherit">
         pays in
       </text>
 
       <path d="M150 72 V116" stroke="url(#esc-stack-in)" strokeWidth="2" strokeLinecap="round" />
-      <text x={162} y={98} fill="var(--muted)" fontSize="11" fontFamily="inherit">
+      <text x={162} y={98} fill="var(--muted)" fontSize="13" fontFamily="inherit">
         money + account
       </text>
 
@@ -215,12 +219,12 @@ function EscrowDiagramStacked({ className = "" }: { className?: string }) {
       >
         Held in escrow
       </text>
-      <text x={150} y={241} textAnchor="middle" fill="var(--muted)" fontSize="12" fontFamily="inherit">
+      <text x={150} y={241} textAnchor="middle" fill="var(--muted)" fontSize="13" fontFamily="inherit">
         neither side exposed
       </text>
 
       <path d="M150 256 V300" stroke="url(#esc-stack-out)" strokeWidth="2" strokeLinecap="round" />
-      <text x={162} y={282} fill="var(--muted)" fontSize="11" fontFamily="inherit">
+      <text x={162} y={282} fill="var(--muted)" fontSize="13" fontFamily="inherit">
         payout + login
       </text>
 
@@ -253,7 +257,7 @@ function EscrowDiagramStacked({ className = "" }: { className?: string }) {
       >
         Seller
       </text>
-      <text x={104} y={351} fill="var(--muted)" fontSize="12" fontFamily="inherit">
+      <text x={104} y={351} fill="var(--muted)" fontSize="13" fontFamily="inherit">
         paid out
       </text>
     </svg>

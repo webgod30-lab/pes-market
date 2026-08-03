@@ -51,12 +51,18 @@ export function SiteFooter() {
               <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground)]">
                 {column.heading}
               </h2>
-              <ul className="mt-3 space-y-2">
+              {/* space-y-0.5 rather than -2: the padding below now provides
+                  the separation, and keeping the old gap as well would push
+                  the footer to twice its height on a phone. */}
+              <ul className="mt-2 space-y-0.5">
                 {column.links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+                      // inline-flex + min-h-9: as plain inline text these were
+                      // 19px tall, under the 24px minimum and easy to mis-tap
+                      // where they stack closely on a phone.
+                      className="inline-flex min-h-9 items-center text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
                     >
                       {link.label}
                     </Link>
@@ -93,14 +99,23 @@ export function SiteFooter() {
           <p>
             © {year} {SITE.name}
           </p>
-          <div className="flex flex-wrap gap-4">
-            <Link href="/terms" className="hover:text-[var(--foreground)]">
+          {/* min-h-9 for the same reason as the columns above: as bare inline
+              text these sat at 16px, and here they are side by side, so a
+              near-miss lands on the neighbour rather than on nothing. */}
+          <div className="-my-1 flex flex-wrap gap-x-5">
+            <Link href="/terms" className="inline-flex min-h-9 items-center hover:text-[var(--foreground)]">
               Terms
             </Link>
-            <Link href="/privacy" className="hover:text-[var(--foreground)]">
+            <Link
+              href="/privacy"
+              className="inline-flex min-h-9 items-center hover:text-[var(--foreground)]"
+            >
               Privacy
             </Link>
-            <Link href="/contact" className="hover:text-[var(--foreground)]">
+            <Link
+              href="/contact"
+              className="inline-flex min-h-9 items-center hover:text-[var(--foreground)]"
+            >
               Contact
             </Link>
           </div>
