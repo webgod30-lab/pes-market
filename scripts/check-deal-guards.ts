@@ -39,6 +39,7 @@ import {
   sendTransferCode,
 } from "../src/lib/transfer-codes";
 import {
+  destinationFields,
   getBalance,
   markWithdrawalSent,
   rejectWithdrawal,
@@ -649,7 +650,7 @@ async function main() {
   assert.equal(emptyBalance.availableCents, 0);
   ok("a seller with no settled deals has nothing to withdraw");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 5_000, method: "crypto", destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" })).ok, false);
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 5_000, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
   ok("a withdrawal cannot be requested against an empty balance");
 
   // Two settled sales, so the balance is a sum rather than a single figure.
@@ -669,16 +670,18 @@ async function main() {
   assert.equal(earnedBalance.availableCents, expectedEarned);
   ok("settled sales credit the balance, to the cent");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: expectedEarned + 1, method: "crypto", destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" })).ok, false);
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: expectedEarned + 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
   ok("a seller cannot withdraw more than they have");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1, method: "crypto", destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" })).ok, false);
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
   ok("a withdrawal below the minimum is refused");
 
   const firstRequest = await requestWithdrawal(walletSeller, {
     amountCents: 2_000,
     method: "crypto",
-    destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+    destinationName: "Wallet Fixture",
+    destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+    destinationNetwork: "TRC-20",
   });
   assert.equal(firstRequest.ok, true);
 
@@ -686,7 +689,7 @@ async function main() {
   assert.equal(reserved.availableCents, expectedEarned - 2_000);
   ok("an open request reserves the money immediately");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1_000, method: "crypto", destination: "x".repeat(20) })).ok, false);
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1_000, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "x".repeat(34), destinationNetwork: "TRC-20" })).ok, false);
   ok("only one withdrawal can be open at a time");
 
   const withdrawalId = (firstRequest as { withdrawalId: string }).withdrawalId;
@@ -707,7 +710,9 @@ async function main() {
   const second = await requestWithdrawal(walletSeller, {
     amountCents: 2_000,
     method: "crypto",
-    destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+    destinationName: "Wallet Fixture",
+    destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+    destinationNetwork: "TRC-20",
   });
   const secondId = (second as { withdrawalId: string }).withdrawalId;
 
@@ -739,7 +744,9 @@ async function main() {
       requestWithdrawal(raceSeller, {
         amountCents: raceBalance.availableCents,
         method: "crypto",
-        destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+        destinationName: "Race Fixture",
+        destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+        destinationNetwork: "TRC-20",
       }),
     ),
   );
@@ -749,6 +756,51 @@ async function main() {
   const raced = await getBalance(raceSeller.id);
   assert.ok(raced.netCents >= 0, `balance went negative: ${raced.netCents}`);
   ok("concurrent requests cannot commit the same balance twice");
+
+  // Each method stores only the fields it uses. A bank payout carrying a
+  // network, or a crypto one carrying a BIC, means the wrong field was read
+  // somewhere — and the admin sends money from these.
+  await prisma.withdrawal.deleteMany({ where: { sellerId: walletSeller.id, status: "requested" } });
+
+  const bank = await requestWithdrawal(walletSeller, {
+    amountCents: 1_000,
+    method: "bank_transfer",
+    destinationName: "Wallet Fixture",
+    destinationAccount: "AE070331234567890123456",
+    destinationBank: "Emirates NBD",
+    destinationBic: "EBILAEAD",
+  });
+  assert.equal(bank.ok, true);
+
+  const bankRow = await prisma.withdrawal.findUniqueOrThrow({
+    where: { id: (bank as { withdrawalId: string }).withdrawalId },
+    select: {
+      destinationBank: true,
+      destinationBic: true,
+      destinationNetwork: true,
+      destinationProvider: true,
+    },
+  });
+  assert.equal(bankRow.destinationBank, "Emirates NBD");
+  assert.equal(bankRow.destinationBic, "EBILAEAD");
+  assert.equal(bankRow.destinationNetwork, null);
+  assert.equal(bankRow.destinationProvider, null);
+  ok("a bank payout stores its bank details and nothing belonging to another method");
+
+  const fields = destinationFields({
+    method: "bank_transfer",
+    destinationName: "Wallet Fixture",
+    destinationAccount: "AE070331234567890123456",
+    destinationNetwork: null,
+    destinationBank: "Emirates NBD",
+    destinationBic: "EBILAEAD",
+    destinationProvider: null,
+  });
+  assert.deepEqual(
+    fields.map((f) => f.label),
+    ["Name on the account", "IBAN / account number", "Bank", "SWIFT / BIC"],
+  );
+  ok("a destination renders as separate labelled fields, not one blob");
 
   console.log(`\n${passed} guard checks passed.`);
 }

@@ -105,12 +105,28 @@ export async function listEarnings(userId: string): Promise<EarningRow[]> {
   }));
 }
 
+/**
+ * A payout destination, discriminated the same way the form and the validation
+ * schema are — so a bank transfer cannot be built without a bank, and a crypto
+ * payout cannot be built without a network.
+ */
+export type WithdrawalRequest = { amountCents: number; destinationName: string; destinationAccount: string } & (
+  | { method: "crypto"; destinationNetwork: string }
+  | { method: "bank_transfer"; destinationBank: string; destinationBic?: string }
+  | { method: "card"; destinationProvider: string }
+);
+
 export type WithdrawalView = {
   id: string;
   amountCents: number;
   currency: string;
   method: PaymentMethod;
-  destination: string;
+  destinationName: string;
+  destinationAccount: string;
+  destinationNetwork: string | null;
+  destinationBank: string | null;
+  destinationBic: string | null;
+  destinationProvider: string | null;
   status: WithdrawalStatus;
   requestedAt: Date;
   decidedAt: Date | null;
@@ -127,7 +143,12 @@ export function listWithdrawals(userId: string): Promise<WithdrawalView[]> {
       amountCents: true,
       currency: true,
       method: true,
-      destination: true,
+      destinationName: true,
+      destinationAccount: true,
+      destinationNetwork: true,
+      destinationBank: true,
+      destinationBic: true,
+      destinationProvider: true,
       status: true,
       requestedAt: true,
       decidedAt: true,
@@ -149,12 +170,13 @@ export function listWithdrawals(userId: string): Promise<WithdrawalView[]> {
  */
 export async function requestWithdrawal(
   user: CurrentUser,
-  input: { amountCents: number; method: PaymentMethod; destination: string },
+  input: WithdrawalRequest,
 ): Promise<WalletResult<{ withdrawalId: string }>> {
-  const destination = input.destination.trim();
+  const destinationName = input.destinationName.trim();
+  const destinationAccount = input.destinationAccount.trim();
 
-  if (!destination) {
-    return { ok: false, error: "Say where the money should go." };
+  if (!destinationName || !destinationAccount) {
+    return { ok: false, error: "Say who the money is going to, and where." };
   }
 
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
@@ -192,7 +214,15 @@ export async function requestWithdrawal(
       sellerId: user.id,
       amountCents: input.amountCents,
       method: input.method,
-      destination,
+      destinationName,
+      destinationAccount,
+      // Each method only carries its own fields, so a bank payout cannot end
+      // up storing a network and a crypto one cannot store a BIC.
+      destinationNetwork: input.method === "crypto" ? input.destinationNetwork.trim() : null,
+      destinationBank: input.method === "bank_transfer" ? input.destinationBank.trim() : null,
+      destinationBic:
+        input.method === "bank_transfer" ? input.destinationBic?.trim() || null : null,
+      destinationProvider: input.method === "card" ? input.destinationProvider.trim() : null,
     },
     select: { id: true },
   });
@@ -250,7 +280,12 @@ export async function listWithdrawalsForAdmin(
       amountCents: true,
       currency: true,
       method: true,
-      destination: true,
+      destinationName: true,
+      destinationAccount: true,
+      destinationNetwork: true,
+      destinationBank: true,
+      destinationBic: true,
+      destinationProvider: true,
       status: true,
       requestedAt: true,
       decidedAt: true,
@@ -321,4 +356,60 @@ export async function rejectWithdrawal(
   if (result.count !== 1) return { ok: false, error: "That withdrawal is no longer open." };
 
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Display
+// ---------------------------------------------------------------------------
+
+export type DestinationField = {
+  label: string;
+  value: string;
+  /** Set for anything meant to be read character by character or copied. */
+  mono?: boolean;
+};
+
+/**
+ * A destination broken into labelled lines, in the order someone filling in a
+ * transfer form needs them.
+ *
+ * Kept here rather than in either page so the seller checking their request
+ * and the admin sending the money are looking at the same thing, labelled the
+ * same way. A mismatch between those two views is how money goes astray.
+ */
+export function destinationFields(withdrawal: {
+  method: PaymentMethod;
+  destinationName: string;
+  destinationAccount: string;
+  destinationNetwork: string | null;
+  destinationBank: string | null;
+  destinationBic: string | null;
+  destinationProvider: string | null;
+}): DestinationField[] {
+  const name: DestinationField = { label: "Name on the account", value: withdrawal.destinationName };
+
+  if (withdrawal.method === "crypto") {
+    return [
+      { label: "Wallet address", value: withdrawal.destinationAccount, mono: true },
+      { label: "Network", value: withdrawal.destinationNetwork ?? "—", mono: true },
+      name,
+    ];
+  }
+
+  if (withdrawal.method === "bank_transfer") {
+    return [
+      name,
+      { label: "IBAN / account number", value: withdrawal.destinationAccount, mono: true },
+      { label: "Bank", value: withdrawal.destinationBank ?? "—" },
+      ...(withdrawal.destinationBic
+        ? [{ label: "SWIFT / BIC", value: withdrawal.destinationBic, mono: true }]
+        : []),
+    ];
+  }
+
+  return [
+    { label: "Service", value: withdrawal.destinationProvider ?? "—" },
+    { label: "Email or handle", value: withdrawal.destinationAccount, mono: true },
+    name,
+  ];
 }

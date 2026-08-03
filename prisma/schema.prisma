@@ -574,10 +574,33 @@ model Withdrawal {
   currency    String        @default("USD")
   method      PaymentMethod
 
-  /// Where to send it, typed out per request rather than stored on the
-  /// account: a saved address is one account compromise away from silently
-  /// redirecting every future payout.
-  destination String @db.Text
+  // --- where to send it ---
+  //
+  // Split into named fields rather than one block of text. The admin reads
+  // these while typing a transfer into a bank or a wallet, and a single
+  // free-text box is where an IBAN ends up glued to an account name. Every
+  // one is typed per request rather than saved to the account: a stored
+  // address is one account compromise away from silently redirecting every
+  // future payout.
+
+  /// Who the money is going to. Banks and most wallets reject a transfer
+  /// whose name does not match the account.
+  destinationName String
+
+  /// What it is sent to: IBAN or account number, wallet address, or the
+  /// email/handle on a payment account.
+  destinationAccount String
+
+  /// Crypto only. TRC-20, ERC-20, and so on — sending USDT to the right
+  /// address on the wrong network loses it.
+  destinationNetwork String?
+
+  /// Bank transfer only.
+  destinationBank String?
+  destinationBic  String?
+
+  /// Card and wallet payouts: PayPal, Wise, Payoneer.
+  destinationProvider String?
 
   status WithdrawalStatus @default(requested)
 

@@ -22,16 +22,34 @@ export async function requestWithdrawalAction(
 ): Promise<FormState> {
   const user = await requireUser();
 
+  const field = (name: string) => String(formData.get(name) ?? "");
+
   const raw = {
-    amountCents: String(formData.get("amount") ?? ""),
-    method: String(formData.get("method") ?? ""),
-    destination: String(formData.get("destination") ?? ""),
+    amountCents: field("amount"),
+    method: field("method"),
+    destinationName: field("destinationName"),
+    destinationAccount: field("destinationAccount"),
+    destinationNetwork: field("destinationNetwork"),
+    destinationBank: field("destinationBank"),
+    destinationBic: field("destinationBic"),
+    destinationProvider: field("destinationProvider"),
   };
 
-  // The destination is echoed back on failure — it is long and awkward to
-  // retype, and unlike a password there is nothing gained by clearing it.
-  const echo = { amount: raw.amountCents, destination: raw.destination };
+  // Everything is echoed back on failure. These are long, awkward to retype and
+  // easy to mistype — and unlike a password there is nothing gained by
+  // clearing them.
+  const echo = {
+    amount: raw.amountCents,
+    destinationName: raw.destinationName,
+    destinationAccount: raw.destinationAccount,
+    destinationNetwork: raw.destinationNetwork,
+    destinationBank: raw.destinationBank,
+    destinationBic: raw.destinationBic,
+    destinationProvider: raw.destinationProvider,
+  };
 
+  // The schema is discriminated on method, so it only ever reads the fields
+  // that method uses; the rest are dropped rather than stored empty.
   const parsed = withdrawalSchema.safeParse(raw);
 
   if (!parsed.success) {

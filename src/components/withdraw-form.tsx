@@ -7,10 +7,12 @@ import { formatCents } from "@/lib/money";
 import { Button, Field, FormError, inputClassName } from "@/components/ui";
 
 const METHODS = [
-  { value: "crypto", label: "Crypto", hint: "Paste the full address, and say which network." },
-  { value: "bank_transfer", label: "Bank transfer", hint: "IBAN or account number, plus the name on the account." },
-  { value: "card", label: "Card / wallet", hint: "The details needed to send it, exactly as your provider shows them." },
+  { value: "crypto", label: "Crypto" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "card", label: "Card / wallet" },
 ] as const;
+
+type Method = (typeof METHODS)[number]["value"];
 
 export function WithdrawForm({
   availableCents,
@@ -22,7 +24,7 @@ export function WithdrawForm({
   currency: string;
 }) {
   const [state, formAction, pending] = useActionState(requestWithdrawalAction, undefined);
-  const [method, setMethod] = useState<(typeof METHODS)[number]["value"]>("crypto");
+  const [method, setMethod] = useState<Method>("crypto");
 
   const belowMinimum = availableCents < minimumCents;
 
@@ -34,8 +36,6 @@ export function WithdrawForm({
       </p>
     );
   }
-
-  const selected = METHODS.find((m) => m.value === method)!;
 
   return (
     <form action={formAction} className="space-y-4">
@@ -87,24 +87,145 @@ export function WithdrawForm({
         ) : null}
       </fieldset>
 
+      {/* One field per thing, rather than a single box everything gets pasted
+          into. The admin reads these while typing a transfer, and a network
+          buried at the end of an address line is a network that gets missed —
+          on most chains that loses the money outright. */}
+      {method === "crypto" ? (
+        <>
+          <Field
+            label="Wallet address"
+            name="destinationAccount"
+            error={state?.fieldErrors?.destinationAccount}
+          >
+            <input
+              id="destinationAccount"
+              name="destinationAccount"
+              required
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={state?.values?.destinationAccount ?? ""}
+              className={`${inputClassName} font-mono`}
+              placeholder="TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE"
+            />
+          </Field>
+
+          <Field
+            label="Network"
+            name="destinationNetwork"
+            error={state?.fieldErrors?.destinationNetwork}
+            hint="TRC-20, ERC-20, BEP-20… the same address on the wrong network loses the money."
+          >
+            <input
+              id="destinationNetwork"
+              name="destinationNetwork"
+              required
+              defaultValue={state?.values?.destinationNetwork ?? ""}
+              className={inputClassName}
+              placeholder="USDT (TRC-20)"
+            />
+          </Field>
+        </>
+      ) : null}
+
+      {method === "bank_transfer" ? (
+        <>
+          <Field
+            label="IBAN or account number"
+            name="destinationAccount"
+            error={state?.fieldErrors?.destinationAccount}
+          >
+            <input
+              id="destinationAccount"
+              name="destinationAccount"
+              required
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={state?.values?.destinationAccount ?? ""}
+              className={`${inputClassName} font-mono`}
+              placeholder="AE07 0331 2345 6789 0123 456"
+            />
+          </Field>
+
+          <Field label="Bank" name="destinationBank" error={state?.fieldErrors?.destinationBank}>
+            <input
+              id="destinationBank"
+              name="destinationBank"
+              required
+              defaultValue={state?.values?.destinationBank ?? ""}
+              className={inputClassName}
+              placeholder="Emirates NBD"
+            />
+          </Field>
+
+          <Field
+            label="SWIFT / BIC"
+            name="destinationBic"
+            error={state?.fieldErrors?.destinationBic}
+            hint="Only needed for international transfers. Leave it blank if you do not have one."
+          >
+            <input
+              id="destinationBic"
+              name="destinationBic"
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={state?.values?.destinationBic ?? ""}
+              className={`${inputClassName} font-mono`}
+              placeholder="EBILAEAD"
+            />
+          </Field>
+        </>
+      ) : null}
+
+      {method === "card" ? (
+        <>
+          <Field
+            label="Service"
+            name="destinationProvider"
+            error={state?.fieldErrors?.destinationProvider}
+          >
+            <input
+              id="destinationProvider"
+              name="destinationProvider"
+              required
+              defaultValue={state?.values?.destinationProvider ?? ""}
+              className={inputClassName}
+              placeholder="PayPal, Wise, Payoneer"
+            />
+          </Field>
+
+          <Field
+            label="Email or handle on the account"
+            name="destinationAccount"
+            error={state?.fieldErrors?.destinationAccount}
+          >
+            <input
+              id="destinationAccount"
+              name="destinationAccount"
+              required
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={state?.values?.destinationAccount ?? ""}
+              className={inputClassName}
+              placeholder="you@example.com"
+            />
+          </Field>
+        </>
+      ) : null}
+
       <Field
-        label="Where to send it"
-        name="destination"
-        error={state?.fieldErrors?.destination}
-        hint={selected.hint}
+        label="Name on the account"
+        name="destinationName"
+        error={state?.fieldErrors?.destinationName}
+        hint="Banks and most wallets refuse a transfer where the name does not match."
       >
-        <textarea
-          id="destination"
-          name="destination"
+        <input
+          id="destinationName"
+          name="destinationName"
           required
-          rows={3}
-          defaultValue={state?.values?.destination ?? ""}
+          defaultValue={state?.values?.destinationName ?? ""}
           className={inputClassName}
-          placeholder={
-            method === "crypto"
-              ? "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE (USDT, TRC-20)"
-              : "Account name, number and sort code / IBAN"
-          }
+          placeholder="As it appears on the account"
         />
       </Field>
 

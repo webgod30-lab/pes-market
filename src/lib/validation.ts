@@ -227,28 +227,82 @@ export const paymentMethodSchema = z.object({
 });
 
 /** A seller asking to be paid out. */
-export const withdrawalSchema = z.object({
-  // Same parser as a deal price: one place that decides what "185.50" means.
-  amountCents: z
-    .string()
-    .trim()
-    .min(1, "Enter how much you want to withdraw.")
-    .transform((raw, ctx) => {
-      const cents = parsePriceToCents(raw);
+const withdrawalAmount = z
+  .string()
+  .trim()
+  .min(1, "Enter how much you want to withdraw.")
+  .transform((raw, ctx) => {
+    const cents = parsePriceToCents(raw);
 
-      if (cents === null) {
-        ctx.addIssue({ code: "custom", message: "Enter an amount like 50 or 50.25." });
-        return z.NEVER;
-      }
+    if (cents === null) {
+      ctx.addIssue({ code: "custom", message: "Enter an amount like 50 or 50.25." });
+      return z.NEVER;
+    }
 
-      return cents;
-    }),
-  method: z.enum(["crypto", "card", "bank_transfer"], {
-    message: "Choose how you want to be paid.",
+    return cents;
+  });
+
+/**
+ * Whoever the transfer is addressed to.
+ *
+ * Required for every method: banks and most wallets reject a payment whose
+ * name does not match the account, and a crypto payout still needs a human
+ * attached to it when something goes wrong.
+ */
+const destinationName = z
+  .string()
+  .trim()
+  .min(2, "Put the full name on the account.")
+  .max(120, "That is longer than a name needs to be.");
+
+/**
+ * Each method asks for the fields that method actually needs, rather than one
+ * box of text. A network missing from a crypto payout is the difference
+ * between arriving and being lost, and an IBAN pasted into the same field as
+ * an account holder's name is a transfer that bounces.
+ */
+export const withdrawalSchema = z.discriminatedUnion("method", [
+  z.object({
+    method: z.literal("crypto"),
+    amountCents: withdrawalAmount,
+    destinationName,
+    destinationAccount: z
+      .string()
+      .trim()
+      .min(20, "That does not look like a full wallet address.")
+      .max(200, "That is longer than a wallet address."),
+    destinationNetwork: z
+      .string()
+      .trim()
+      .min(2, "Say which network — the same address on the wrong one loses the money.")
+      .max(60),
   }),
-  destination: z
-    .string()
-    .trim()
-    .min(6, "Give the full address or account details — this is where the money goes.")
-    .max(600, "That is longer than any payout detail needs to be."),
-});
+  z.object({
+    method: z.literal("bank_transfer"),
+    amountCents: withdrawalAmount,
+    destinationName,
+    destinationAccount: z
+      .string()
+      .trim()
+      .min(5, "Enter the IBAN or account number.")
+      .max(60, "That is longer than an IBAN."),
+    destinationBank: z.string().trim().min(2, "Which bank?").max(120),
+    // Domestic transfers do not need one, so this is not forced.
+    destinationBic: z.string().trim().max(20, "A BIC is at most 11 characters.").optional(),
+  }),
+  z.object({
+    method: z.literal("card"),
+    amountCents: withdrawalAmount,
+    destinationName,
+    destinationAccount: z
+      .string()
+      .trim()
+      .min(3, "Enter the email or handle on the account.")
+      .max(160),
+    destinationProvider: z
+      .string()
+      .trim()
+      .min(2, "Which service — PayPal, Wise, Payoneer?")
+      .max(60),
+  }),
+]);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { requireUserOrProblem } from "@/lib/dal";
-import { listWithdrawalsForAdmin } from "@/lib/wallet";
+import { destinationFields, listWithdrawalsForAdmin } from "@/lib/wallet";
 import { formatCents } from "@/lib/money";
 import { AdminNav } from "@/components/admin-nav";
 import { WithdrawalDecision } from "@/components/admin-withdrawal-actions";
@@ -127,9 +127,24 @@ export default async function AdminWithdrawalsPage({
 
                 <div className="mt-3">
                   <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Send it to</p>
-                  <p className="mt-1 break-all rounded-lg bg-[var(--surface-2)] px-3 py-2.5 font-mono text-sm">
-                    {withdrawal.destination}
-                  </p>
+                  {/* One labelled row per field, so each value can be copied on
+                      its own instead of being picked out of a paragraph while
+                      typing a transfer. */}
+                  <dl className="mt-1.5 divide-y divide-[var(--border)] overflow-hidden rounded-lg border border-[var(--border)]">
+                    {destinationFields(withdrawal).map((field) => (
+                      <div
+                        key={field.label}
+                        className="flex flex-wrap items-baseline gap-x-4 gap-y-1 bg-[var(--surface-2)] px-3 py-2"
+                      >
+                        <dt className="w-44 shrink-0 text-xs text-[var(--muted)]">{field.label}</dt>
+                        <dd
+                          className={`min-w-0 flex-1 break-all text-sm ${field.mono ? "font-mono" : ""}`}
+                        >
+                          {field.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
 
                 <p className="mt-2 text-xs text-[var(--muted)]">

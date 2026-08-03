@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { requireUserOrProblem } from "@/lib/dal";
 import {
+  destinationFields,
   getBalance,
   listEarnings,
   listWithdrawals,
@@ -95,9 +96,21 @@ export default async function WalletPage() {
               </strong>{" "}
               waiting to be sent. You can only have one at a time.
             </p>
-            <p className="mt-2 break-all rounded-lg bg-[var(--surface-2)] px-3 py-2 font-mono text-xs">
-              {open.destination}
-            </p>
+            <dl className="mt-2 divide-y divide-[var(--border)] overflow-hidden rounded-lg border border-[var(--border)]">
+              {destinationFields(open).map((field) => (
+                <div
+                  key={field.label}
+                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 bg-[var(--surface-2)] px-3 py-2"
+                >
+                  <dt className="w-40 shrink-0 text-xs text-[var(--muted)]">{field.label}</dt>
+                  <dd
+                    className={`min-w-0 flex-1 break-all text-sm ${field.mono ? "font-mono" : ""}`}
+                  >
+                    {field.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
             <CancelWithdrawalButton withdrawalId={open.id} />
           </div>
         ) : (
@@ -142,8 +155,10 @@ export default async function WalletPage() {
                     : ""}
                 </p>
 
-                <p className="mt-1.5 break-all font-mono text-xs text-[var(--muted)]">
-                  {withdrawal.destination}
+                <p className="mt-1.5 text-xs text-[var(--muted)]">
+                  {destinationFields(withdrawal)
+                    .map((field) => `${field.label}: ${field.value}`)
+                    .join(" · ")}
                 </p>
 
                 {withdrawal.note ? (
