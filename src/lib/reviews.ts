@@ -320,6 +320,8 @@ export async function listPublicReviews(take = 50): Promise<PublicReview[]> {
 
 export type TrustStats = {
   completedDeals: number;
+  /** Total value of every completed deal, in cents. */
+  protectedCents: number;
   reviews: number;
   averageRating: number | null;
   /** Share of completed deals that ended without a dispute. */
@@ -329,8 +331,15 @@ export type TrustStats = {
 
 /** Headline numbers for the public trust page and the landing page. */
 export async function getTrustStats(): Promise<TrustStats> {
-  const [completedDeals, reviewAgg, disputedDeals, traders] = await Promise.all([
+  const [completedDeals, dealValue, reviewAgg, disputedDeals, traders] = await Promise.all([
     prisma.deal.count({ where: { status: "completed" } }),
+    // What escrow actually did: money that passed through and came out the
+    // other side. For a service whose whole promise is holding funds safely,
+    // this says more than any other figure on the page.
+    prisma.deal.aggregate({
+      where: { status: "completed" },
+      _sum: { agreedPriceCents: true },
+    }),
     prisma.review.aggregate({ _avg: { rating: true }, _count: { _all: true } }),
     prisma.deal.count({ where: { disputes: { some: {} } } }),
     prisma.user.count({ where: { role: "user" } }),
@@ -340,6 +349,7 @@ export async function getTrustStats(): Promise<TrustStats> {
 
   return {
     completedDeals,
+    protectedCents: dealValue._sum.agreedPriceCents ?? 0,
     reviews: reviewAgg._count._all,
     averageRating: reviewAgg._avg.rating,
     cleanRate: totalSettled > 0 ? completedDeals / totalSettled : null,

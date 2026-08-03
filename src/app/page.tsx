@@ -1,8 +1,16 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 
 import { getCurrentUserQuietly } from "@/lib/dal";
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { getTrustStats } from "@/lib/reviews";
+import { formatCents } from "@/lib/money";
+import {
+  getMonthlyVisits,
+  looksAutomated,
+  recordVisit,
+  VISITS_WORTH_SHOWING,
+} from "@/lib/visits";
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/deals";
 import { ButtonLink, Card } from "@/components/ui";
 import {
@@ -63,6 +71,18 @@ export default async function HomePage() {
 
   const stats = await getTrustStats().catch(() => null);
 
+  // Counted here rather than in the proxy so it is one write per homepage
+  // render, not one per asset. Signed-in people are skipped: the admin
+  // refreshing their own site should not read as demand for it.
+  const userAgent = (await headers()).get("user-agent");
+
+  if (!user && !looksAutomated(userAgent)) {
+    await recordVisit();
+  }
+
+  const visits = await getMonthlyVisits();
+  const showVisits = visits !== null && visits >= VISITS_WORTH_SHOWING;
+
   return (
     <div className="space-y-16 sm:space-y-20">
       {/* ---------------------------------------------------------------- */}
@@ -122,17 +142,36 @@ export default async function HomePage() {
       {/* Zeroes would say more about the service than nothing does.       */}
       {/* ---------------------------------------------------------------- */}
       {stats && stats.completedDeals > 0 ? (
-        <section className="grid gap-3 sm:grid-cols-3">
-          <Stat
-            value={stats.averageRating ? `${stats.averageRating.toFixed(1)} ★` : "—"}
-            label={`from ${stats.reviews} review${stats.reviews === 1 ? "" : "s"}`}
-            accent
-          />
-          <Stat value={String(stats.completedDeals)} label="deals completed" />
-          <Stat
-            value={stats.cleanRate === null ? "—" : `${Math.round(stats.cleanRate * 100)}%`}
-            label="settled without a dispute"
-          />
+        <section>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat
+              value={String(stats.completedDeals)}
+              label={`deal${stats.completedDeals === 1 ? "" : "s"} completed`}
+            />
+            <Stat
+              value={formatCents(stats.protectedCents)}
+              label="held in escrow and released safely"
+            />
+            <Stat
+              value={stats.cleanRate === null ? "—" : `${Math.round(stats.cleanRate * 100)}%`}
+              label="settled without a dispute"
+            />
+            <Stat
+              value={stats.averageRating ? `${stats.averageRating.toFixed(1)} ★` : "—"}
+              label={`from ${stats.reviews} review${stats.reviews === 1 ? "" : "s"}`}
+              accent
+            />
+          </div>
+
+          {/* Visits, not visitors — see src/lib/visits.ts for why. Kept as a
+              quiet line rather than a fifth card: it is the weakest signal
+              here and should not sit at the same size as money released
+              safely. Hidden entirely until it is worth showing. */}
+          {showVisits ? (
+            <p className="mt-3 text-center text-xs text-[var(--muted)]">
+              {visits!.toLocaleString("en-GB")} visits to this page so far this month.
+            </p>
+          ) : null}
         </section>
       ) : null}
 

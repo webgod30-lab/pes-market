@@ -617,3 +617,24 @@ model Withdrawal {
   @@index([sellerId, requestedAt])
   @@index([status, requestedAt])
 }
+
+// ---------------------------------------------------------------------------
+// VisitCounter — how many people looked at the site this month
+// ---------------------------------------------------------------------------
+
+/// One row per calendar month, holding a running count of homepage visits.
+///
+/// A count, not a log. There is no row per visit, no address, no user agent and
+/// no identifier of any kind kept — so there is nothing here to correlate,
+/// leak or subpoena, and the privacy policy's claim that this site assigns no
+/// identifier stays true.
+///
+/// That is also why it counts visits rather than visitors: telling two people
+/// apart means marking them, and marking them is the thing being avoided.
+model VisitCounter {
+  /// "2026-08".
+  month String @id
+  views Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+}

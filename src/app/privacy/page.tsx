@@ -150,6 +150,13 @@ export default function PrivacyPage() {
           actually read and which ones are slow — not to build a picture of you. If that ever
           changes, this page changes with it, and you will be asked first.
         </p>
+        <p>
+          The visit count shown on the home page is our own, and it is a counter rather than a log:
+          one number per calendar month, incremented when the page loads. No row is written for
+          your visit, and no address, browser or identifier is stored alongside it. That is also
+          why it counts visits and not visitors — telling two people apart would mean marking you,
+          which is the thing being avoided.
+        </p>
       </Section>
 
       <Section title="Security, honestly stated">
