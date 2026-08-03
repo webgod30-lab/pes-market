@@ -33,7 +33,7 @@ export default async function AdminPage() {
     { label: "Open disputes", value: stats.openDisputes, href: "/admin/disputes" },
     { label: "Payments to confirm", value: stats.paymentsToConfirm, href: "/admin/deals?filter=payment_submitted" },
     { label: "Deliveries to approve", value: stats.deliveriesToApprove, href: "/admin/deals?filter=admin_verifying" },
-    { label: "Payouts to send", value: stats.payoutsToSend, href: "/admin/deals?filter=completed" },
+    { label: "Withdrawals to send", value: stats.withdrawalsToSend, href: "/admin/withdrawals" },
     { label: "Buyers gone quiet", value: stats.buyersGoneQuiet, href: "/admin/deals?filter=claiming" },
     // Not a status filter: a stalled code can sit on a released deal or a
     // claiming one, so it gets its own list below.

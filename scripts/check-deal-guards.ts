@@ -38,6 +38,13 @@ import {
   requestTransferCode,
   sendTransferCode,
 } from "../src/lib/transfer-codes";
+import {
+  getBalance,
+  markWithdrawalSent,
+  rejectWithdrawal,
+  requestWithdrawal,
+} from "../src/lib/wallet";
+import { hashPassword } from "../src/lib/passwords";
 import type { CurrentUser } from "../src/lib/dal";
 
 let passed = 0;
@@ -620,6 +627,128 @@ async function main() {
     true,
   );
   ok("the seller can still answer after the deal has settled");
+
+  // -------------------------------------------------------------------------
+  // Wallet: the balance is money, so every claim about it is asserted
+  // -------------------------------------------------------------------------
+
+  // A fresh seller, so the arithmetic below is not competing with whatever
+  // else the seed left lying around.
+  const walletSeller = await prisma.user.create({
+    data: {
+      email: `wallet-fixture-${Date.now()}@example.com`,
+      displayName: "Wallet Fixture",
+      passwordHash: await hashPassword("wallet-fixture-pw"),
+    },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+  });
+  fixtureUserIds.push(walletSeller.id);
+
+  const emptyBalance = await getBalance(walletSeller.id);
+  assert.equal(emptyBalance.earnedCents, 0);
+  assert.equal(emptyBalance.availableCents, 0);
+  ok("a seller with no settled deals has nothing to withdraw");
+
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 5_000, method: "crypto", destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" })).ok, false);
+  ok("a withdrawal cannot be requested against an empty balance");
+
+  // Two settled sales, so the balance is a sum rather than a single figure.
+  const walletDealA = await makeDeal(walletSeller, karim, admin, "credentials_released");
+  await confirmClaimed(karim, walletDealA);
+  const walletDealB = await makeDeal(walletSeller, karim, admin, "credentials_released");
+  await confirmClaimed(karim, walletDealB);
+
+  const payouts = await prisma.deal.findMany({
+    where: { id: { in: [walletDealA, walletDealB] } },
+    select: { sellerPayoutCents: true },
+  });
+  const expectedEarned = payouts.reduce((sum, d) => sum + d.sellerPayoutCents, 0);
+
+  const earnedBalance = await getBalance(walletSeller.id);
+  assert.equal(earnedBalance.earnedCents, expectedEarned);
+  assert.equal(earnedBalance.availableCents, expectedEarned);
+  ok("settled sales credit the balance, to the cent");
+
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: expectedEarned + 1, method: "crypto", destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" })).ok, false);
+  ok("a seller cannot withdraw more than they have");
+
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1, method: "crypto", destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE" })).ok, false);
+  ok("a withdrawal below the minimum is refused");
+
+  const firstRequest = await requestWithdrawal(walletSeller, {
+    amountCents: 2_000,
+    method: "crypto",
+    destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+  });
+  assert.equal(firstRequest.ok, true);
+
+  const reserved = await getBalance(walletSeller.id);
+  assert.equal(reserved.availableCents, expectedEarned - 2_000);
+  ok("an open request reserves the money immediately");
+
+  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1_000, method: "crypto", destination: "x".repeat(20) })).ok, false);
+  ok("only one withdrawal can be open at a time");
+
+  const withdrawalId = (firstRequest as { withdrawalId: string }).withdrawalId;
+
+  assert.equal((await markWithdrawalSent(karim, withdrawalId, "0xnope")).ok, false);
+  assert.equal((await rejectWithdrawal(walletSeller, withdrawalId, "mine now")).ok, false);
+  ok("only an admin can send or refuse a withdrawal");
+
+  assert.equal((await markWithdrawalSent(admin, withdrawalId, "   ")).ok, false);
+  ok("marking a withdrawal sent requires a reference");
+
+  // Refusing hands the money straight back, with no compensating write.
+  assert.equal((await rejectWithdrawal(admin, withdrawalId, "address missing the network")).ok, true);
+  const afterReject = await getBalance(walletSeller.id);
+  assert.equal(afterReject.availableCents, expectedEarned);
+  ok("a refused withdrawal returns the money to the balance");
+
+  const second = await requestWithdrawal(walletSeller, {
+    amountCents: 2_000,
+    method: "crypto",
+    destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+  });
+  const secondId = (second as { withdrawalId: string }).withdrawalId;
+
+  assert.equal((await markWithdrawalSent(admin, secondId, "0xsent")).ok, true);
+  assert.equal((await markWithdrawalSent(admin, secondId, "0xsent-again")).ok, false);
+  ok("a withdrawal cannot be marked sent twice");
+
+  const afterSent = await getBalance(walletSeller.id);
+  assert.equal(afterSent.availableCents, expectedEarned - 2_000);
+  ok("a sent withdrawal stays deducted");
+
+  // Racing requests must not both pass the balance check and over-commit it.
+  const raceSeller = await prisma.user.create({
+    data: {
+      email: `wallet-race-${Date.now()}@example.com`,
+      displayName: "Race Fixture",
+      passwordHash: await hashPassword("race-fixture-pw"),
+    },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+  });
+  fixtureUserIds.push(raceSeller.id);
+
+  const raceDeal = await makeDeal(raceSeller, karim, admin, "credentials_released");
+  await confirmClaimed(karim, raceDeal);
+  const raceBalance = await getBalance(raceSeller.id);
+
+  const attempts = await Promise.allSettled(
+    Array.from({ length: 4 }, () =>
+      requestWithdrawal(raceSeller, {
+        amountCents: raceBalance.availableCents,
+        method: "crypto",
+        destination: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+      }),
+    ),
+  );
+  const granted = attempts.filter((a) => a.status === "fulfilled" && a.value.ok).length;
+  assert.ok(granted <= 1, `granted ${granted} concurrent withdrawals of the whole balance`);
+
+  const raced = await getBalance(raceSeller.id);
+  assert.ok(raced.netCents >= 0, `balance went negative: ${raced.netCents}`);
+  ok("concurrent requests cannot commit the same balance twice");
 
   console.log(`\n${passed} guard checks passed.`);
 }

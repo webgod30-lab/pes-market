@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { OPEN_STATUSES, PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
 import { countUnansweredCodeRequests } from "@/lib/transfer-codes";
+import { countPendingWithdrawals } from "@/lib/wallet";
 import type { CurrentUser } from "@/lib/dal";
 import type { DealStatus, Role } from "@/generated/prisma/client";
 
@@ -18,7 +19,9 @@ export type AdminResult<T = unknown> = ({ ok: true } & T) | { ok: false; error: 
 export type ConsoleStats = {
   paymentsToConfirm: number;
   deliveriesToApprove: number;
-  payoutsToSend: number;
+  /** Withdrawal requests waiting to be sent. Replaces the old per-deal payout
+   *  queue: sellers now accumulate a balance and take it out in one go. */
+  withdrawalsToSend: number;
   buyersGoneQuiet: number;
   /** Buyers stuck waiting on a seller for a Konami verification code. */
   codesAwaitingSeller: number;
@@ -32,7 +35,7 @@ export async function getConsoleStats(now = new Date()): Promise<ConsoleStats> {
   const [
     paymentsToConfirm,
     deliveriesToApprove,
-    payoutsToSend,
+    withdrawalsToSend,
     buyersGoneQuiet,
     codesAwaitingSeller,
     openDisputes,
@@ -42,7 +45,7 @@ export async function getConsoleStats(now = new Date()): Promise<ConsoleStats> {
   ] = await Promise.all([
     prisma.deal.count({ where: { status: "payment_submitted" } }),
     prisma.deal.count({ where: { status: "admin_verifying" } }),
-    prisma.deal.count({ where: { status: "completed", payoutAt: null } }),
+    countPendingWithdrawals(),
     prisma.deal.count({
       where: {
         status: { in: ["credentials_released", "claiming"] },
@@ -59,7 +62,7 @@ export async function getConsoleStats(now = new Date()): Promise<ConsoleStats> {
   return {
     paymentsToConfirm,
     deliveriesToApprove,
-    payoutsToSend,
+    withdrawalsToSend,
     buyersGoneQuiet,
     codesAwaitingSeller,
     openDisputes,

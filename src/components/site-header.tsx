@@ -68,6 +68,7 @@ async function MobileNav() {
       { href: user.role === "admin" ? "/admin" : "/dashboard", label: "Your deals" },
       ...(user.role === "admin" ? [] : [{ href: "/deals/new", label: "Open a deal" }]),
       { href: "/deals/join", label: "Join with a code" },
+      ...(user.role === "admin" ? [] : [{ href: "/wallet", label: "Your balance" }]),
       { href: "/settings/security", label: "Security" },
     );
   }
@@ -124,12 +125,20 @@ async function AccountArea() {
   return (
     <div className="flex items-center gap-2">
       {user.role === "admin" ? null : (
-        <Link
-          href="/deals/new"
-          className="hidden rounded-lg px-2.5 py-1.5 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--foreground)] lg:inline"
-        >
-          Open a deal
-        </Link>
+        <>
+          <Link
+            href="/deals/new"
+            className="hidden rounded-lg px-2.5 py-1.5 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--foreground)] lg:inline"
+          >
+            Open a deal
+          </Link>
+          <Link
+            href="/wallet"
+            className="hidden rounded-lg px-2.5 py-1.5 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--foreground)] lg:inline"
+          >
+            Balance
+          </Link>
+        </>
       )}
 
       {/* The name is hidden on phones for space, and a plain user has no admin

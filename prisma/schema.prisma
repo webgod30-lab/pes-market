@@ -78,6 +78,13 @@ enum DisputeStatus {
   cancelled // withdrawn
 }
 
+enum WithdrawalStatus {
+  requested // seller asked; the money is reserved but not gone
+  sent      // admin transferred it
+  rejected  // admin declined; the money returns to the balance
+  cancelled // seller pulled the request before it was sent
+}
+
 enum PaymentIntentStatus {
   pending // created, waiting for the provider to tell us it settled
   confirmed // provider confirmed; funds are with us
@@ -115,6 +122,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   recoveryCodes RecoveryCode[]
+  withdrawals   Withdrawal[]   @relation("WithdrawalSeller")
+  withdrawalsDecided Withdrawal[] @relation("WithdrawalDecider")
 
   // Deals, from either side
   dealsCreated  Deal[] @relation("DealCreator")
@@ -540,4 +549,48 @@ model RecoveryCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, usedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Withdrawal — a seller taking their balance off the site
+// ---------------------------------------------------------------------------
+
+/// A request to be paid out.
+///
+/// There is deliberately no balance column anywhere. A balance stored as a
+/// number is a number that can drift away from the deals that produced it, and
+/// reconciling it afterwards is guesswork. It is derived instead: everything
+/// earned from completed deals, minus everything requested or already sent.
+/// A rejected or cancelled request stops counting and the money reappears, with
+/// no compensating write to get wrong.
+///
+/// `requested` reserves the money. Without that a seller could open two
+/// requests for the same balance and be paid twice.
+model Withdrawal {
+  id       String @id @default(cuid())
+  sellerId String
+
+  amountCents Int
+  currency    String        @default("USD")
+  method      PaymentMethod
+
+  /// Where to send it, typed out per request rather than stored on the
+  /// account: a saved address is one account compromise away from silently
+  /// redirecting every future payout.
+  destination String @db.Text
+
+  status WithdrawalStatus @default(requested)
+
+  requestedAt DateTime  @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+
+  /// Transfer reference once sent, or the reason it was refused.
+  note String? @db.Text
+
+  seller    User  @relation("WithdrawalSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("WithdrawalDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([sellerId, requestedAt])
+  @@index([status, requestedAt])
 }

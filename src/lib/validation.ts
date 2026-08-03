@@ -225,3 +225,30 @@ export const paymentMethodSchema = z.object({
   isAutomatic: z.boolean(),
   provider: optionalTextField(60),
 });
+
+/** A seller asking to be paid out. */
+export const withdrawalSchema = z.object({
+  // Same parser as a deal price: one place that decides what "185.50" means.
+  amountCents: z
+    .string()
+    .trim()
+    .min(1, "Enter how much you want to withdraw.")
+    .transform((raw, ctx) => {
+      const cents = parsePriceToCents(raw);
+
+      if (cents === null) {
+        ctx.addIssue({ code: "custom", message: "Enter an amount like 50 or 50.25." });
+        return z.NEVER;
+      }
+
+      return cents;
+    }),
+  method: z.enum(["crypto", "card", "bank_transfer"], {
+    message: "Choose how you want to be paid.",
+  }),
+  destination: z
+    .string()
+    .trim()
+    .min(6, "Give the full address or account details — this is where the money goes.")
+    .max(600, "That is longer than any payout detail needs to be."),
+});

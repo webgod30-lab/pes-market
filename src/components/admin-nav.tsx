@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 /** Shared navigation across the admin console, so every screen is one click away. */
-export function AdminNav({ current }: { current: "hub" | "deals" | "disputes" | "users" | "payments" }) {
+export function AdminNav({ current }: { current: "hub" | "deals" | "withdrawals" | "disputes" | "users" | "payments" }) {
   const items = [
     { key: "hub", href: "/admin", label: "Overview" },
     { key: "deals", href: "/admin/deals", label: "Deals" },
+    { key: "withdrawals", href: "/admin/withdrawals", label: "Withdrawals" },
     { key: "disputes", href: "/admin/disputes", label: "Disputes" },
     { key: "users", href: "/admin/users", label: "Users" },
     { key: "payments", href: "/admin/payment-methods", label: "Payment methods" },
