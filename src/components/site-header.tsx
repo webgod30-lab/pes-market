@@ -68,6 +68,7 @@ async function MobileNav() {
       { href: user.role === "admin" ? "/admin" : "/dashboard", label: "Your deals" },
       ...(user.role === "admin" ? [] : [{ href: "/deals/new", label: "Open a deal" }]),
       { href: "/deals/join", label: "Join with a code" },
+      { href: "/settings/security", label: "Security" },
     );
   }
 
@@ -137,6 +138,23 @@ async function AccountArea() {
       >
         <span className="hidden max-w-[10ch] truncate text-sm sm:inline">{user.displayName}</span>
         {user.role === "admin" ? <Badge tone="warning">admin</Badge> : null}
+      </Link>
+
+      <Link
+        href="/settings/security"
+        title="Security"
+        aria-label="Security settings"
+        className="hidden rounded-lg px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--foreground)] sm:inline-flex"
+      >
+        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 3l7 2.5V11c0 4.4-2.9 7.7-7 9-4.1-1.3-7-4.6-7-9V5.5L12 3z"
+          />
+          <circle cx="12" cy="11" r="1.6" fill="currentColor" stroke="none" />
+          <path strokeLinecap="round" d="M12 12.6v2.4" />
+        </svg>
       </Link>
 
       <form action={signOutAction} className="hidden sm:block">

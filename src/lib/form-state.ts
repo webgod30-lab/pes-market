@@ -9,6 +9,8 @@ export type FormState = {
   /** Echoed back so the user doesn't retype everything after a failure.
    *  Passwords are never echoed. */
   values?: Record<string, string>;
+  /** Sign-in only: the password was right, now show the two-factor field. */
+  needsSecondFactor?: boolean;
 };
 
 /** First error message per field: { email: "Enter a valid email address." } */

@@ -129,8 +129,26 @@ export default function PrivacyPage() {
 
       <Section title="Cookies">
         <p>
-          One cookie, holding your sign-in session, so you stay signed in between pages. There is no
-          analytics, no tracking and no advertising cookie on this site. Signing out clears it.
+          Two, and neither is used to identify you across the web. One holds your sign-in session so
+          you stay signed in between pages; signing out clears it. The other remembers whether you
+          chose the light or dark theme, and is set only if you press that button.
+        </p>
+        <p>
+          There is no advertising cookie and no third-party tracker on this site.
+        </p>
+      </Section>
+
+      <Section title="Analytics">
+        <p>
+          We count page views and measure how quickly pages load, through Vercel Analytics and Speed
+          Insights. This records the page visited, the referring site, and coarse details like
+          country, browser and device type.
+        </p>
+        <p>
+          It sets no cookie, assigns you no identifier, and cannot follow you to other websites, so
+          there is nothing here to ask your consent for. We use it to see which pages people
+          actually read and which ones are slow — not to build a picture of you. If that ever
+          changes, this page changes with it, and you will be asked first.
         </p>
       </Section>
 

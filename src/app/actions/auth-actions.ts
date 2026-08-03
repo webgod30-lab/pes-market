@@ -12,6 +12,15 @@ import { hashPassword } from "@/lib/passwords";
 import { registerSchema, loginSchema } from "@/lib/validation";
 import { fieldErrorsFrom, type FormState } from "@/lib/form-state";
 import { databaseProblemMessage } from "@/lib/db-errors";
+import { clientIp } from "@/lib/client-ip";
+import {
+  clearRateLimit,
+  describeRetryAfter,
+  hitRateLimits,
+  LOGIN_BY_ACCOUNT,
+  LOGIN_BY_IP,
+  REGISTER_BY_IP,
+} from "@/lib/rate-limit";
 
 /**
  * Only allow relative, single-slash paths as a redirect target, so a crafted
@@ -47,6 +56,25 @@ export async function registerAction(
   }
 
   const { displayName, email, password } = parsed.data;
+
+  // Registration is limited by address alone — there is no account to key on
+  // yet. Checked after validation so a malformed submission does not spend
+  // someone's budget, and before the database work so a flood is cheap to
+  // refuse.
+  try {
+    const limit = await hitRateLimits([{ key: `register:ip:${await clientIp()}`, rule: REGISTER_BY_IP }]);
+
+    if (!limit.allowed) {
+      return {
+        message: `Too many accounts created from here. Try again in ${describeRetryAfter(limit.retryAfterSeconds)}.`,
+        values: echo,
+      };
+    }
+  } catch (error) {
+    const dbProblem = databaseProblemMessage(error);
+    if (dbProblem) return { message: dbProblem, values: echo };
+    throw error;
+  }
 
   try {
     const existing = await prisma.user.findUnique({
@@ -122,8 +150,35 @@ export async function loginAction(
   // forwards admins to /admin.
   const redirectTo = safeRedirectTarget(formData.get("next"), "/dashboard");
 
+  // Counted before the password is checked, not after it fails. A limiter that
+  // only counts failures lets an attacker who lands an occasional correct guess
+  // keep going forever.
+  const accountKey = `login:email:${email}`;
+
   try {
-    await signIn("credentials", { email, password, redirectTo });
+    const limit = await hitRateLimits([
+      { key: accountKey, rule: LOGIN_BY_ACCOUNT },
+      { key: `login:ip:${await clientIp()}`, rule: LOGIN_BY_IP },
+    ]);
+
+    if (!limit.allowed) {
+      // Says nothing about whether the account exists — the same message
+      // appears for an address that was never registered.
+      return {
+        message: `Too many sign-in attempts. Try again in ${describeRetryAfter(limit.retryAfterSeconds)}.`,
+        values: echo,
+      };
+    }
+  } catch (error) {
+    const dbProblem = databaseProblemMessage(error);
+    if (dbProblem) return { message: dbProblem, values: echo };
+    throw error;
+  }
+
+  const totp = String(formData.get("totp") ?? "").trim();
+
+  try {
+    await signIn("credentials", { email, password, totp, redirectTo });
   } catch (error) {
     // A successful sign-in also throws — Next's redirect signal. That is not an
     // AuthError, so it falls through to the rethrow below and works normally.
@@ -134,6 +189,34 @@ export async function loginAction(
       // check the wrapped cause first.
       const dbProblem = databaseProblemMessage(error);
       if (dbProblem) return { message: dbProblem, values: echo };
+
+      const code = secondFactorCode(error);
+
+      if (code === "totp_required") {
+        // Password was right. Ask for the code and keep the form filled in.
+        return {
+          needsSecondFactor: true,
+          message: "Enter the code from your authenticator app.",
+          values: echo,
+        };
+      }
+
+      if (code === "totp_replayed") {
+        return {
+          needsSecondFactor: true,
+          message:
+            "That code has already been used. Wait for your app to show the next one, then enter it.",
+          values: echo,
+        };
+      }
+
+      if (code === "totp_invalid") {
+        return {
+          needsSecondFactor: true,
+          message: "That code was not accepted. Try the current one, or a recovery code.",
+          values: echo,
+        };
+      }
 
       // Same message for "no such user" and "wrong password": don't confirm
       // which emails are registered.
@@ -147,6 +230,31 @@ export async function loginAction(
   }
 
   return {};
+}
+
+/**
+ * Digs the `code` out of a CredentialsSignin subclass.
+ *
+ * NextAuth does not re-expose it consistently — depending on how the error is
+ * wrapped it turns up on the error itself or on its cause — so both are
+ * checked rather than trusting one shape.
+ */
+function secondFactorCode(error: AuthError): string | null {
+  const candidates: unknown[] = [error, (error as { cause?: unknown }).cause];
+
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "object") continue;
+
+    const code = (candidate as { code?: unknown }).code;
+
+    if (code === "totp_required" || code === "totp_invalid" || code === "totp_replayed") return code;
+
+    const nested = (candidate as { err?: { code?: unknown } }).err?.code;
+
+    if (nested === "totp_required" || nested === "totp_invalid" || nested === "totp_replayed") return nested;
+  }
+
+  return null;
 }
 
 export async function signOutAction(): Promise<void> {

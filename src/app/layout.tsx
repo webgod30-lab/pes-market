@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -34,6 +36,14 @@ export default function RootLayout({
         <SiteHeader />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">{children}</main>
         <SiteFooter />
+
+        {/* Page counts and load timings only: no cookies, no cross-site
+            identifier, nothing tied to a person. That is why this site has no
+            consent banner — there is nothing to consent to. Anything that
+            tracked individuals would need one, and would need the privacy
+            policy rewritten. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

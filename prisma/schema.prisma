@@ -101,8 +101,20 @@ model User {
   bannedAt  DateTime?
   banReason String?
 
+  /// TOTP shared secret, encrypted at rest with the same key as the account
+  /// credentials. Present but with totpEnabledAt null means enrolment was
+  /// started and never confirmed, which grants nothing.
+  totpSecret    String?
+  totpEnabledAt DateTime?
+  /// The last time step accepted for this account. A code is refused if its
+  /// step is not newer, so someone who sees a code over your shoulder cannot
+  /// replay it in the seconds it remains otherwise valid.
+  totpLastStep  Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  recoveryCodes RecoveryCode[]
 
   // Deals, from either side
   dealsCreated  Deal[] @relation("DealCreator")
@@ -475,4 +487,57 @@ model Dispute {
 
   @@index([status])
   @@index([dealId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// RateLimitBucket — brute-force protection for the auth routes
+// ---------------------------------------------------------------------------
+
+/// A fixed-window counter, in the database rather than in memory.
+///
+/// In memory would be worse than nothing here: this deploys to serverless, so
+/// every instance would keep its own count and an attacker would get the limit
+/// multiplied by however many instances happen to be warm.
+///
+/// The primary key is (key, windowStart), so an upsert with an increment is a
+/// single atomic statement and two simultaneous attempts cannot both read a
+/// stale count and write the same value back.
+model RateLimitBucket {
+  /// What is being limited, e.g. "login:ip:1.2.3.4" or "login:email:a@b.c".
+  key         String
+  /// Start of the window this count belongs to.
+  windowStart DateTime
+  count       Int      @default(0)
+  /// When this row stops mattering, so old rows can be swept without knowing
+  /// which limit produced them.
+  expiresAt   DateTime
+
+  @@id([key, windowStart])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// RecoveryCode — the way back in when the phone is gone
+// ---------------------------------------------------------------------------
+
+/// Single-use codes issued when two-factor is turned on.
+///
+/// These are not a nicety. There is no password reset on this service yet, so
+/// without them a lost or wiped phone means an account — including the only
+/// admin account, which approves every payout — is locked shut permanently.
+///
+/// Stored as bcrypt hashes, the same as passwords: a database leak must not
+/// hand over a working second factor. Used codes are kept rather than deleted,
+/// so the account owner can see one was spent and when.
+model RecoveryCode {
+  id       String    @id @default(cuid())
+  userId   String
+  codeHash String
+  usedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
 }

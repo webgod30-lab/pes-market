@@ -22,14 +22,19 @@
     "test:load": "tsx scripts/load-test.ts",
     "reminders": "tsx scripts/send-reminders.ts",
     "simulate:payment": "tsx scripts/simulate-payment.ts",
-    "generate:key": "node -e \"console.log(require('node:crypto').randomBytes(32).toString('hex'))\""
+    "generate:key": "node -e \"console.log(require('node:crypto').randomBytes(32).toString('hex'))\"",
+    "test:security": "tsx scripts/check-security.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",
     "next": "16.2.12",
     "next-auth": "^5.0.0-beta.32",
+    "otplib": "^13.4.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.4.3"
@@ -37,6 +42,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
