@@ -7,7 +7,7 @@ import {
   requestTransferCodeAction,
 } from "@/app/actions/transfer-code-actions";
 import type { TransferCodeView } from "@/lib/transfer-codes";
-import { Button, Field, FormError, inputClassName } from "@/components/ui";
+import { Alert, Button, Field, FormError, inputClassName } from "@/components/ui";
 
 /**
  * The publisher verification code exchange, shown during the claim.
@@ -44,9 +44,9 @@ export function TransferCodePanel({
       ) : null}
 
       {role === "admin" && pending ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
+        <Alert tone="warning">
           The buyer is waiting on the seller for a code. This is the usual reason a claim stalls.
-        </p>
+        </Alert>
       ) : null}
 
       {codes.length > 0 ? (
@@ -124,10 +124,10 @@ function BuyerSide({ dealId, pending }: { dealId: string; pending: boolean }) {
 
   if (pending) {
     return (
-      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
+      <Alert tone="warning">
         Waiting on the seller to send the code. If they go quiet, open a dispute — your money is still
         held and has not gone anywhere.
-      </p>
+      </Alert>
     );
   }
 
@@ -177,11 +177,10 @@ function SellerSide({
       {requestId ? <input type="hidden" name="requestId" value={requestId} /> : null}
 
       {requestId ? (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
-          <strong>The buyer is waiting on you.</strong> Konami has sent a verification code to the
+        <Alert tone="warning" title="The buyer is waiting on you."> Konami has sent a verification code to the
           email that is still on the account — your inbox. Paste it below.
           {note ? <p className="mt-1.5 opacity-80">&ldquo;{note}&rdquo;</p> : null}
-        </div>
+        </Alert>
       ) : (
         <p className="text-sm text-[var(--muted)]">
           Konami sends the transfer code to the email still on the account — yours. When one arrives,

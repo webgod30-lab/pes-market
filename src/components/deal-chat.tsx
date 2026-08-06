@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 
 import { markMessagesReadAction, postMessageAction } from "@/app/actions/trust-actions";
 import type { ChatMessage } from "@/lib/messages";
-import { Button, FormError, inputClassName } from "@/components/ui";
+import { Button, Field, FormError, Textarea } from "@/components/ui";
 
 /**
  * The conversation for one deal.
@@ -85,14 +85,16 @@ export function DealChat({
       <form ref={formRef} action={formAction} className="mt-4 space-y-2">
         <FormError message={state?.message} />
         <input type="hidden" name="dealId" value={dealId} />
-        <textarea
-          name="body"
-          rows={3}
-          required
-          maxLength={4000}
-          className={inputClassName}
-          placeholder="Write a message…"
-        />
+        <Field label="Message" name="body" error={state?.fieldErrors?.body}>
+          <Textarea
+            id="body"
+            name="body"
+            rows={3}
+            required
+            maxLength={4000}
+            placeholder="Write a message…"
+          />
+        </Field>
         <div className="flex flex-wrap items-center justify-between gap-2">
           {canPostAdminNote ? (
             <label className="flex items-center gap-2 text-xs text-[var(--muted)]">

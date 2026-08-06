@@ -9,7 +9,7 @@ import {
   disableTotpAction,
   type EnrolmentState,
 } from "@/app/actions/security-actions";
-import { Button, Field, FormError, inputClassName } from "@/components/ui";
+import { Alert, Button, Field, FormError, inputClassName, Skeleton } from "@/components/ui";
 
 /**
  * Enrolment, in the order it has to happen: get a secret, prove you can read a
@@ -96,7 +96,7 @@ function EnrolPanel({ qrFor }: { qrFor: (uri: string) => Promise<string> }) {
             className="mt-3 size-44 rounded-lg bg-white p-2"
           />
         ) : (
-          <div className="mt-3 size-44 animate-pulse rounded-lg bg-[var(--surface-2)]" />
+          <Skeleton className="mt-3 size-44" />
         )}
 
         <p className="mt-3 text-xs text-[var(--muted)]">
@@ -149,9 +149,7 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
 
   return (
     <div>
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-[var(--tone-success)]">
-        Two-factor is on.
-      </div>
+      <Alert tone="success">Two-factor is on.</Alert>
 
       <h3 className="mt-5 text-sm font-semibold">Save these recovery codes now</h3>
       <p className="mt-1.5 text-sm text-[var(--muted)]">
@@ -211,9 +209,7 @@ function DisablePanel({ recoveryCodesLeft }: { recoveryCodesLeft: number }) {
 
   return (
     <div>
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-[var(--tone-success)]">
-        Two-factor is on for this account.
-      </div>
+      <Alert tone="success">Two-factor is on for this account.</Alert>
 
       <p className="mt-4 text-sm text-[var(--muted)]">
         {recoveryCodesLeft} recovery code{recoveryCodesLeft === 1 ? "" : "s"} left.

@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
-import { Button } from "@/components/ui";
+import { Button, toast } from "@/components/ui";
 
 /**
  * Shows the invite code and a copyable link for the deal creator.
@@ -12,19 +10,17 @@ import { Button } from "@/components/ui";
  * moment this is deployed anywhere.
  */
 export function InviteShare({ code }: { code: string }) {
-  const [copied, setCopied] = useState<"code" | "link" | null>(null);
-
   async function copy(kind: "code" | "link") {
     const value = kind === "code" ? code : `${window.location.origin}/deals/join/${code}`;
 
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(kind);
-      setTimeout(() => setCopied(null), 2000);
+      toast(kind === "code" ? "Invite code copied." : "Invite link copied.");
     } catch {
       // Clipboard access can be refused (insecure origin, permissions). The
-      // code is on screen to copy by hand, so this is not worth an error.
-      setCopied(null);
+      // code is on screen to copy by hand, so this says so rather than failing
+      // silently, which is what the old label-flip did.
+      toast("Could not reach the clipboard — copy the code by hand.", "danger");
     }
   }
 
@@ -37,10 +33,10 @@ export function InviteShare({ code }: { code: string }) {
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="secondary" onClick={() => copy("code")}>
-          {copied === "code" ? "Copied" : "Copy code"}
+          Copy code
         </Button>
         <Button type="button" onClick={() => copy("link")}>
-          {copied === "link" ? "Copied" : "Copy invite link"}
+          Copy invite link
         </Button>
       </div>
 

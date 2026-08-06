@@ -2,7 +2,7 @@ import { requireUserOrProblem } from "@/lib/dal";
 import { JoinDealForm } from "@/components/join-deal-form";
 import { Card, PageHeading, SetupProblem } from "@/components/ui";
 
-export const metadata = { title: "Join a deal — PES Escrow" };
+export const metadata = { title: "Join a deal" };
 
 export default async function JoinDealPage() {
   const auth = await requireUserOrProblem(null, "/deals/join");

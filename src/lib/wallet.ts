@@ -413,3 +413,19 @@ export function destinationFields(withdrawal: {
     name,
   ];
 }
+
+/**
+ * How each withdrawal state should look.
+ *
+ * The tone lives here rather than in the two pages that render it, because it
+ * was written out identically in both and the pair would drift. The *labels*
+ * deliberately stay in the pages: the seller sees "Waiting to be sent" and the
+ * admin sees "Waiting on you", which is the same state described from the side
+ * that has to act on it.
+ */
+export const WITHDRAWAL_TONE: Record<WithdrawalStatus, "neutral" | "success" | "warning" | "danger"> = {
+  requested: "warning",
+  sent: "success",
+  rejected: "danger",
+  cancelled: "neutral",
+};

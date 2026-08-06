@@ -6,8 +6,10 @@ import { loadDealForViewer, type DealView, type DealViewerRole } from "@/lib/dea
 import { listActivePaymentMethods, type PaymentMethodView } from "@/lib/payment-methods";
 import { formatCents } from "@/lib/money";
 import { formatFeeBps } from "@/lib/fees";
-import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
-import { DealTimeline } from "@/components/deal-timeline";
+import { DEAL_STATUS_LABEL, PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
+import { DealTimeline } from "@/components/trade/timeline";
+import { TradeHistory } from "@/components/trade/history";
+import { StatusBadge, TurnBadge } from "@/components/trade/status-badge";
 import { DepositCredentialsForm } from "@/components/deposit-credentials-form";
 import { InviteShare } from "@/components/invite-share";
 import { CancelDealForm } from "@/components/cancel-deal-form";
@@ -26,7 +28,7 @@ import { ReviewForm } from "@/components/review-form";
 import { ReputationLine, Stars } from "@/components/reputation";
 import { Badge, Card, SetupProblem } from "@/components/ui";
 
-export const metadata = { title: "Deal — PES Escrow" };
+export const metadata = { title: "Deal" };
 
 export default async function DealPage({
   params,
@@ -130,11 +132,39 @@ export default async function DealPage({
         <div className="flex flex-wrap items-center gap-2">
           {isParty ? <Badge tone={role === "seller" ? "info" : "success"}>you are the {role}</Badge> : null}
           {role === "admin" ? <Badge tone="warning">admin view</Badge> : null}
-          <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABEL[deal.status]}</Badge>
+          <StatusBadge status={deal.status} side={isParty ? role : undefined} />
+          {isParty ? <TurnBadge status={deal.status} side={role} /> : null}
         </div>
       </div>
 
-      <DealTimeline status={deal.status} />
+      {/* Where it has got to, and everything that has happened, side by side.
+          They answer different questions — see the note in trade/history.tsx —
+          and on a phone they stack in that order, which is also the order of
+          how urgent they are. */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold">Progress</h2>
+          <DealTimeline
+            status={deal.status}
+            // DealView deliberately does not expose when the invite was
+            // accepted, so that step shows no date rather than a guessed one.
+            // The deposit is dated from credentialsUpdatedAt, which is the last
+            // time the seller touched the account details.
+            stamps={{
+              createdAt: deal.createdAt,
+              depositedAt: deal.credentialsUpdatedAt,
+              paymentConfirmedAt: deal.paymentConfirmedAt,
+              credentialsReleasedAt: deal.credentialsReleasedAt,
+              completedAt: deal.completedAt,
+            }}
+          />
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold">History</h2>
+          <TradeHistory facts={deal} />
+        </Card>
+      </div>
 
       <div className="mt-6 grid gap-3 lg:grid-cols-2">
         <Card>

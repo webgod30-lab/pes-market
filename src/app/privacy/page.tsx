@@ -6,7 +6,7 @@ import { LastUpdated, Notice, Points, Prose, Section } from "@/components/prose"
 import { PageHeading } from "@/components/ui";
 
 export const metadata = {
-  title: "Privacy policy — PES Escrow",
+  title: "Privacy policy",
   description:
     "What data this escrow service collects, how account credentials are protected, what is public, and how long things are kept.",
 };

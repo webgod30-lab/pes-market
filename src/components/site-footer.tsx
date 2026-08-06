@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { LogoLink } from "@/components/logo";
+import { LogoLink } from "@/components/brand";
+import { LockIcon } from "@/components/graphics";
 import { SITE } from "@/lib/site";
 
 const COLUMNS = [
@@ -35,22 +36,35 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-16 border-t border-[var(--border)] bg-[var(--surface)]/40">
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+    <footer className="relative mt-24 border-t border-[var(--border)] bg-[var(--surface)]/40">
+      {/* A hairline of brand colour along the top edge, fading out at both
+          ends. The one piece of decoration down here — it stops the footer
+          reading as the page having simply run out. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)]/40 to-transparent"
+      />
+
+      <div className="mx-auto max-w-6xl px-4 py-14">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
             <LogoLink size={28} />
-            <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-[var(--muted)]">
               {SITE.tagline}. We hold the account and the money until both sides are proven — so
               whoever goes first is not the one taking the risk.
+            </p>
+
+            {/* Stated once, quietly, where it can be checked against the rest
+                of the site rather than shouted as a badge. */}
+            <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] px-3 py-1.5 text-xs font-medium text-[var(--accent)]">
+              <LockIcon className="size-3.5" />
+              AES-256-GCM encrypted at rest
             </p>
           </div>
 
           {COLUMNS.map((column) => (
             <div key={column.heading}>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground)]">
-                {column.heading}
-              </h2>
+              <h2 className="text-overline uppercase text-[var(--foreground)]">{column.heading}</h2>
               {/* space-y-0.5 rather than -2: the padding below now provides
                   the separation, and keeping the old gap as well would push
                   the footer to twice its height on a phone. */}
@@ -74,7 +88,7 @@ export function SiteFooter() {
         </div>
 
         {/* The honest bit. Saying this plainly is worth more than a trust badge. */}
-        <div className="mt-10 space-y-3 border-t border-[var(--border)] pt-6 text-xs leading-relaxed text-[var(--muted)]">
+        <div className="mt-12 space-y-3 border-t border-[var(--border)] pt-8 text-xs leading-relaxed text-[var(--muted)]">
           <p>
             <strong className="text-[var(--foreground)]">We do not sell accounts.</strong> Nothing is
             listed or advertised here. Buyers and sellers agree their own deals elsewhere and use this
@@ -95,7 +109,7 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]">
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]">
           <p>
             © {year} {SITE.name}
           </p>

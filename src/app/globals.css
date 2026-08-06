@@ -19,18 +19,55 @@
      are identical in both themes because they always carry dark text. */
   --accent: #34d399;
   --accent-strong: #6ee7b7;
-  /* Texture. Both are drawn over --background, so they invert with it. */
+  /* Texture. Drawn over --background, so it inverts with it. */
   --grid-line: rgba(255, 255, 255, 0.045);
-  --grid-dot: rgba(255, 255, 255, 0.07);
-  --glow-1: rgba(52, 211, 153, 0.16);
-  --glow-2: rgba(56, 189, 248, 0.1);
   /* Ring shadow used instead of heavy drop shadows. */
   --ring: rgba(255, 255, 255, 0.06);
+
+  /* Glass. The header and the menus float over page content, so they are
+     translucent rather than filled — but only just enough to read through.
+     --glass-bar is the resting header; --glass-bar-dense is what it becomes
+     once the page has scrolled under it and legibility matters more than the
+     effect. Panels sit above real text and are the most opaque of the three. */
+  --glass-bar: rgba(11, 15, 20, 0.58);
+  --glass-bar-dense: rgba(11, 15, 20, 0.82);
+  --glass-panel: rgba(18, 24, 33, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  /* One-pixel highlight along the top edge — what makes glass read as a pane
+     with a lit edge rather than a flat translucent rectangle. */
+  --glass-highlight: rgba(255, 255, 255, 0.08);
   --tone-neutral: #cbd5e1;
   --tone-success: #6ee7b7;
   --tone-warning: #fcd34d;
   --tone-danger: #fca5a5;
   --tone-info: #7dd3fc;
+  /* Tone surfaces and borders. Alpha, so one value works over either ground.
+     Before these existed, callouts hardcoded things like "bg-amber-500/10
+     border-amber-500/30" and eleven different opacity pairs were in use for
+     what are really four states. */
+  --tone-neutral-bg: rgba(148, 163, 184, 0.12);
+  --tone-neutral-border: rgba(148, 163, 184, 0.28);
+  --tone-success-bg: rgba(52, 211, 153, 0.12);
+  --tone-success-border: rgba(52, 211, 153, 0.30);
+  --tone-warning-bg: rgba(251, 191, 36, 0.12);
+  --tone-warning-border: rgba(251, 191, 36, 0.32);
+  --tone-danger-bg: rgba(248, 113, 113, 0.12);
+  --tone-danger-border: rgba(248, 113, 113, 0.30);
+  --tone-info-bg: rgba(56, 189, 248, 0.12);
+  --tone-info-border: rgba(56, 189, 248, 0.30);
+
+  /* A third elevation, and a border with enough contrast to read as an edge
+     rather than a suggestion. */
+  --surface-3: #1f2a35;
+  --border-strong: #38495c;
+  /* Text quieter than --muted: timestamps, gutter numbers, help text. */
+  --faint: #64798c;
+
+  /* Elevation. On a dark ground a drop shadow is nearly invisible, so each
+     level pairs a shadow with a hairline ring that does the real work. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(255, 255, 255, 0.06);
   color-scheme: dark;
 }
 
@@ -46,15 +83,37 @@
     --accent: #047857;
     --accent-strong: #065f46;
     --grid-line: rgba(2, 8, 23, 0.04);
-    --grid-dot: rgba(2, 8, 23, 0.06);
-    --glow-1: rgba(16, 185, 129, 0.12);
-    --glow-2: rgba(56, 189, 248, 0.08);
     --ring: rgba(2, 8, 23, 0.05);
+
+    --glass-bar: rgba(255, 255, 255, 0.62);
+    --glass-bar-dense: rgba(255, 255, 255, 0.86);
+    --glass-panel: rgba(255, 255, 255, 0.92);
+    --glass-border: rgba(2, 8, 23, 0.1);
+    --glass-highlight: rgba(255, 255, 255, 0.85);
+
     --tone-neutral: #475569;
     --tone-success: #047857;
-    --tone-warning: #b45309;
+    --tone-warning: #92400e;
     --tone-danger: #b91c1c;
     --tone-info: #0369a1;
+    --tone-neutral-bg: rgba(71, 85, 105, 0.08);
+    --tone-neutral-border: rgba(71, 85, 105, 0.20);
+    --tone-success-bg: rgba(4, 120, 87, 0.09);
+    --tone-success-border: rgba(4, 120, 87, 0.24);
+    --tone-warning-bg: rgba(180, 83, 9, 0.09);
+    --tone-warning-border: rgba(180, 83, 9, 0.26);
+    --tone-danger-bg: rgba(185, 28, 28, 0.08);
+    --tone-danger-border: rgba(185, 28, 28, 0.22);
+    --tone-info-bg: rgba(3, 105, 161, 0.08);
+    --tone-info-border: rgba(3, 105, 161, 0.22);
+
+    --surface-3: #eef2f1;
+    --border-strong: #c3cfcb;
+    --faint: #8a9a95;
+
+    --shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.06), 0 0 0 1px rgba(2, 8, 23, 0.04);
+    --shadow-md: 0 2px 8px rgba(2, 8, 23, 0.08), 0 0 0 1px rgba(2, 8, 23, 0.05);
+    --shadow-lg: 0 10px 28px rgba(2, 8, 23, 0.10), 0 0 0 1px rgba(2, 8, 23, 0.06);
     color-scheme: light;
   }
 }
@@ -71,15 +130,37 @@
   --accent: #047857;
   --accent-strong: #065f46;
   --grid-line: rgba(2, 8, 23, 0.04);
-  --grid-dot: rgba(2, 8, 23, 0.06);
-  --glow-1: rgba(16, 185, 129, 0.12);
-  --glow-2: rgba(56, 189, 248, 0.08);
   --ring: rgba(2, 8, 23, 0.05);
+
+  --glass-bar: rgba(255, 255, 255, 0.62);
+  --glass-bar-dense: rgba(255, 255, 255, 0.86);
+  --glass-panel: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(2, 8, 23, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+
   --tone-neutral: #475569;
   --tone-success: #047857;
-  --tone-warning: #b45309;
+  --tone-warning: #92400e;
   --tone-danger: #b91c1c;
   --tone-info: #0369a1;
+  --tone-neutral-bg: rgba(71, 85, 105, 0.08);
+  --tone-neutral-border: rgba(71, 85, 105, 0.20);
+  --tone-success-bg: rgba(4, 120, 87, 0.09);
+  --tone-success-border: rgba(4, 120, 87, 0.24);
+  --tone-warning-bg: rgba(180, 83, 9, 0.09);
+  --tone-warning-border: rgba(180, 83, 9, 0.26);
+  --tone-danger-bg: rgba(185, 28, 28, 0.08);
+  --tone-danger-border: rgba(185, 28, 28, 0.22);
+  --tone-info-bg: rgba(3, 105, 161, 0.08);
+  --tone-info-border: rgba(3, 105, 161, 0.22);
+
+  --surface-3: #eef2f1;
+  --border-strong: #c3cfcb;
+  --faint: #8a9a95;
+
+  --shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.06), 0 0 0 1px rgba(2, 8, 23, 0.04);
+  --shadow-md: 0 2px 8px rgba(2, 8, 23, 0.08), 0 0 0 1px rgba(2, 8, 23, 0.05);
+  --shadow-lg: 0 10px 28px rgba(2, 8, 23, 0.10), 0 0 0 1px rgba(2, 8, 23, 0.06);
   color-scheme: light;
 }
 
@@ -93,30 +174,143 @@
   --accent: #34d399;
   --accent-strong: #6ee7b7;
   --grid-line: rgba(255, 255, 255, 0.045);
-  --grid-dot: rgba(255, 255, 255, 0.07);
-  --glow-1: rgba(52, 211, 153, 0.16);
-  --glow-2: rgba(56, 189, 248, 0.1);
   --ring: rgba(255, 255, 255, 0.06);
+
+  --glass-bar: rgba(11, 15, 20, 0.58);
+  --glass-bar-dense: rgba(11, 15, 20, 0.82);
+  --glass-panel: rgba(18, 24, 33, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.08);
+
   --tone-neutral: #cbd5e1;
   --tone-success: #6ee7b7;
   --tone-warning: #fcd34d;
   --tone-danger: #fca5a5;
   --tone-info: #7dd3fc;
+  /* Tone surfaces and borders. Alpha, so one value works over either ground.
+     Before these existed, callouts hardcoded things like "bg-amber-500/10
+     border-amber-500/30" and eleven different opacity pairs were in use for
+     what are really four states. */
+  --tone-neutral-bg: rgba(148, 163, 184, 0.12);
+  --tone-neutral-border: rgba(148, 163, 184, 0.28);
+  --tone-success-bg: rgba(52, 211, 153, 0.12);
+  --tone-success-border: rgba(52, 211, 153, 0.30);
+  --tone-warning-bg: rgba(251, 191, 36, 0.12);
+  --tone-warning-border: rgba(251, 191, 36, 0.32);
+  --tone-danger-bg: rgba(248, 113, 113, 0.12);
+  --tone-danger-border: rgba(248, 113, 113, 0.30);
+  --tone-info-bg: rgba(56, 189, 248, 0.12);
+  --tone-info-border: rgba(56, 189, 248, 0.30);
+
+  /* A third elevation, and a border with enough contrast to read as an edge
+     rather than a suggestion. */
+  --surface-3: #1f2a35;
+  --border-strong: #38495c;
+  /* Text quieter than --muted: timestamps, gutter numbers, help text. */
+  --faint: #64798c;
+
+  /* Elevation. On a dark ground a drop shadow is nearly invisible, so each
+     level pairs a shadow with a hairline ring that does the real work. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(255, 255, 255, 0.06);
   color-scheme: dark;
 }
 
 @theme inline {
+  /* Palette, exposed to Tailwind so `bg-surface-2` and `text-muted` work as
+     utilities instead of every component writing bg-[var(--surface-2)]. */
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-border-subtle: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+
+  --color-tone-neutral: var(--tone-neutral);
+  --color-tone-success: var(--tone-success);
+  --color-tone-warning: var(--tone-warning);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-info: var(--tone-info);
+
   /* System font stack: no network fetch at build time, instant first paint. */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+
+  /* ---------------------------------------------------------------------
+     Type scale
+     ---------------------------------------------------------------------
+     A fixed set of steps, each with its line height and tracking baked in,
+     so `text-h2` cannot be paired with the wrong leading. Ratio is roughly
+     1.2 through the body sizes and opens up at display sizes, where tight
+     tracking stops large text looking loose.
+
+     Tailwind's own text-xs … text-5xl stay available and unchanged; these
+     are named additions, not replacements. */
+  --text-display: 3rem;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 660;
+
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.022em;
+  --text-h1--font-weight: 650;
+
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 1.2;
+  --text-h2--letter-spacing: -0.016em;
+  --text-h2--font-weight: 640;
+
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.3;
+  --text-h3--letter-spacing: -0.01em;
+  --text-h3--font-weight: 620;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.5;
+
+  --text-overline: 0.6875rem;
+  --text-overline--line-height: 1.4;
+  --text-overline--letter-spacing: 0.08em;
+  --text-overline--font-weight: 600;
+
+  /* ---------------------------------------------------------------------
+     Spacing
+     ---------------------------------------------------------------------
+     Tailwind's 4px scale is left exactly as it is — replacing a working
+     scale is how a codebase ends up with two. These are named rhythm steps
+     layered on top, for the handful of measurements that should agree
+     across every page: the gap between sections, the padding inside a card,
+     the gap between stacked controls. */
+  --spacing-gutter: 1rem;
+  --spacing-stack: 0.75rem;
+  --spacing-card: 1.5rem;
+  --spacing-card-tight: 1rem;
+  --spacing-section: 2.5rem;
+  --spacing-section-lg: 4rem;
+
+  /* ---------------------------------------------------------------------
+     Radius
+     --------------------------------------------------------------------- */
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-panel: 1rem;
+  --radius-pill: 9999px;
+
+  /* Elevation, from the per-theme values above. */
+  --shadow-e1: var(--shadow-sm);
+  --shadow-e2: var(--shadow-md);
+  --shadow-e3: var(--shadow-lg);
 }
 
 body {
@@ -144,23 +338,74 @@ body {
     mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
   }
 
-  .texture-dots {
-    background-image: radial-gradient(var(--grid-dot) 1.4px, transparent 1.4px);
-    background-size: 22px 22px;
-    mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, #000 30%, transparent 100%);
-  }
-
-  /* Brand-coloured wash behind the hero. */
-  .glow-hero {
-    background-image:
-      radial-gradient(circle at 15% 20%, var(--glow-1), transparent 45%),
-      radial-gradient(circle at 85% 10%, var(--glow-2), transparent 40%);
-  }
-
   /* Hairline ring instead of a drop shadow: reads as crisp on white and does
      not turn into a dark smudge on the dark theme. */
   .ring-hairline {
     box-shadow: 0 0 0 1px var(--ring);
+  }
+
+  /* How far down the page you are, drawn along the bottom of the header.
+     A scroll-driven animation rather than a scroll listener writing a width:
+     it is driven by the compositor, so it stays smooth while the main thread
+     is busy, and it costs no JavaScript.
+
+     Gated on @supports because it is decoration. Where `animation-timeline` is
+     unsupported the element keeps its scale-x-0 and is simply never seen — no
+     fallback needed for a 1px hairline. */
+  @supports (animation-timeline: scroll()) {
+    .scroll-progress {
+      animation: scroll-progress linear;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+
+/* The staged arrival on the authentication pages.
+   A CSS animation rather than a JavaScript one, deliberately: these are the
+   pages most likely to be reached on a bad connection or with scripting
+   blocked, and a login form that is invisible until a bundle loads is a login
+   form that is sometimes just missing. `both` fill mode means the reduced-motion
+   rule below — which collapses the duration — lands on the final state rather
+   than the initial one. */
+@keyframes auth-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A toast arriving. Rises from the edge it is anchored to, so the movement
+   points away from the thing that caused it rather than across the page. */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast-enter {
+  animation: toast-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.auth-enter {
+  animation: auth-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+@keyframes scroll-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 

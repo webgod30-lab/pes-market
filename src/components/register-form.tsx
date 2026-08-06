@@ -1,23 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { registerAction } from "@/app/actions/auth-actions";
-import { Button, Field, FormError, inputClassName } from "@/components/ui";
+import { AuthFormError } from "@/components/auth/form-alert";
+import { PasswordInput } from "@/components/auth/password-input";
+import { PasswordStrength } from "@/components/auth/password-strength";
+import { Button, Field, fieldDescribedBy, inputClassName } from "@/components/ui";
 
+/** Named once so the visible hint and its aria-describedby cannot disagree. */
+const NAME_HINT = "What the other party and the admin will see.";
+const PASSWORD_HINT = "At least 8 characters. Length matters more than symbols.";
+
+/**
+ * Create an account.
+ *
+ * `registerAction` and `registerSchema` are untouched: 8 to 72 characters is
+ * still exactly what is accepted. The strength meter below is advice shown
+ * while typing and has no say in whether the form submits — see the note in
+ * password-strength.tsx.
+ */
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState(registerAction, undefined);
 
+  // Held only to draw the meter. It is never submitted separately, never sent
+  // anywhere, and dies with the component.
+  const [password, setPassword] = useState("");
+
   return (
     <form action={formAction} className="space-y-4">
-      <FormError message={state?.message} />
+      <AuthFormError message={state?.message} />
 
       <Field
         label="Display name"
         name="displayName"
         error={state?.fieldErrors?.displayName}
-        hint="What the other party and the admin will see."
+        hint={NAME_HINT}
       >
         <input
           id="displayName"
@@ -26,7 +45,11 @@ export function RegisterForm() {
           autoComplete="nickname"
           required
           defaultValue={state?.values?.displayName ?? ""}
-          aria-invalid={Boolean(state?.fieldErrors?.displayName)}
+          aria-invalid={Boolean(state?.fieldErrors?.displayName) || undefined}
+          aria-describedby={fieldDescribedBy("displayName", {
+            hint: NAME_HINT,
+            error: state?.fieldErrors?.displayName,
+          })}
           className={inputClassName}
           placeholder="Your name or handle"
         />
@@ -40,7 +63,8 @@ export function RegisterForm() {
           autoComplete="email"
           required
           defaultValue={state?.values?.email ?? ""}
-          aria-invalid={Boolean(state?.fieldErrors?.email)}
+          aria-invalid={Boolean(state?.fieldErrors?.email) || undefined}
+          aria-describedby={fieldDescribedBy("email", { error: state?.fieldErrors?.email })}
           className={inputClassName}
           placeholder="you@example.com"
         />
@@ -50,34 +74,40 @@ export function RegisterForm() {
         label="Password"
         name="password"
         error={state?.fieldErrors?.password}
-        hint="At least 8 characters."
+        hint={PASSWORD_HINT}
       >
-        <input
-          id="password"
+        <PasswordInput
           name="password"
-          type="password"
           autoComplete="new-password"
-          required
           minLength={8}
-          aria-invalid={Boolean(state?.fieldErrors?.password)}
-          className={inputClassName}
-          placeholder="••••••••"
+          invalid={Boolean(state?.fieldErrors?.password)}
+          describedBy={fieldDescribedBy("password", {
+            hint: PASSWORD_HINT,
+            error: state?.fieldErrors?.password,
+          })}
+          onValueChange={setPassword}
         />
+        <PasswordStrength value={password} />
       </Field>
 
-      <Button type="submit" disabled={pending} className="w-full">
+      {/* Said before the button, not after. There is no password reset on this
+          service, so choosing something memorable is not a preference — it is
+          the difference between keeping the account and losing it. */}
+      <p className="rounded-[var(--radius-control)] border border-[var(--tone-warning-border)] bg-[var(--tone-warning-bg)] px-3 py-2.5 text-xs leading-relaxed text-[var(--tone-warning)]">
+        <strong className="font-semibold">There is no password reset yet.</strong> Use a password
+        manager, or pick something you will not forget —{" "}
+        <Link href="/forgot-password" className="underline">
+          recovering an account
+        </Link>{" "}
+        currently means contacting us.
+      </p>
+
+      <Button type="submit" loading={pending} disabled={pending} block size="md">
         {pending ? "Creating account…" : "Create account"}
       </Button>
 
-      <p className="text-center text-sm text-[var(--muted)]">
+      <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
         One account covers both sides — you can be the seller in one deal and the buyer in another.
-      </p>
-
-      <p className="text-center text-sm text-[var(--muted)]">
-        Already registered?{" "}
-        <Link href="/login" className="text-[var(--accent)] hover:underline">
-          Sign in
-        </Link>
       </p>
     </form>
   );

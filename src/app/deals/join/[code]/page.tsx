@@ -8,7 +8,7 @@ import { JoinDealForm } from "@/components/join-deal-form";
 import { ReputationLine } from "@/components/reputation";
 import { Badge, Card, PageHeading, SetupProblem } from "@/components/ui";
 
-export const metadata = { title: "Join a deal — PES Escrow" };
+export const metadata = { title: "Join a deal" };
 
 export default async function JoinByCodePage({
   params,

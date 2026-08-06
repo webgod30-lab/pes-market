@@ -3,11 +3,15 @@ import Link from "next/link";
 import { requireUserOrProblem } from "@/lib/dal";
 import { listDealsForAdmin, type DealFilter } from "@/lib/admin";
 import { DEAL_STATUS_LABEL } from "@/lib/deal-status";
-import { AdminNav } from "@/components/admin-nav";
-import { AdminDealRow } from "@/components/admin-deal-row";
-import { EmptyState, PageHeading, SetupProblem, inputClassName } from "@/components/ui";
+import { adminSections } from "@/components/dashboard/dash-nav";
+import { adminDealColumns } from "@/components/dashboard/admin-deal-columns";
+import { DashShell } from "@/components/dashboard/dash-shell";
+import { DataTable } from "@/components/dashboard/data-table";
+import { EmptyPanel } from "@/components/dashboard/empty-panel";
+import { FilterChips } from "@/components/dashboard/filter-chips";
+import { Button, inputClassName, SearchInput, SetupProblem } from "@/components/ui";
 
-export const metadata = { title: "Deals — admin — PES Escrow" };
+export const metadata = { title: "Deals — admin" };
 
 const FILTERS: { value: DealFilter; label: string }[] = [
   { value: "needs_action", label: "Needs action" },
@@ -43,47 +47,41 @@ export default async function AdminDealsPage({
   const deals = await listDealsForAdmin(filter, search, now);
 
   return (
-    <div>
-      <PageHeading title="Deals" description="Every trade on the service." />
-
-      <AdminNav current="deals" />
-
+    <DashShell
+      groups={adminSections({
+        // Only meaningful on the default filter — the badge means "work
+        // waiting", not "rows currently on screen".
+        deals: filter === "needs_action" && !search ? deals.length : undefined,
+      })}
+      title="Deals"
+      description="Every trade on the service."
+    >
       {/* Plain links rather than a client-side control: the filter belongs in
           the URL so it can be linked to from the overview cards. */}
-      <div className="mb-4 flex flex-wrap gap-1">
-        {FILTERS.map((option) => (
-          <Link
-            key={option.value}
-            href={`/admin/deals?filter=${option.value}${search ? `&q=${encodeURIComponent(search)}` : ""}`}
-            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-              filter === option.value
-                ? "border-emerald-500/40 bg-emerald-500/10 text-[var(--tone-success)]"
-                : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            {option.label}
-          </Link>
-        ))}
-      </div>
+      <FilterChips
+        options={FILTERS.map((option) => ({
+          label: option.label,
+          href: `/admin/deals?filter=${option.value}${search ? `&q=${encodeURIComponent(search)}` : ""}`,
+          active: filter === option.value,
+        }))}
+      />
 
       <form method="get" className="mb-4 flex flex-wrap gap-2">
         <input type="hidden" name="filter" value={filter} />
-        <input
+        <SearchInput
+          label="Search deals"
           name="q"
           defaultValue={search}
           placeholder="Search reference, description or a person's name"
           className={`${inputClassName} max-w-md flex-1`}
         />
-        <button
-          type="submit"
-          className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm hover:bg-[var(--border)]"
-        >
+        <Button type="submit" variant="secondary" size="sm">
           Search
-        </button>
+        </Button>
         {search ? (
           <Link
             href={`/admin/deals?filter=${filter}`}
-            className="self-center text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+            className="inline-flex min-h-9 items-center self-center text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
           >
             Clear
           </Link>
@@ -91,20 +89,33 @@ export default async function AdminDealsPage({
       </form>
 
       <p className="mb-3 text-xs text-[var(--muted)]">
-        {deals.length === 100 ? "Showing the newest 100." : `${deals.length} deal${deals.length === 1 ? "" : "s"}.`}
+        {deals.length === 100
+          ? "Showing the newest 100."
+          : `${deals.length} deal${deals.length === 1 ? "" : "s"}.`}
       </p>
 
-      {deals.length === 0 ? (
-        <EmptyState>Nothing matches.</EmptyState>
-      ) : (
-        <ul className="space-y-2">
-          {deals.map((deal) => (
-            <li key={deal.id}>
-              <AdminDealRow deal={deal} now={now} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <DataTable
+        caption="Deals matching the current filter"
+        rows={deals}
+        rowKey={(deal) => deal.id}
+        rowHref={(deal) => `/admin/deals/${deal.id}`}
+        columns={adminDealColumns(now)}
+        empty={
+          <EmptyPanel
+            icon="folder"
+            title={search ? "Nothing matches that search" : "Nothing in this filter"}
+            secondaryAction={
+              search || filter !== "all"
+                ? { href: "/admin/deals?filter=all", label: "Show all deals" }
+                : undefined
+            }
+          >
+            {search
+              ? "Try a reference, part of an account description, or either person's display name."
+              : "Deals appear here as soon as they reach this stage."}
+          </EmptyPanel>
+        }
+      />
+    </DashShell>
   );
 }

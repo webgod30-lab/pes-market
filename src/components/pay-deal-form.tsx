@@ -7,7 +7,7 @@ import {
   submitPaymentAction,
 } from "@/app/actions/payment-actions";
 import type { PaymentMethodView } from "@/lib/payment-methods";
-import { Button, Field, FormError, inputClassName } from "@/components/ui";
+import { Alert, Button, Field, FormError, inputClassName } from "@/components/ui";
 
 /**
  * The buyer picks a method, then follows one of two paths:
@@ -32,10 +32,10 @@ export function PayDealForm({
 
   if (methods.length === 0) {
     return (
-      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-[var(--tone-warning)]">
+      <Alert tone="warning">
         The admin has not set up any payment methods yet. Nothing to pay to — contact them before
         sending anything.
-      </p>
+      </Alert>
     );
   }
 

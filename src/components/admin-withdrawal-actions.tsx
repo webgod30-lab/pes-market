@@ -36,14 +36,14 @@ export function WithdrawalDecision({
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
-      <Button type="button" onClick={() => setMode("send")} className="px-3 py-2 text-xs">
+      <Button type="button" onClick={() => setMode("send")} size="sm">
         I have sent this
       </Button>
       <Button
         type="button"
         variant="secondary"
         onClick={() => setMode("refuse")}
-        className="px-3 py-2 text-xs"
+        size="sm"
       >
         Refuse
       </Button>
@@ -90,10 +90,10 @@ function SendForm({
       </Field>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={pending} className="px-3 py-2 text-xs">
+        <Button type="submit" disabled={pending} size="sm">
           {pending ? "Recording…" : "Confirm sent"}
         </Button>
-        <Button type="button" variant="secondary" onClick={onCancel} className="px-3 py-2 text-xs">
+        <Button type="button" variant="secondary" onClick={onCancel} size="sm">
           Not yet
         </Button>
       </div>
@@ -131,10 +131,10 @@ function RefuseForm({
       </Field>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" variant="danger" disabled={pending} className="px-3 py-2 text-xs">
+        <Button type="submit" variant="danger" disabled={pending} size="sm">
           {pending ? "Refusing…" : "Refuse and return the funds"}
         </Button>
-        <Button type="button" variant="secondary" onClick={onCancel} className="px-3 py-2 text-xs">
+        <Button type="button" variant="secondary" onClick={onCancel} size="sm">
           Cancel
         </Button>
       </div>

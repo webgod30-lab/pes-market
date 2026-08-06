@@ -1,9 +1,20 @@
 import { ImageResponse } from "next/og";
 
+import { BRAND, KEYHOLE_BOW, KEYHOLE_STEM_PATH, SHIELD_PATH } from "@/components/brand";
+
 // Home-screen icon for iOS, which ignores SVG favicons and wants a PNG.
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
+/**
+ * Rendered by satori rather than a browser, so this is deliberately plainer
+ * than the React emblem: flat fills instead of SVG gradients, and no inner
+ * bevel. The gradient goes on the wrapping div, where it is CSS and reliably
+ * supported.
+ *
+ * iOS rounds and masks the corners itself, so this bleeds to the edges instead
+ * of drawing its own tile.
+ */
 export default function AppleIcon() {
   return new ImageResponse(
     (
@@ -14,16 +25,13 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#34d399",
+          backgroundImage: `linear-gradient(135deg, ${BRAND.vault}, ${BRAND.vaultDeep})`,
         }}
       >
-        <svg width="130" height="130" viewBox="0 0 64 64">
-          <path
-            d="M32 12 L48 18 V32.5 C48 41.2 41.1 47.8 32 51.5 C22.9 47.8 16 41.2 16 32.5 V18 Z"
-            fill="#022c22"
-          />
-          <circle cx="32" cy="27.5" r="5" fill="#34d399" />
-          <path d="M29.7 30.2 h4.6 l-1.2 9.3 h-2.2 z" fill="#34d399" />
+        <svg width="118" height="118" viewBox="0 0 64 64">
+          <path d={SHIELD_PATH} fill={BRAND.emerald} />
+          <circle cx={KEYHOLE_BOW.cx} cy={KEYHOLE_BOW.cy} r={KEYHOLE_BOW.r} fill={BRAND.vault} />
+          <path d={KEYHOLE_STEM_PATH} fill={BRAND.vault} />
         </svg>
       </div>
     ),

@@ -1,60 +1,15 @@
 import Link from "next/link";
 
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
-import { CONFIRMATION_WINDOW_HOURS } from "@/lib/deals";
+import { ESCROW_STEPS } from "@/lib/escrow-flow";
 import { Prose, Section, Points } from "@/components/prose";
 import { ButtonLink, Card, PageHeading } from "@/components/ui";
 
 export const metadata = {
-  title: "How it works — PES Escrow",
+  title: "How it works",
   description:
     "How an escrowed game account trade works, step by step: what each side does, what the admin checks, and when the money actually moves.",
 };
-
-const STEPS = [
-  {
-    n: 1,
-    who: "Both of you",
-    title: "Agree the deal first",
-    body: "Account, price, what is included. That happens wherever you already talk — Discord, WhatsApp, a forum. Nothing is sold on this site.",
-  },
-  {
-    n: 2,
-    who: "Either of you",
-    title: "Open the deal and send the code",
-    body: "Whoever goes first records the account and the agreed price, and gets a single-use invite code. The other person opens it, sees exactly those terms, and joins.",
-  },
-  {
-    n: 3,
-    who: "Seller",
-    title: "Deposit the account",
-    body: "The login goes in encrypted. The buyer cannot see any of it. You can still correct a typo right up until the buyer pays — after that it is frozen.",
-  },
-  {
-    n: 4,
-    who: "Buyer",
-    title: "Pay into escrow",
-    body: "The money goes to the admin, not the seller. Until it is confirmed, nothing has happened and nobody is out of pocket.",
-  },
-  {
-    n: 5,
-    who: "Admin",
-    title: "Verify, then release",
-    body: "The admin logs into the account and checks it matches what was promised, records what they found, and only then hands the login to the buyer.",
-  },
-  {
-    n: 6,
-    who: "Seller",
-    title: "Pass on the Konami code",
-    body: "Changing the email makes Konami send a verification code to the address still on the account — yours. The buyer asks for it on the deal page, you paste it in. You are not paid until they are through this.",
-  },
-  {
-    n: 7,
-    who: "Buyer",
-    title: "Claim it, then confirm",
-    body: `Change the email and password, check the account is really yours, then confirm. You have ${CONFIRMATION_WINDOW_HOURS} hours. The seller is paid only after you confirm.`,
-  },
-];
 
 export default function HowItWorksPage() {
   const feeBps = defaultFeeBps();
@@ -67,7 +22,7 @@ export default function HowItWorksPage() {
       />
 
       <ol className="space-y-3">
-        {STEPS.map((step) => (
+        {ESCROW_STEPS.map((step) => (
           <li key={step.n}>
             <Card>
               <div className="flex items-start gap-3">
@@ -79,7 +34,7 @@ export default function HowItWorksPage() {
                     {step.who}
                   </p>
                   <h2 className="mt-0.5 text-sm font-semibold">{step.title}</h2>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{step.body}</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{step.long}</p>
                 </div>
               </div>
             </Card>

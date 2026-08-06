@@ -4,7 +4,14 @@
 // they live in one place. Every value marked TODO is a placeholder — fill them in
 // before the site goes live, because the legal pages reference them.
 export const SITE = {
-  name: "PES Escrow",
+  /**
+   * The brand, written the one way it is ever written.
+   *
+   * The ".com" is part of the name rather than a decoration — the domain is
+   * the brand, which is the usual shape for a service people are told about
+   * in a chat message and have to remember long enough to type.
+   */
+  name: "PESescrow.com",
   tagline: "Trusted third party for game account trades",
 
   supportEmail: "contact@pesescrow.com",

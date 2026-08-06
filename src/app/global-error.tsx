@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 
 import { describeDatabaseProblemDeep } from "@/lib/db-errors";
+import { BRAND } from "@/components/brand";
 
 export default function GlobalError({
   error,
@@ -24,10 +25,14 @@ export default function GlobalError({
 
   return (
     <html lang="en">
+      {/* Literal colours from the brand module, not CSS variables: this
+          replaces the root layout, so globals.css is not guaranteed to have
+          loaded. Reading them from BRAND at least keeps the palette in one
+          place. */}
       <body
         style={{
-          background: "#0b0f14",
-          color: "#e7edf4",
+          background: BRAND.ink,
+          color: BRAND.paper,
           fontFamily: "ui-sans-serif, system-ui, sans-serif",
           margin: 0,
           minHeight: "100vh",
@@ -49,8 +54,8 @@ export default function GlobalError({
             onClick={reset}
             style={{
               marginTop: "1.25rem",
-              background: "#34d399",
-              color: "#022c22",
+              background: BRAND.emerald,
+              color: BRAND.vaultDeep,
               border: 0,
               borderRadius: "0.5rem",
               padding: "0.625rem 1rem",

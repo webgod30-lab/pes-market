@@ -17,6 +17,7 @@ import { decryptCredentials, encryptCredentials, type CredentialData } from "@/l
 import { generateDealReference, generateInviteCode } from "@/lib/ids";
 import { defaultFeeBps, splitDealMoney } from "@/lib/fees";
 import { PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
+import { CONFIRMATION_WINDOW_HOURS } from "@/lib/escrow-flow";
 import type { CurrentUser } from "@/lib/dal";
 import type { DealSide, DealStatus, PaymentMethod } from "@/generated/prisma/client";
 
@@ -24,8 +25,11 @@ import type { DealSide, DealStatus, PaymentMethod } from "@/generated/prisma/cli
  * How long the buyer gets to claim the account and confirm, once credentials
  * are released. The spec allows 24-48h; 48 is the kinder end for someone in a
  * different timezone.
+ *
+ * Defined in lib/escrow-flow — client components quote it in copy and cannot
+ * import this module — and re-exported here so server callers need not care.
  */
-export const CONFIRMATION_WINDOW_HOURS = 48;
+export { CONFIRMATION_WINDOW_HOURS };
 
 export type DealFailure = { ok: false; error: string };
 /** Success with no payload; `DealResult<{ x: string }>` adds one. */

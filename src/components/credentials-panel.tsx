@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { Button, FormError } from "@/components/ui";
+import { Button, FormError, toast } from "@/components/ui";
 import type { CredentialData } from "@/lib/crypto";
 
 type RevealState = { credentials?: CredentialData; error?: string } | undefined;
@@ -71,15 +71,15 @@ function SecretRow({
   secret?: boolean;
 }) {
   const [shown, setShown] = useState(!secret);
-  const [copied, setCopied] = useState(false);
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Never the value itself: these are account credentials, and a toast is
+      // the one piece of UI that persists after the panel is closed.
+      toast(`${label} copied.`);
     } catch {
-      setCopied(false);
+      toast("Could not reach the clipboard — copy it by hand.", "danger");
     }
   }
 
@@ -102,9 +102,10 @@ function SecretRow({
         <button
           type="button"
           onClick={copy}
-          className="rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--border)]"
+          aria-label={`Copy ${label}`}
+          className="inline-flex min-h-8 items-center rounded-md border border-[var(--border)] px-2 text-xs transition-colors hover:bg-[var(--border)]"
         >
-          {copied ? "Copied" : "Copy"}
+          Copy
         </button>
       </div>
     </div>

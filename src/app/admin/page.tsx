@@ -4,11 +4,17 @@ import { requireUserOrProblem } from "@/lib/dal";
 import { getConsoleStats, listDealsForAdmin } from "@/lib/admin";
 import { listStalledCodeRequests } from "@/lib/transfer-codes";
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
-import { AdminNav } from "@/components/admin-nav";
-import { AdminDealRow } from "@/components/admin-deal-row";
-import { Card, EmptyState, PageHeading, SetupProblem } from "@/components/ui";
+import { adminSections } from "@/components/dashboard/dash-nav";
+import { adminDealColumns } from "@/components/dashboard/admin-deal-columns";
+import { Breakdown } from "@/components/dashboard/breakdown";
+import { DashShell } from "@/components/dashboard/dash-shell";
+import { DataTable } from "@/components/dashboard/data-table";
+import { EmptyPanel } from "@/components/dashboard/empty-panel";
+import { RatioBar } from "@/components/dashboard/ratio-bar";
+import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
+import { Card, SetupProblem } from "@/components/ui";
 
-export const metadata = { title: "Admin — PES Escrow" };
+export const metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   // Non-admins get a 404 rather than a "forbidden" page, so this route does not
@@ -28,70 +34,184 @@ export default async function AdminPage() {
 
   const feeBps = defaultFeeBps();
 
+  // In-flight deals sitting in one of the admin's own queues. Used for the
+  // rates below; the three are mutually exclusive statuses, so they add up
+  // without double-counting a deal.
+  const blockedOnAdmin =
+    stats.paymentsToConfirm + stats.deliveriesToApprove + stats.openDisputes;
+
   // Ordered by how much it matters if you ignore it.
   const queues = [
-    { label: "Open disputes", value: stats.openDisputes, href: "/admin/disputes" },
-    { label: "Payments to confirm", value: stats.paymentsToConfirm, href: "/admin/deals?filter=payment_submitted" },
-    { label: "Deliveries to approve", value: stats.deliveriesToApprove, href: "/admin/deals?filter=admin_verifying" },
-    { label: "Withdrawals to send", value: stats.withdrawalsToSend, href: "/admin/withdrawals" },
-    { label: "Buyers gone quiet", value: stats.buyersGoneQuiet, href: "/admin/deals?filter=claiming" },
-    // Not a status filter: a stalled code can sit on a released deal or a
-    // claiming one, so it gets its own list below.
-    { label: "Sellers owing a code", value: stats.codesAwaitingSeller, href: "#codes" },
-  ];
-
-  const context = [
-    { label: "Deals in flight", value: stats.dealsInFlight, href: "/admin/deals?filter=open" },
-    { label: "Users", value: stats.users, href: "/admin/users" },
-    { label: "Banned", value: stats.bannedUsers, href: "/admin/users" },
+    {
+      label: "Open disputes",
+      value: stats.openDisputes,
+      href: "/admin/disputes",
+      icon: "scales" as const,
+      caption: "frozen until you decide",
+    },
+    {
+      label: "Payments to confirm",
+      value: stats.paymentsToConfirm,
+      href: "/admin/deals?filter=payment_submitted",
+      icon: "wallet" as const,
+      caption: "buyer says they have paid",
+    },
+    {
+      label: "Deliveries to approve",
+      value: stats.deliveriesToApprove,
+      href: "/admin/deals?filter=admin_verifying",
+      icon: "shield" as const,
+      caption: "check the account first",
+    },
+    {
+      label: "Withdrawals to send",
+      value: stats.withdrawalsToSend,
+      href: "/admin/withdrawals",
+      icon: "payout" as const,
+      caption: "money reserved, not yet gone",
+    },
+    {
+      label: "Buyers gone quiet",
+      value: stats.buyersGoneQuiet,
+      href: "/admin/deals?filter=claiming",
+      icon: "route" as const,
+      caption: "past the confirmation window",
+    },
+    {
+      // Not a status filter: a stalled code can sit on a released deal or a
+      // claiming one, so it gets its own list below.
+      label: "Sellers owing a code",
+      value: stats.codesAwaitingSeller,
+      href: "#codes",
+      icon: "ticket" as const,
+      caption: "buyer cannot finish without it",
+    },
   ];
 
   return (
-    <div>
-      <PageHeading
-        title="Admin console"
-        description={`Signed in as ${admin.email}. No money and no credentials move without you. Fee: ${formatFeeBps(feeBps)}.`}
-      />
-
-      <AdminNav current="hub" />
-
+    <DashShell
+      groups={adminSections({
+        deals: queue.length,
+        withdrawals: stats.withdrawalsToSend,
+        disputes: stats.openDisputes,
+      })}
+      title="Admin console"
+      description={
+        <>
+          Signed in as {admin.email}. No money and no credentials move without you. Fee:{" "}
+          {formatFeeBps(feeBps)}.
+        </>
+      }
+    >
       <h2 className="mb-3 text-sm font-semibold">Waiting on you</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {queues.map((stat) => (
-          <Link key={stat.label} href={stat.href} className="block">
-            <Card className="p-4 transition-colors hover:border-emerald-500/40">
-              <p className="text-xs uppercase tracking-wide text-[var(--muted)]">{stat.label}</p>
-              <p className={`mt-2 text-2xl font-semibold ${stat.value > 0 ? "text-[var(--tone-warning)]" : ""}`}>
-                {stat.value}
-              </p>
-            </Card>
-          </Link>
+
+      <StatGrid columns={3}>
+        {queues.map((item) => (
+          <StatCard
+            key={item.label}
+            label={item.label}
+            value={item.value}
+            caption={item.caption}
+            icon={item.icon}
+            href={item.href}
+            urgent
+          />
         ))}
+      </StatGrid>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]">
+        <Breakdown
+          title="What the queues look like"
+          caption="The same six numbers above, as a share of everything waiting."
+          segments={[
+            { label: "Open disputes", value: stats.openDisputes, tone: "danger" },
+            { label: "Payments to confirm", value: stats.paymentsToConfirm, tone: "warning" },
+            { label: "Deliveries to approve", value: stats.deliveriesToApprove, tone: "info" },
+            { label: "Withdrawals to send", value: stats.withdrawalsToSend, tone: "success" },
+            { label: "Buyers gone quiet", value: stats.buyersGoneQuiet, tone: "warning" },
+            { label: "Sellers owing a code", value: stats.codesAwaitingSeller, tone: "neutral" },
+          ]}
+          emptyLabel="Every queue is empty. Nothing is waiting on you."
+        />
+
+        <StatGrid columns={3}>
+          <StatCard
+            label="Deals in flight"
+            value={stats.dealsInFlight}
+            caption="not yet settled"
+            icon="folder"
+            href="/admin/deals?filter=open"
+          />
+          <StatCard
+            label="Users"
+            value={stats.users}
+            caption="registered accounts"
+            icon="users"
+            href="/admin/users"
+          />
+          <StatCard
+            label="Banned"
+            value={stats.bannedUsers}
+            caption="blocked from trading"
+            icon="shield"
+            href="/admin/users"
+          />
+        </StatGrid>
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        {context.map((stat) => (
-          <Link key={stat.label} href={stat.href} className="block">
-            <Card className="p-4 transition-colors hover:border-emerald-500/40">
-              <p className="text-xs uppercase tracking-wide text-[var(--muted)]">{stat.label}</p>
-              <p className="mt-2 text-2xl font-semibold">{stat.value}</p>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {/* Rates, not counts. Six numbers tell you the volume of work; these tell
+          you whether the service is healthy — and all four come from the stats
+          already counted above, with no extra query. */}
+      <section
+        aria-labelledby="rates-heading"
+        className="mt-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4"
+      >
+        <h2 id="rates-heading" className="text-sm font-semibold">
+          How things are running
+        </h2>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <RatioBar
+            label="Deals running without you"
+            value={Math.max(0, stats.dealsInFlight - blockedOnAdmin)}
+            of={stats.dealsInFlight}
+            caption="The rest are sitting in one of your queues."
+          />
+          <RatioBar
+            label="In-flight deals disputed"
+            value={stats.openDisputes}
+            of={stats.dealsInFlight}
+            invert
+            caption="A dispute freezes its deal until you decide it."
+          />
+          <RatioBar
+            label="Accounts in good standing"
+            value={Math.max(0, stats.users - stats.bannedUsers)}
+            of={stats.users}
+            caption="Banned accounts cannot open or join a deal."
+          />
+          <RatioBar
+            label="Sellers who have answered a code request"
+            value={Math.max(0, stats.dealsInFlight - stats.codesAwaitingSeller)}
+            of={stats.dealsInFlight}
+            caption="A buyer cannot finish a transfer without it."
+          />
+        </div>
+      </section>
 
       {stalledCodes.length > 0 ? (
-        <section id="codes" className="mt-8 scroll-mt-4">
+        <section id="codes" className="mt-8 scroll-mt-20">
           <h2 className="mb-1 text-sm font-semibold">Buyers waiting on a Konami code</h2>
           <p className="mb-3 text-xs text-[var(--muted)]">
             The buyer has paid and cannot finish the transfer. Only the seller can answer — chase
             them, oldest first.
           </p>
+
           <ul className="space-y-2">
             {stalledCodes.map((request) => (
               <li key={request.id}>
                 <Link href={`/admin/deals/${request.deal.id}`} className="block">
-                  <Card className="p-4 transition-colors hover:border-emerald-500/40">
+                  <Card className="p-4 transition-colors hover:border-[var(--accent)]/40">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-mono text-sm">{request.deal.reference}</span>
                       <span className="text-xs text-[var(--tone-warning)]">
@@ -113,24 +233,26 @@ export default async function AdminPage() {
         </section>
       ) : null}
 
-      <div className="mt-8 mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Needs your attention</h2>
         <Link href="/admin/deals" className="text-xs text-[var(--accent)] hover:underline">
           All deals →
         </Link>
       </div>
 
-      {queue.length === 0 ? (
-        <EmptyState>Nothing waiting on you.</EmptyState>
-      ) : (
-        <ul className="space-y-2">
-          {queue.map((deal) => (
-            <li key={deal.id}>
-              <AdminDealRow deal={deal} now={now} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <DataTable
+        caption="Deals needing an admin decision"
+        rows={queue}
+        rowKey={(deal) => deal.id}
+        rowHref={(deal) => `/admin/deals/${deal.id}`}
+        columns={adminDealColumns(now)}
+        empty={
+          <EmptyPanel icon="shield" title="Nothing waiting on you" tone="positive">
+            No payments to confirm, no deliveries to approve and no disputes open. Deals still in
+            flight are waiting on the two parties, not on you.
+          </EmptyPanel>
+        }
+      />
+    </DashShell>
   );
 }

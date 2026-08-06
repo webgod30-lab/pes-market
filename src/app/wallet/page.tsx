@@ -7,13 +7,17 @@ import {
   listEarnings,
   listWithdrawals,
   MINIMUM_WITHDRAWAL_CENTS,
+  WITHDRAWAL_TONE,
 } from "@/lib/wallet";
 import { formatCents } from "@/lib/money";
 import { WithdrawForm, CancelWithdrawalButton } from "@/components/withdraw-form";
-import { Badge, Card, EmptyState, PageHeading, SetupProblem, type Tone } from "@/components/ui";
+import { traderSections } from "@/components/dashboard/dash-nav";
+import { DashShell } from "@/components/dashboard/dash-shell";
+import { EmptyPanel } from "@/components/dashboard/empty-panel";
+import { Alert, Badge, Card, DetailList, Overline, SetupProblem } from "@/components/ui";
 import type { WithdrawalStatus } from "@/generated/prisma/client";
 
-export const metadata = { title: "Your balance — PES Escrow" };
+export const metadata = { title: "Your balance" };
 
 // Reads the signed-in user's money, so it can never be prerendered or cached.
 export const dynamic = "force-dynamic";
@@ -23,13 +27,6 @@ const STATUS_LABEL: Record<WithdrawalStatus, string> = {
   sent: "Sent",
   rejected: "Refused",
   cancelled: "Cancelled",
-};
-
-const STATUS_TONE: Record<WithdrawalStatus, Tone> = {
-  requested: "warning",
-  sent: "success",
-  rejected: "danger",
-  cancelled: "neutral",
 };
 
 export default async function WalletPage() {
@@ -48,15 +45,15 @@ export default async function WalletPage() {
   const open = withdrawals.find((w) => w.status === "requested");
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <PageHeading
-        title="Your balance"
-        description="What you have earned from settled deals, and what you have taken out."
-      />
-
+    <DashShell
+      groups={traderSections({})}
+      title="Your balance"
+      description="What you have earned from settled deals, and what you have taken out."
+    >
+      <div className="max-w-3xl">
       {/* --- the number, and what it is made of --- */}
-      <Card className="ring-hairline">
-        <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Available to withdraw</p>
+      <Card elevation="raised">
+        <Overline>Available to withdraw</Overline>
         <p className="mt-1 text-4xl font-semibold tracking-tight">
           {formatCents(balance.availableCents, balance.currency)}
         </p>
@@ -75,11 +72,11 @@ export default async function WalletPage() {
         {/* Only reachable if a settled deal was reversed after the money went
             out. Saying so plainly beats showing a zero and no explanation. */}
         {balance.netCents < 0 ? (
-          <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-[var(--tone-danger)]">
+          <Alert tone="danger" className="mt-4">
             Your balance is {formatCents(balance.netCents, balance.currency)}. A deal was reversed
             after you had withdrawn the money for it. Earnings from your next deals go towards
             clearing that before anything can be withdrawn again.
-          </p>
+          </Alert>
         ) : null}
       </Card>
 
@@ -96,21 +93,7 @@ export default async function WalletPage() {
               </strong>{" "}
               waiting to be sent. You can only have one at a time.
             </p>
-            <dl className="mt-2 divide-y divide-[var(--border)] overflow-hidden rounded-lg border border-[var(--border)]">
-              {destinationFields(open).map((field) => (
-                <div
-                  key={field.label}
-                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 bg-[var(--surface-2)] px-3 py-2"
-                >
-                  <dt className="w-40 shrink-0 text-xs text-[var(--muted)]">{field.label}</dt>
-                  <dd
-                    className={`min-w-0 flex-1 break-all text-sm ${field.mono ? "font-mono" : ""}`}
-                  >
-                    {field.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            <DetailList rows={destinationFields(open)} labelWidth="w-40" className="mt-2" />
             <CancelWithdrawalButton withdrawalId={open.id} />
           </div>
         ) : (
@@ -130,7 +113,10 @@ export default async function WalletPage() {
 
         {withdrawals.length === 0 ? (
           <div className="mt-3">
-            <EmptyState>Nothing withdrawn yet.</EmptyState>
+            <EmptyPanel icon="payout" title="Nothing withdrawn yet">
+              Once a deal you sold settles, its payout lands in the balance above and you can
+              request it here.
+            </EmptyPanel>
           </div>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -143,7 +129,7 @@ export default async function WalletPage() {
                   <span className="font-medium tabular-nums">
                     {formatCents(withdrawal.amountCents, withdrawal.currency)}
                   </span>
-                  <Badge tone={STATUS_TONE[withdrawal.status]}>
+                  <Badge tone={WITHDRAWAL_TONE[withdrawal.status]}>
                     {STATUS_LABEL[withdrawal.status]}
                   </Badge>
                 </div>
@@ -184,7 +170,10 @@ export default async function WalletPage() {
         </p>
 
         {earnings.length === 0 ? (
-          <EmptyState>No settled sales yet.</EmptyState>
+          <EmptyPanel icon="folder" title="No settled sales yet">
+            A deal counts towards your balance only after the buyer has confirmed they have the
+            account.
+          </EmptyPanel>
         ) : (
           <ul className="space-y-2">
             {earnings.map((earning) => (
@@ -209,11 +198,7 @@ export default async function WalletPage() {
         )}
       </Card>
 
-      <p className="mt-6 text-center text-xs text-[var(--muted)]">
-        <Link href="/dashboard" className="text-[var(--accent)] hover:underline">
-          Back to your deals
-        </Link>
-      </p>
-    </div>
+      </div>
+    </DashShell>
   );
 }

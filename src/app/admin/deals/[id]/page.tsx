@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUserOrProblem } from "@/lib/dal";
@@ -12,11 +11,13 @@ import { getDisputeForDeal } from "@/lib/disputes";
 import { getReputation } from "@/lib/reviews";
 import { listTransferCodes, CODE_EXCHANGE_STATUSES } from "@/lib/transfer-codes";
 import { TransferCodePanel } from "@/components/transfer-code-panel";
-import { DealTimeline } from "@/components/deal-timeline";
+import { DealTimeline } from "@/components/trade/timeline";
+import { TradeHistory } from "@/components/trade/history";
 import { DealChat } from "@/components/deal-chat";
 import { ResolveDisputeForm, WithdrawDisputeForm } from "@/components/dispute-forms";
 import { ReputationLine } from "@/components/reputation";
-import { AdminNav } from "@/components/admin-nav";
+import { adminSections } from "@/components/dashboard/dash-nav";
+import { DashShell } from "@/components/dashboard/dash-shell";
 import { ForceCancelForm, ForceRefundForm } from "@/components/admin-force-actions";
 import { PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
 import { CredentialsPanel } from "@/components/credentials-panel";
@@ -27,9 +28,9 @@ import {
   RecordVerificationForm,
   RefundButton,
 } from "@/components/admin-deal-actions";
-import { Badge, Card, PageHeading, SetupProblem } from "@/components/ui";
+import { Badge, Card, SetupProblem } from "@/components/ui";
 
-export const metadata = { title: "Deal — admin — PES Escrow" };
+export const metadata = { title: "Deal — admin" };
 
 export default async function AdminDealPage({ params }: { params: Promise<{ id: string }> }) {
   const auth = await requireUserOrProblem(["admin"], "/admin");
@@ -56,14 +57,12 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
   const disputeIsOpen = dispute?.status === "open" || dispute?.status === "under_review";
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <PageHeading
-        title={deal.reference}
-        description={`${deal.seller?.displayName ?? "—"} → ${deal.buyer?.displayName ?? "—"}`}
-      />
-
-      <AdminNav current="deals" />
-
+    <DashShell
+      groups={adminSections({})}
+      title={deal.reference}
+      description={`${deal.seller?.displayName ?? "—"} → ${deal.buyer?.displayName ?? "—"}`}
+    >
+      <div className="max-w-3xl">
       <div className="mb-6 flex flex-wrap gap-2">
         <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABEL[deal.status]}</Badge>
         <Badge tone="neutral">
@@ -72,7 +71,28 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
         </Badge>
       </div>
 
-      <DealTimeline status={deal.status} />
+      {/* Progress and the full record together. The record is what an admin
+          arbitrating a dispute actually needs — who did what, and when. */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold">Progress</h2>
+          <DealTimeline
+            status={deal.status}
+            stamps={{
+              createdAt: deal.createdAt,
+              depositedAt: deal.credentialsUpdatedAt,
+              paymentConfirmedAt: deal.paymentConfirmedAt,
+              credentialsReleasedAt: deal.credentialsReleasedAt,
+              completedAt: deal.completedAt,
+            }}
+          />
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold">History</h2>
+          <TradeHistory facts={deal} />
+        </Card>
+      </div>
 
       {/* --- the case, when there is one: put it first, it is why you are here --- */}
       {dispute ? (
@@ -297,12 +317,8 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
         </Card>
       ) : null}
 
-      <p className="mt-6 text-center text-xs text-[var(--muted)]">
-        <Link href="/admin" className="text-[var(--accent)] hover:underline">
-          Back to the admin console
-        </Link>
-      </p>
-    </div>
+      </div>
+    </DashShell>
   );
 }
 

@@ -5,7 +5,7 @@ import { Notice, Prose, Section } from "@/components/prose";
 import { Card, PageHeading } from "@/components/ui";
 
 export const metadata = {
-  title: "Contact — PES Escrow",
+  title: "Contact",
   description: "How to reach the admin, and the fastest way to get help with a specific deal.",
 };
 

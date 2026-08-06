@@ -1,10 +1,18 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/login-form";
 import { getCurrentUserQuietly } from "@/lib/dal";
-import { Card } from "@/components/ui";
 
-export const metadata = { title: "Sign in — PES Escrow" };
+export const metadata = {
+  title: "Sign in",
+  description:
+    "Sign in to PESescrow.com to see your deals and what each one is waiting on. Two-factor supported.",
+  // A sign-in form has no business in search results, and indexing it splits
+  // the ranking of the pages that should be found instead.
+  robots: { index: false, follow: true },
+};
 
 export default async function LoginPage({
   searchParams,
@@ -28,12 +36,24 @@ export default async function LoginPage({
   if (user) redirect(safeNext ?? (user.role === "admin" ? "/admin" : "/dashboard"));
 
   return (
-    <div className="mx-auto max-w-md">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Welcome back</h1>
-      <p className="mb-6 text-sm text-[var(--muted)]">Sign in to see your deals.</p>
-      <Card>
-        <LoginForm next={safeNext} />
-      </Card>
-    </div>
+    <AuthShell
+      title="Welcome back"
+      subtitle={
+        safeNext
+          ? "Sign in to continue to where you were headed."
+          : "Sign in to see your deals and what each one is waiting on."
+      }
+      footer={
+        <>
+          No account yet?{" "}
+          <Link href="/register" className="font-medium text-[var(--accent)] hover:underline">
+            Create one
+          </Link>
+        </>
+      }
+      aside="We will never ask for your password anywhere except this page. Check the address bar before typing it."
+    >
+      <LoginForm next={safeNext} />
+    </AuthShell>
   );
 }

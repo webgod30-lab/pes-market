@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /**
  * Light / dark switch.
  *
- * Three states, not two: "system" is the default and means "keep following the
- * device". Once someone picks a side it is written to localStorage and to
- * data-theme on <html>, which beats the prefers-color-scheme media query in
- * globals.css. Clearing the choice hands control back to the device.
+ * Until someone presses it there is no stored choice at all, and the CSS
+ * follows the device through prefers-color-scheme. Pressing it writes
+ * data-theme on <html>, which beats that media query in globals.css, and
+ * records the choice in localStorage so it survives a reload.
  */
-type Choice = "light" | "dark" | "system";
-
 export const THEME_STORAGE_KEY = "pes-escrow-theme";
 
 /**
@@ -23,47 +21,66 @@ export const themeBootScript = `(function(){try{var c=localStorage.getItem(${JSO
   THEME_STORAGE_KEY,
 )});if(c==="light"||c==="dark"){document.documentElement.setAttribute("data-theme",c)}}catch(e){}})()`;
 
-function resolve(choice: Choice): "light" | "dark" {
-  if (choice !== "system") return choice;
+/** Fired by pick(), so the button updates in the same tick the attribute does. */
+const THEME_EVENT = "pes-escrow:themechange";
 
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-}
-
-export function ThemeToggle() {
-  // Starts as "system" on both server and client so the first client render
-  // matches the server's HTML; the real choice is read in the effect below.
-  const [choice, setChoice] = useState<Choice>("system");
-  const [mounted, setMounted] = useState(false);
-  // Bumped whenever the device preference changes, purely to force a re-render
-  // so the icon and label stop describing the theme the visitor already has.
-  const [, setDeviceTick] = useState(0);
-
-  useEffect(() => {
-    setMounted(true);
-
-    try {
-      const stored = localStorage.getItem(THEME_STORAGE_KEY);
-      if (stored === "light" || stored === "dark") setChoice(stored);
-    } catch {
-      // Private mode, or storage disabled. Following the device is a fine
-      // outcome — it just will not be remembered.
-    }
-  }, []);
-
-  // The CSS follows prefers-color-scheme on its own, but this component caches
-  // the answer in a render, so without this the button would keep offering to
-  // switch to the theme the visitor is already looking at.
-  useEffect(() => {
+/**
+ * The applied theme is external state, not React state.
+ *
+ * It lives in three places React does not own — the `data-theme` attribute on
+ * <html>, localStorage, and the device's `prefers-color-scheme` — and any of
+ * them can change without React being told. Mirroring that into `useState` and
+ * syncing it in an effect is the thing `useSyncExternalStore` exists to
+ * replace, and the earlier version of this file did exactly that: a `mounted`
+ * flag set inside an effect, plus a counter bumped only to force a re-render.
+ * That is two cascading renders on every mount, and it tripped
+ * react-hooks/set-state-in-effect.
+ */
+const themeStore = {
+  subscribe(onChange: () => void) {
     const query = window.matchMedia("(prefers-color-scheme: light)");
-    const onChange = () => setDeviceTick((n) => n + 1);
 
     query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
+    // Dispatched by pick() below, so choosing a theme updates the button in
+    // the same tick the attribute changes.
+    window.addEventListener(THEME_EVENT, onChange);
+
+    return () => {
+      query.removeEventListener("change", onChange);
+      window.removeEventListener(THEME_EVENT, onChange);
+    };
+  },
+
+  /** Whatever is actually on screen right now. */
+  getSnapshot(): "light" | "dark" {
+    const chosen = document.documentElement.getAttribute("data-theme");
+
+    if (chosen === "light" || chosen === "dark") return chosen;
+
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  },
+
+  /**
+   * Null on the server, because the device preference is genuinely unknown
+   * there. React renders this during hydration and swaps to the real value
+   * immediately after — which is why the icon appears a beat late rather than
+   * flickering through the wrong one.
+   */
+  getServerSnapshot(): null {
+    return null;
+  },
+};
+
+export function ThemeToggle() {
+  const showing = useSyncExternalStore(
+    themeStore.subscribe,
+    themeStore.getSnapshot,
+    themeStore.getServerSnapshot,
+  );
 
   function pick(next: "light" | "dark") {
-    setChoice(next);
     document.documentElement.setAttribute("data-theme", next);
+    window.dispatchEvent(new Event(THEME_EVENT));
 
     try {
       localStorage.setItem(THEME_STORAGE_KEY, next);
@@ -73,10 +90,8 @@ export function ThemeToggle() {
     }
   }
 
-  // Before hydration there is no way to know what the device prefers, so the
-  // button renders its frame but no icon. Swapping the icon in afterwards is
-  // less jarring than the layout shifting.
-  const showing = mounted ? resolve(choice) : null;
+  // Before hydration `showing` is null: the button renders its frame but no
+  // icon, which is less jarring than the layout shifting once it arrives.
   const next = showing === "light" ? "dark" : "light";
 
   return (

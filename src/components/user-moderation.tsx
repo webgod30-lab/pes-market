@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { banUserAction, unbanUserAction } from "@/app/actions/admin-actions";
-import { Button, FormError, inputClassName } from "@/components/ui";
+import { Alert, Button, Field, FormError, Input } from "@/components/ui";
 
 /**
  * Banning takes a reason and a second click. It signs someone out of a service
@@ -35,20 +35,22 @@ export function BanUserForm({
       <input type="hidden" name="userId" value={userId} />
 
       {openDeals > 0 ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-[var(--tone-warning)]">
+        <Alert tone="warning" className="text-xs">
           {displayName} has {openDeals} deal{openDeals === 1 ? "" : "s"} still in progress. Banning
           does not resolve them — settle or refund those first, or the other party is left waiting.
-        </p>
+        </Alert>
       ) : null}
 
-      <input
-        name="reason"
-        required
-        maxLength={500}
-        defaultValue={state?.values?.reason ?? ""}
-        className={inputClassName}
-        placeholder={`Why is ${displayName} being banned?`}
-      />
+      <Field label="Reason for the ban" name="reason" error={state?.fieldErrors?.reason}>
+        <Input
+          id="reason"
+          name="reason"
+          required
+          maxLength={500}
+          defaultValue={state?.values?.reason ?? ""}
+          placeholder={`Why is ${displayName} being banned?`}
+        />
+      </Field>
       {state?.fieldErrors?.reason ? (
         <p className="text-xs text-[var(--tone-danger)]">{state.fieldErrors.reason}</p>
       ) : null}

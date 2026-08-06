@@ -1,14 +1,17 @@
 import Link from "next/link";
 
 import { requireUserOrProblem } from "@/lib/dal";
-import { destinationFields, listWithdrawalsForAdmin } from "@/lib/wallet";
+import { destinationFields, listWithdrawalsForAdmin, WITHDRAWAL_TONE } from "@/lib/wallet";
 import { formatCents } from "@/lib/money";
-import { AdminNav } from "@/components/admin-nav";
 import { WithdrawalDecision } from "@/components/admin-withdrawal-actions";
-import { Badge, Card, EmptyState, PageHeading, SetupProblem, type Tone } from "@/components/ui";
+import { adminSections } from "@/components/dashboard/dash-nav";
+import { DashShell } from "@/components/dashboard/dash-shell";
+import { EmptyPanel } from "@/components/dashboard/empty-panel";
+import { FilterChips } from "@/components/dashboard/filter-chips";
+import { Alert, Badge, Card, DetailList, Overline, SetupProblem } from "@/components/ui";
 import type { PaymentMethod, WithdrawalStatus } from "@/generated/prisma/client";
 
-export const metadata = { title: "Withdrawals — admin — PES Escrow" };
+export const metadata = { title: "Withdrawals — admin" };
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +22,21 @@ const STATUS_LABEL: Record<WithdrawalStatus, string> = {
   cancelled: "Cancelled by seller",
 };
 
-const STATUS_TONE: Record<WithdrawalStatus, Tone> = {
-  requested: "warning",
-  sent: "success",
-  rejected: "danger",
-  cancelled: "neutral",
-};
-
 const METHOD_LABEL: Record<PaymentMethod, string> = {
   crypto: "Crypto",
   bank_transfer: "Bank transfer",
   card: "Card / wallet",
 };
 
+/**
+ * Deliberately cards, not a table.
+ *
+ * Every other admin list on the console became a DataTable, because they are
+ * uniform records being scanned. These are not: each one carries a labelled
+ * destination block the admin is copying field by field into a bank, plus a
+ * decision form. Flattening that into cells would put an IBAN and an account
+ * name in the same column and make it easy to send money to the wrong place.
+ */
 export default async function AdminWithdrawalsPage({
   searchParams,
 }: {
@@ -47,46 +52,35 @@ export default async function AdminWithdrawalsPage({
   const withdrawals = await listWithdrawalsForAdmin(onlyOpen);
 
   return (
-    <div>
-      <PageHeading
-        title="Withdrawals"
-        description="Sellers taking their balance off the site. You send the money by hand, then record it here."
+    <DashShell
+      groups={adminSections({ withdrawals: onlyOpen ? withdrawals.length : undefined })}
+      title="Withdrawals"
+      description="Sellers taking their balance off the site. You send the money by hand, then record it here."
+    >
+      <FilterChips
+        options={[
+          { label: "Waiting on you", href: "/admin/withdrawals", active: onlyOpen },
+          { label: "Everything", href: "/admin/withdrawals?show=all", active: !onlyOpen },
+        ]}
       />
 
-      <AdminNav current="withdrawals" />
-
-      <div className="mb-4 flex flex-wrap gap-1">
-        <Link
-          href="/admin/withdrawals"
-          className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
-            onlyOpen
-              ? "bg-emerald-500/10 font-medium text-[var(--tone-success)]"
-              : "text-[var(--muted)] hover:bg-[var(--surface-2)]"
-          }`}
-        >
-          Waiting on you
-        </Link>
-        <Link
-          href="/admin/withdrawals?show=all"
-          className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
-            onlyOpen
-              ? "text-[var(--muted)] hover:bg-[var(--surface-2)]"
-              : "bg-emerald-500/10 font-medium text-[var(--tone-success)]"
-          }`}
-        >
-          Everything
-        </Link>
-      </div>
-
       {withdrawals.length === 0 ? (
-        <EmptyState>
-          {onlyOpen ? "No withdrawals waiting." : "No withdrawals have been requested yet."}
-        </EmptyState>
+        onlyOpen ? (
+          <EmptyPanel icon="payout" title="No withdrawals waiting" tone="positive">
+            Nobody is owed a transfer right now. Requested money stays reserved against the
+            seller&apos;s balance until you send or refuse it, so an empty list means nothing is
+            held up.
+          </EmptyPanel>
+        ) : (
+          <EmptyPanel icon="payout" title="No withdrawals requested yet">
+            Sellers can request one as soon as a deal completes and their balance clears.
+          </EmptyPanel>
+        )
       ) : (
         <ul className="space-y-3">
           {withdrawals.map((withdrawal) => (
             <li key={withdrawal.id}>
-              <Card className="ring-hairline">
+              <Card elevation="raised">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-2xl font-semibold tabular-nums">
@@ -104,7 +98,7 @@ export default async function AdminWithdrawalsPage({
                   </div>
 
                   <div className="flex flex-col items-end gap-1.5">
-                    <Badge tone={STATUS_TONE[withdrawal.status]}>
+                    <Badge tone={WITHDRAWAL_TONE[withdrawal.status]}>
                       {STATUS_LABEL[withdrawal.status]}
                     </Badge>
                     <span className="text-xs text-[var(--muted)]">
@@ -118,33 +112,19 @@ export default async function AdminWithdrawalsPage({
                     out, and paying this would hand over money they no longer
                     have a claim to. */}
                 {withdrawal.sellerNetCents < 0 ? (
-                  <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-[var(--tone-danger)]">
+                  <Alert tone="danger" className="mt-3">
                     This seller&apos;s balance is{" "}
                     {formatCents(withdrawal.sellerNetCents, withdrawal.currency)} — a deal of theirs
                     was reversed after they withdrew. Do not send this without checking why.
-                  </p>
+                  </Alert>
                 ) : null}
 
                 <div className="mt-3">
-                  <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Send it to</p>
+                  <Overline>Send it to</Overline>
                   {/* One labelled row per field, so each value can be copied on
                       its own instead of being picked out of a paragraph while
                       typing a transfer. */}
-                  <dl className="mt-1.5 divide-y divide-[var(--border)] overflow-hidden rounded-lg border border-[var(--border)]">
-                    {destinationFields(withdrawal).map((field) => (
-                      <div
-                        key={field.label}
-                        className="flex flex-wrap items-baseline gap-x-4 gap-y-1 bg-[var(--surface-2)] px-3 py-2"
-                      >
-                        <dt className="w-44 shrink-0 text-xs text-[var(--muted)]">{field.label}</dt>
-                        <dd
-                          className={`min-w-0 flex-1 break-all text-sm ${field.mono ? "font-mono" : ""}`}
-                        >
-                          {field.value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
+                  <DetailList rows={destinationFields(withdrawal)} className="mt-1.5" />
                 </div>
 
                 <p className="mt-2 text-xs text-[var(--muted)]">
@@ -175,6 +155,6 @@ export default async function AdminWithdrawalsPage({
           ))}
         </ul>
       )}
-    </div>
+    </DashShell>
   );
 }

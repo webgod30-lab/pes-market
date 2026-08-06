@@ -8,9 +8,18 @@ import { getReputation } from "@/lib/reviews";
 import { ReputationLine } from "@/components/reputation";
 import { formatCents } from "@/lib/money";
 import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, nextActorFor, OPEN_STATUSES } from "@/lib/deal-status";
-import { Badge, ButtonLink, Card, EmptyState, PageHeading, SetupProblem } from "@/components/ui";
+import { Breakdown, type Segment } from "@/components/dashboard/breakdown";
+import { DashShell } from "@/components/dashboard/dash-shell";
+import { DataTable, type Column } from "@/components/dashboard/data-table";
+import { traderSections } from "@/components/dashboard/dash-nav";
+import { EmptyPanel } from "@/components/dashboard/empty-panel";
+import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
+import { Badge, ButtonLink, SetupProblem } from "@/components/ui";
+import type { DealStatus } from "@/generated/prisma/client";
 
-export const metadata = { title: "Your deals — PES Escrow" };
+export const metadata = { title: "Your deals" };
+
+type DealRow = Awaited<ReturnType<typeof listDealsForUser>>[number];
 
 export default async function DashboardPage() {
   // Authorization happens here, in the page — not in a layout, which would not
@@ -33,119 +42,192 @@ export default async function DashboardPage() {
     getReputation(user.id),
   ]);
 
-  const openCount = deals.filter((deal) => OPEN_STATUSES.includes(deal.status)).length;
+  const sideOf = (deal: DealRow) => (deal.sellerId === user.id ? "seller" : "buyer");
+  const isYourTurn = (deal: DealRow) => nextActorFor(deal.status) === sideOf(deal);
 
-  // Deals where the next move is this person's, on the side they hold.
-  const waitingOnYou = deals.filter((deal) => {
-    const side = deal.sellerId === user.id ? "seller" : "buyer";
-    return nextActorFor(deal.status) === side;
-  }).length;
+  const openCount = deals.filter((deal) => OPEN_STATUSES.includes(deal.status)).length;
+  const waitingOnYou = deals.filter(isYourTurn).length;
+
+  // Money currently riding on open deals — what you would be out if every one
+  // of them went wrong at once. Derived from the rows already fetched.
+  const inFlightCents = deals
+    .filter((deal) => OPEN_STATUSES.includes(deal.status))
+    .reduce(
+      (sum, deal) =>
+        sum + (sideOf(deal) === "seller" ? deal.sellerPayoutCents : deal.agreedPriceCents),
+      0,
+    );
 
   return (
-    <div>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
-        <div className="mb-8">
-          <PageHeading
-            title={`Hello, ${user.displayName}`}
-            description="Every deal you are part of, on either side."
-          />
-          <div className="-mt-6">
-            <ReputationLine reputation={reputation} />
-          </div>
-        </div>
-        <div className="mb-8 flex gap-2">
-          <ButtonLink href="/deals/new">Open a deal</ButtonLink>
-          <ButtonLink href="/deals/join" variant="secondary">
+    <DashShell
+      groups={traderSections({ waiting: waitingOnYou })}
+      title={`Hello, ${user.displayName}`}
+      description={
+        <>
+          <span className="block">Every deal you are part of, on either side.</span>
+          <ReputationLine reputation={reputation} />
+        </>
+      }
+      actions={
+        <>
+          <ButtonLink href="/deals/new" size="sm">
+            Open a deal
+          </ButtonLink>
+          <ButtonLink href="/deals/join" variant="secondary" size="sm">
             I have a code
           </ButtonLink>
+        </>
+      }
+    >
+      <StatGrid columns={4}>
+        <StatCard
+          label="Open deals"
+          value={openCount}
+          caption={openCount === 1 ? "still running" : "still running"}
+          icon="folder"
+        />
+        <StatCard
+          label="Waiting on you"
+          value={waitingOnYou}
+          caption="your move next"
+          icon="route"
+          urgent
+        />
+        <StatCard
+          label="Unread messages"
+          value={unread}
+          caption="across all deals"
+          icon="mail"
+          urgent
+        />
+        <StatCard
+          label="In flight"
+          value={formatCents(inFlightCents)}
+          caption="value of your open deals"
+          icon="wallet"
+        />
+      </StatGrid>
+
+      {deals.length > 0 ? (
+        <div className="mt-3">
+          <Breakdown
+            title="Where your deals stand"
+            caption="Every deal you have ever been part of, by stage."
+            segments={statusSegments(deals)}
+          />
         </div>
-      </div>
+      ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card>
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Open deals</p>
-          <p className="mt-2 text-2xl font-semibold">{openCount}</p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Waiting on you</p>
-          <p className="mt-2 text-2xl font-semibold">{waitingOnYou}</p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Unread messages</p>
-          <p className={`mt-2 text-2xl font-semibold ${unread > 0 ? "text-[var(--tone-warning)]" : ""}`}>
-            {unread}
-          </p>
-        </Card>
-      </div>
+      <h2 className="mb-3 mt-8 text-sm font-semibold">Your deals</h2>
 
-      <h2 className="mt-8 mb-3 text-sm font-semibold">Your deals</h2>
-
-      {deals.length === 0 ? (
-        <EmptyState>
-          <p className="font-medium text-[var(--foreground)]">No deals yet.</p>
-          <p className="mt-1">
+      <DataTable
+        caption="Every deal you are part of"
+        rows={deals}
+        rowKey={(deal) => deal.id}
+        rowHref={(deal) => `/deals/${deal.id}`}
+        columns={dealColumns(sideOf, isYourTurn)}
+        empty={
+          <EmptyPanel
+            icon="folder"
+            title="No deals yet"
+            action={{ href: "/deals/new", label: "Open a deal" }}
+            secondaryAction={{ href: "/deals/join", label: "I have a code" }}
+          >
             Open one and send the invite code to the other person, or join a deal you were invited
-            to.
-          </p>
-        </EmptyState>
-      ) : (
-        <ul className="space-y-2">
-          {deals.map((deal) => {
-            const isSeller = deal.sellerId === user.id;
-            const side = isSeller ? "seller" : "buyer";
-            const yourTurn = nextActorFor(deal.status) === side;
-
-            return (
-              <li key={deal.id}>
-                <Link href={`/deals/${deal.id}`} className="block">
-                  <Card className="p-4 transition-colors hover:border-emerald-500/40">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-sm font-semibold">{deal.reference}</span>
-                        <Badge tone={isSeller ? "info" : "success"}>
-                          you are the {side}
-                        </Badge>
-                        {yourTurn ? <Badge tone="warning">your turn</Badge> : null}
-                      </div>
-                      <p className="mt-1.5 line-clamp-2 max-w-xl text-xs text-[var(--muted)]">
-                        {deal.accountSummary}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">
-                        {/* A seller cares about the payout; a buyer about the price. */}
-                        {formatCents(
-                          isSeller ? deal.sellerPayoutCents : deal.agreedPriceCents,
-                          deal.currency,
-                        )}
-                      </p>
-                      <p className="text-xs text-[var(--muted)]">
-                        {isSeller ? "you receive" : "you pay"}
-                      </p>
-                      <div className="mt-2">
-                        <Badge tone={DEAL_STATUS_TONE[deal.status]}>
-                          {DEAL_STATUS_LABEL[deal.status]}
-                        </Badge>
-                      </div>
-                    </div>
-                    </div>
-                  </Card>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+            to. Nothing is bought or sold here — you bring a deal you have already agreed.
+          </EmptyPanel>
+        }
+      />
 
       <p className="mt-6 text-xs text-[var(--muted)]">
-        Open a deal to see how it works, or{" "}
-        <Link href="/" className="text-[var(--accent)] hover:underline">
-          read how a trade works
+        Not sure what happens next?{" "}
+        <Link href="/how-it-works" className="text-[var(--accent)] hover:underline">
+          Read how a trade works
         </Link>
         .
       </p>
-    </div>
+    </DashShell>
   );
+}
+
+/** The status mix, from the rows already on the page. No extra query. */
+function statusSegments(deals: DealRow[]): Segment[] {
+  const counts = new Map<DealStatus, number>();
+
+  for (const deal of deals) {
+    counts.set(deal.status, (counts.get(deal.status) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .map(([status, value]) => ({
+      label: DEAL_STATUS_LABEL[status],
+      value,
+      tone: DEAL_STATUS_TONE[status],
+    }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function dealColumns(
+  sideOf: (deal: DealRow) => "seller" | "buyer",
+  isYourTurn: (deal: DealRow) => boolean,
+): Column<DealRow>[] {
+  return [
+    {
+      key: "reference",
+      header: "Reference",
+      primary: true,
+      cell: (deal) => <span className="font-mono text-sm">{deal.reference}</span>,
+    },
+    {
+      key: "account",
+      header: "Account",
+      cell: (deal) => (
+        <span className="line-clamp-2 max-w-md text-xs text-[var(--muted)]">
+          {deal.accountSummary}
+        </span>
+      ),
+    },
+    {
+      key: "side",
+      header: "Your side",
+      cell: (deal) => {
+        const side = sideOf(deal);
+
+        return (
+          <span className="flex flex-wrap items-center gap-1.5">
+            <Badge tone={side === "seller" ? "info" : "success"}>{side}</Badge>
+            {isYourTurn(deal) ? <Badge tone="warning">your turn</Badge> : null}
+          </span>
+        );
+      },
+    },
+    {
+      key: "amount",
+      header: "Amount",
+      align: "end",
+      cell: (deal) => {
+        const isSeller = sideOf(deal) === "seller";
+
+        return (
+          <span className="whitespace-nowrap">
+            {/* A seller cares about the payout; a buyer about the price. */}
+            <span className="font-semibold">
+              {formatCents(isSeller ? deal.sellerPayoutCents : deal.agreedPriceCents, deal.currency)}
+            </span>
+            <span className="block text-xs text-[var(--muted)]">
+              {isSeller ? "you receive" : "you pay"}
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Status",
+      align: "end",
+      cell: (deal) => (
+        <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABEL[deal.status]}</Badge>
+      ),
+    },
+  ];
 }

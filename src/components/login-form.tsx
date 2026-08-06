@@ -4,14 +4,28 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { loginAction } from "@/app/actions/auth-actions";
-import { Button, Field, FormError, inputClassName } from "@/components/ui";
+import { AuthFormError } from "@/components/auth/form-alert";
+import { PasswordInput } from "@/components/auth/password-input";
+import { Button, Field, fieldDescribedBy, inputClassName } from "@/components/ui";
 
+/** Named once so the visible hint and its aria-describedby cannot disagree. */
+const TOTP_HINT = "The six-digit code from your authenticator app, or one of your recovery codes.";
+
+/**
+ * Sign in.
+ *
+ * The action, the field names and the two-factor handshake are exactly as they
+ * were — `loginAction` decides everything, including when the code field
+ * appears. Only the surface changed.
+ */
 export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(loginAction, undefined);
 
+  const secondFactor = Boolean(state?.needsSecondFactor);
+
   return (
     <form action={formAction} className="space-y-4">
-      <FormError message={state?.message} />
+      <AuthFormError message={state?.message} />
 
       {next ? <input type="hidden" name="next" value={next} /> : null}
 
@@ -23,21 +37,35 @@ export function LoginForm({ next }: { next?: string }) {
           autoComplete="email"
           required
           defaultValue={state?.values?.email ?? ""}
-          aria-invalid={Boolean(state?.fieldErrors?.email)}
+          aria-invalid={Boolean(state?.fieldErrors?.email) || undefined}
+          aria-describedby={fieldDescribedBy("email", { error: state?.fieldErrors?.email })}
           className={inputClassName}
           placeholder="you@example.com"
         />
       </Field>
 
-      <Field label="Password" name="password" error={state?.fieldErrors?.password}>
-        <input
-          id="password"
+      <Field
+        label="Password"
+        name="password"
+        error={state?.fieldErrors?.password}
+        labelSuffix={
+          <Link
+            href="/forgot-password"
+            // inline-flex + min-h-9 for a real tap target; the negative margin
+            // pulls the extra height back out so the label row keeps its
+            // rhythm. As bare inline text this was 16px tall, sitting right
+            // beside a field people are trying to tap.
+            className="-my-2 inline-flex min-h-9 items-center text-xs text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+          >
+            Forgot password?
+          </Link>
+        }
+      >
+        <PasswordInput
           name="password"
-          type="password"
           autoComplete="current-password"
-          required
-          className={inputClassName}
-          placeholder="••••••••"
+          invalid={Boolean(state?.fieldErrors?.password)}
+          describedBy={fieldDescribedBy("password", { error: state?.fieldErrors?.password })}
         />
       </Field>
 
@@ -46,38 +74,38 @@ export function LoginForm({ next }: { next?: string }) {
           password field stays mounted and must be retyped: keeping a correct
           password sitting in the DOM while waiting for a phone is exactly the
           window an unattended screen creates. */}
-      {state?.needsSecondFactor ? (
-        <Field
-          label="Authentication code"
-          name="totp"
-          error={state?.fieldErrors?.totp}
-          hint="The six-digit code from your authenticator app, or one of your recovery codes."
-        >
-          <input
-            id="totp"
+      {secondFactor ? (
+        <div className="auth-enter rounded-[var(--radius-control)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-3">
+          <Field
+            label="Authentication code"
             name="totp"
-            type="text"
-            inputMode="text"
-            autoComplete="one-time-code"
-            autoFocus
-            required
-            maxLength={16}
-            className={`${inputClassName} font-mono tracking-widest`}
-            placeholder="123456"
-          />
-        </Field>
+            error={state?.fieldErrors?.totp}
+            hint={TOTP_HINT}
+          >
+            <input
+              id="totp"
+              name="totp"
+              type="text"
+              inputMode="text"
+              autoComplete="one-time-code"
+              autoFocus
+              required
+              maxLength={16}
+              aria-invalid={Boolean(state?.fieldErrors?.totp) || undefined}
+              aria-describedby={fieldDescribedBy("totp", {
+                hint: TOTP_HINT,
+                error: state?.fieldErrors?.totp,
+              })}
+              className={`${inputClassName} text-center font-mono text-base tracking-[0.35em]`}
+              placeholder="123456"
+            />
+          </Field>
+        </div>
       ) : null}
 
-      <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "Signing in…" : state?.needsSecondFactor ? "Verify and sign in" : "Sign in"}
+      <Button type="submit" loading={pending} disabled={pending} block size="md">
+        {pending ? "Signing in…" : secondFactor ? "Verify and sign in" : "Sign in"}
       </Button>
-
-      <p className="text-center text-sm text-[var(--muted)]">
-        No account yet?{" "}
-        <Link href="/register" className="text-[var(--accent)] hover:underline">
-          Create one
-        </Link>
-      </p>
     </form>
   );
 }

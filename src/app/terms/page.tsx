@@ -7,7 +7,7 @@ import { LastUpdated, Notice, Points, Prose, Section } from "@/components/prose"
 import { PageHeading } from "@/components/ui";
 
 export const metadata = {
-  title: "Terms of service — PES Escrow",
+  title: "Terms of service",
   description: "The rules for using this escrow service, and the limits of what it covers.",
 };
 

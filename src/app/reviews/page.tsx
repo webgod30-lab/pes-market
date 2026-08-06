@@ -2,7 +2,9 @@ import Link from "next/link";
 
 import { getTrustStats, listPublicReviews } from "@/lib/reviews";
 import { Stars } from "@/components/reputation";
-import { Card, EmptyState, PageHeading } from "@/components/ui";
+import { EmptyPanel } from "@/components/dashboard/empty-panel";
+import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
+import { Card, PageHeading } from "@/components/ui";
 
 /**
  * Rendered per request, not prerendered at build.
@@ -14,9 +16,9 @@ import { Card, EmptyState, PageHeading } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Reviews — PES Escrow",
+  title: "Reviews",
   description:
-    "What people say after trading through PES Escrow. Every review comes from a completed deal — both the buyer and the seller rate each other.",
+    "What people say after trading through PESescrow.com. Every review comes from a completed deal — both the buyer and the seller rate each other.",
 };
 
 /**
@@ -36,28 +38,32 @@ export default async function ReviewsPage() {
         description="Every review here comes from a deal that actually completed through escrow. Both sides rate each other, so the record cuts both ways."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Average rating</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--tone-warning)]">
-            {stats.averageRating ? `${stats.averageRating.toFixed(1)} ★` : "—"}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Deals completed</p>
-          <p className="mt-2 text-2xl font-semibold">{stats.completedDeals}</p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Settled without a dispute</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {stats.cleanRate === null ? "—" : `${Math.round(stats.cleanRate * 100)}%`}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Reviews</p>
-          <p className="mt-2 text-2xl font-semibold">{stats.reviews}</p>
-        </Card>
-      </div>
+      <StatGrid columns={4}>
+        <StatCard
+          label="Average rating"
+          value={stats.averageRating ? `${stats.averageRating.toFixed(1)} ★` : "—"}
+          caption="across both sides of every deal"
+          icon="star"
+        />
+        <StatCard
+          label="Deals completed"
+          value={stats.completedDeals}
+          caption="settled through escrow"
+          icon="folder"
+        />
+        <StatCard
+          label="Settled without a dispute"
+          value={stats.cleanRate === null ? "—" : `${Math.round(stats.cleanRate * 100)}%`}
+          caption="a dispute counts against this either way"
+          icon="scales"
+        />
+        <StatCard
+          label="Reviews"
+          value={stats.reviews}
+          caption="one per person, per deal"
+          icon="mail"
+        />
+      </StatGrid>
 
       <p className="mt-3 text-xs text-[var(--muted)]">
         These numbers are counted from real deals on this service, including the ones that went
@@ -67,10 +73,10 @@ export default async function ReviewsPage() {
       <h2 className="mt-10 mb-3 text-sm font-semibold">Recent reviews</h2>
 
       {reviews.length === 0 ? (
-        <EmptyState>
-          <p className="font-medium text-[var(--foreground)]">No reviews yet.</p>
-          <p className="mt-1">They appear here once deals start completing.</p>
-        </EmptyState>
+        <EmptyPanel icon="star" title="No reviews yet">
+          They appear here once deals start completing. Both sides review each other, so a buyer who
+          never pays is as visible as a seller who hands over a dead account.
+        </EmptyPanel>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {reviews.map((review) => (

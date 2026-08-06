@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { depositCredentialsAction } from "@/app/actions/deal-actions";
-import { Button, Field, FormError, inputClassName } from "@/components/ui";
+import { Alert, Button, Field, FormError, inputClassName } from "@/components/ui";
 
 /**
  * The seller hands the account to escrow.
@@ -28,10 +28,10 @@ export function DepositCredentialsForm({
       <input type="hidden" name="dealId" value={dealId} />
 
       {alreadyDeposited ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-[var(--tone-warning)]">
+        <Alert tone="warning" className="text-xs">
           Account details are already stored. Submitting again replaces them — only possible until the
           buyer sends payment.
-        </p>
+        </Alert>
       ) : null}
 
       <Field label="Account login / email" name="loginEmail" error={state?.fieldErrors?.loginEmail}>
