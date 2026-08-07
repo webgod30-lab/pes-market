@@ -5,6 +5,7 @@ import {
   destinationFields,
   getBalance,
   listEarnings,
+  listPending,
   listWithdrawals,
   MINIMUM_WITHDRAWAL_CENTS,
   WITHDRAWAL_TONE,
@@ -36,9 +37,10 @@ export default async function WalletPage() {
 
   const user = auth.user;
 
-  const [balance, earnings, withdrawals] = await Promise.all([
+  const [balance, earnings, pending, withdrawals] = await Promise.all([
     getBalance(user.id),
     listEarnings(user.id),
+    listPending(user.id),
     listWithdrawals(user.id),
   ]);
 
@@ -68,6 +70,33 @@ export default async function WalletPage() {
             <dd className="tabular-nums">−{formatCents(balance.committedCents, balance.currency)}</dd>
           </div>
         </dl>
+
+        {/* Money that has arrived but is not yours yet. Shown next to the
+            available figure rather than further down the page: the question
+            this answers — "has the buyer actually paid?" — is the one a seller
+            opens this page to ask, right after handing over an account. */}
+        {balance.pendingCents > 0 || balance.frozenCents > 0 ? (
+          <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-overline uppercase text-[var(--tone-info)]">Held for you</p>
+              <p className="text-lg font-semibold tabular-nums text-[var(--tone-info)]">
+                {formatCents(balance.pendingCents + balance.frozenCents, balance.currency)}
+              </p>
+            </div>
+
+            <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
+              The buyer has paid and the admin is holding it. It moves into your balance — and
+              becomes withdrawable — once the buyer confirms they have the account.
+            </p>
+
+            {balance.frozenCents > 0 ? (
+              <p className="mt-2 text-xs text-[var(--tone-danger)]">
+                {formatCents(balance.frozenCents, balance.currency)} of that is frozen by a dispute
+                and may be refunded to the buyer instead.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Only reachable if a settled deal was reversed after the money went
             out. Saying so plainly beats showing a zero and no explanation. */}
@@ -160,6 +189,43 @@ export default async function WalletPage() {
           </ul>
         )}
       </Card>
+
+      {/* --- money on the way, itemised --- */}
+      {pending.length > 0 ? (
+        <Card className="mt-3">
+          <h2 className="text-sm font-semibold">On the way</h2>
+          <p className="mb-3 mt-1 text-xs text-[var(--muted)]">
+            Paid by the buyer and held by the admin. Each one becomes withdrawable when that deal
+            completes.
+          </p>
+
+          <ul className="space-y-2">
+            {pending.map((row) => (
+              <li key={row.dealId}>
+                <Link
+                  href={`/deals/${row.dealId}`}
+                  className="block rounded-lg border border-[var(--border)] p-3 transition-colors hover:border-[var(--accent)]/40"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-mono text-xs">{row.reference}</span>
+                    <span className="text-sm font-medium tabular-nums text-[var(--tone-info)]">
+                      {formatCents(row.amountCents, row.currency)}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-1 text-xs text-[var(--muted)]">
+                    {row.accountSummary}
+                  </p>
+                  <p className="mt-1.5 flex items-center gap-1.5 text-xs">
+                    <Badge tone={row.status === "disputed" ? "danger" : "info"}>
+                      {row.waitingOn}
+                    </Badge>
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       {/* --- where the money came from --- */}
       <Card className="mt-3">

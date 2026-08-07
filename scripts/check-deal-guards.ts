@@ -724,6 +724,47 @@ async function main() {
   assert.equal(afterSent.availableCents, expectedEarned - 2_000);
   ok("a sent withdrawal stays deducted");
 
+  // Money the buyer has paid but not yet confirmed is visible and NOT
+  // withdrawable. This is the whole contract of the "held for you" figure: a
+  // seller can see the payment landed, but cannot take it until the buyer says
+  // they have the account. If these two ever merge, a seller could be paid for
+  // a deal that is still refundable.
+  const heldSeller = await prisma.user.create({
+    data: {
+      email: `wallet-held-${Date.now()}@example.com`,
+      displayName: "Held Fixture",
+      passwordHash: await hashPassword("held-fixture-pw"),
+    },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+  });
+  fixtureUserIds.push(heldSeller.id);
+
+  const heldDeal = await makeDeal(heldSeller, karim, admin, "credentials_released");
+  const held = await getBalance(heldSeller.id);
+
+  assert.ok(held.pendingCents > 0, "a confirmed payment on a live deal should show as pending");
+  assert.equal(held.availableCents, 0);
+  assert.equal(held.earnedCents, 0);
+  ok("money held on a running deal shows as pending, not as balance");
+
+  const beforeConfirm = await requestWithdrawal(heldSeller, {
+    amountCents: held.pendingCents,
+    method: "crypto",
+    destinationName: "Held Fixture",
+    destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+    destinationNetwork: "TRC-20",
+  });
+  assert.equal(beforeConfirm.ok, false, "pending money must not be withdrawable");
+  ok("a seller cannot withdraw a payment the buyer has not confirmed");
+
+  // ...and the moment the buyer confirms, it moves across.
+  await confirmClaimed(karim, heldDeal);
+  const afterConfirm = await getBalance(heldSeller.id);
+
+  assert.equal(afterConfirm.pendingCents, 0);
+  assert.equal(afterConfirm.availableCents, held.pendingCents);
+  ok("confirming moves the held money into the withdrawable balance");
+
   // Racing requests must not both pass the balance check and over-commit it.
   const raceSeller = await prisma.user.create({
     data: {

@@ -14,7 +14,7 @@
 // again, with no compensating entry to forget.
 import { prisma } from "@/lib/prisma";
 import type { CurrentUser } from "@/lib/dal";
-import type { PaymentMethod, WithdrawalStatus } from "@/generated/prisma/client";
+import type { DealStatus, PaymentMethod, WithdrawalStatus } from "@/generated/prisma/client";
 
 export type WalletResult<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -40,11 +40,34 @@ export type Balance = {
   availableCents: number;
   /** The signed truth, including a shortfall. */
   netCents: number;
+  /**
+   * Money the admin is already holding on deals that have not finished.
+   *
+   * Deliberately NOT part of availableCents, and nothing below reads it when
+   * deciding what may be withdrawn — it exists so a seller can see that the
+   * buyer's payment has landed, which is the whole reassurance escrow is meant
+   * to provide. They previously saw a zero balance from the moment they handed
+   * over the account until the buyer confirmed, which reads exactly like the
+   * money not existing.
+   */
+  pendingCents: number;
+  /**
+   * Held, but frozen by a dispute. Kept apart from pendingCents because it may
+   * yet be refunded to the buyer — calling it "pending" would promise it.
+   */
+  frozenCents: number;
   currency: string;
 };
 
+/**
+ * Deals where the buyer's money is confirmed and held, and the deal is still
+ * running. `paymentConfirmedAt` is the gate rather than the status alone: a
+ * buyer clicking "I have paid" is not the admin confirming it arrived.
+ */
+const HELD_IN_FLIGHT: DealStatus[] = ["admin_verifying", "credentials_released", "claiming"];
+
 export async function getBalance(userId: string): Promise<Balance> {
-  const [earned, committed] = await Promise.all([
+  const [earned, committed, pending, frozen] = await Promise.all([
     // payoutAt marks a deal settled the old way, paid per-deal before wallets
     // existed. Counting those would credit money the seller already has.
     prisma.deal.aggregate({
@@ -55,6 +78,18 @@ export async function getBalance(userId: string): Promise<Balance> {
       where: { sellerId: userId, status: { in: COMMITTED } },
       _sum: { amountCents: true },
     }),
+    prisma.deal.aggregate({
+      where: {
+        sellerId: userId,
+        status: { in: HELD_IN_FLIGHT },
+        paymentConfirmedAt: { not: null },
+      },
+      _sum: { sellerPayoutCents: true },
+    }),
+    prisma.deal.aggregate({
+      where: { sellerId: userId, status: "disputed", paymentConfirmedAt: { not: null } },
+      _sum: { sellerPayoutCents: true },
+    }),
   ]);
 
   const earnedCents = earned._sum.sellerPayoutCents ?? 0;
@@ -64,10 +99,69 @@ export async function getBalance(userId: string): Promise<Balance> {
   return {
     earnedCents,
     committedCents,
+    // Unchanged, and it must stay that way: this is the only figure
+    // requestWithdrawal checks against.
     availableCents: Math.max(0, netCents),
     netCents,
+    pendingCents: pending._sum.sellerPayoutCents ?? 0,
+    frozenCents: frozen._sum.sellerPayoutCents ?? 0,
     currency: "USD",
   };
+}
+
+export type PendingRow = {
+  dealId: string;
+  reference: string;
+  accountSummary: string;
+  amountCents: number;
+  currency: string;
+  status: DealStatus;
+  /** What the seller is waiting on before this becomes withdrawable. */
+  waitingOn: string;
+};
+
+const WAITING_ON: Partial<Record<DealStatus, string>> = {
+  admin_verifying: "Admin is checking the account",
+  credentials_released: "Buyer is claiming the account",
+  claiming: "Buyer has it — waiting for them to confirm",
+  disputed: "Frozen by a dispute",
+};
+
+/**
+ * The deals behind pendingCents, itemised.
+ *
+ * Same reasoning as listEarnings: a figure a seller cannot break down into the
+ * deals that produced it is a figure they have to take on trust, and this is a
+ * service whose entire pitch is not having to.
+ */
+export async function listPending(userId: string): Promise<PendingRow[]> {
+  const deals = await prisma.deal.findMany({
+    where: {
+      sellerId: userId,
+      status: { in: [...HELD_IN_FLIGHT, "disputed"] },
+      paymentConfirmedAt: { not: null },
+    },
+    orderBy: { paymentConfirmedAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      reference: true,
+      accountSummary: true,
+      sellerPayoutCents: true,
+      currency: true,
+      status: true,
+    },
+  });
+
+  return deals.map((deal) => ({
+    dealId: deal.id,
+    reference: deal.reference,
+    accountSummary: deal.accountSummary,
+    amountCents: deal.sellerPayoutCents,
+    currency: deal.currency,
+    status: deal.status,
+    waitingOn: WAITING_ON[deal.status] ?? "In progress",
+  }));
 }
 
 export type EarningRow = {
