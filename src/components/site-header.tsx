@@ -11,7 +11,7 @@ import { LanguageMenu } from "@/components/nav/language-menu";
 import type { NavUser } from "@/components/nav/nav-links";
 import { Skeleton } from "@/components/ui";
 import { getLocale } from "@/lib/locale-server";
-import { translator, type Translate } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 
 /**
  * The site header.
@@ -27,7 +27,6 @@ import { translator, type Translate } from "@/lib/dictionary";
  */
 export async function SiteHeader() {
   const locale = await getLocale();
-  const t = translator(locale);
 
   return (
     <HeaderShell>
@@ -36,8 +35,8 @@ export async function SiteHeader() {
 
         {/* The bar needs the role to decide whether to show a Deals menu, so
             it streams in with the session rather than blocking the logo. */}
-        <Suspense fallback={<NavBar role={null} t={t} />}>
-          <DesktopNav t={t} />
+        <Suspense fallback={<NavBar role={null} locale={locale} />}>
+          <DesktopNav locale={locale} />
         </Suspense>
       </div>
 
@@ -47,11 +46,11 @@ export async function SiteHeader() {
         <LanguageMenu locale={locale} />
 
         <Suspense fallback={<Skeleton className="h-9 w-[6.5rem]" />}>
-          <AccountArea t={t} />
+          <AccountArea locale={locale} />
         </Suspense>
 
         <Suspense fallback={null}>
-          <MobileArea t={t} />
+          <MobileArea locale={locale} />
         </Suspense>
       </div>
     </HeaderShell>
@@ -77,20 +76,20 @@ async function navUser(): Promise<NavUser | null> {
   return { displayName: user.displayName, email: user.email, role: user.role };
 }
 
-async function DesktopNav({ t }: { t: Translate }) {
+async function DesktopNav({ locale }: { locale: Locale }) {
   const user = await navUser();
 
-  return <NavBar role={user?.role ?? null} t={t} />;
+  return <NavBar role={user?.role ?? null} locale={locale} />;
 }
 
-async function AccountArea({ t }: { t: Translate }) {
+async function AccountArea({ locale }: { locale: Locale }) {
   const user = await navUser();
 
-  return user ? <ProfileMenu user={user} t={t} /> : <AuthCta t={t} />;
+  return user ? <ProfileMenu user={user} locale={locale} /> : <AuthCta locale={locale} />;
 }
 
-async function MobileArea({ t }: { t: Translate }) {
+async function MobileArea({ locale }: { locale: Locale }) {
   const user = await navUser();
 
-  return <MobileNav user={user} t={t} />;
+  return <MobileNav user={user} locale={locale} />;
 }

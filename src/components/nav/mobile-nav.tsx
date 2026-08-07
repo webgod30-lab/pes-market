@@ -12,7 +12,8 @@ import { isActive } from "@/components/nav/nav-bar";
 import { NavIcon } from "@/components/nav/nav-icons";
 import { mobileSections, type NavUser } from "@/components/nav/nav-links";
 import { Button, cn } from "@/components/ui";
-import type { Translate } from "@/lib/dictionary";
+import { translator } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 
 /** Resting header height (h-16 = 64px). The sheet hangs below it. */
 const HEADER_HEIGHT = 64;
@@ -38,7 +39,8 @@ const HEADER_HEIGHT = 64;
  * unmounting would, and unlike `visibility` it applies instantly rather than
  * waiting for a transition to start.
  */
-export function MobileNav({ user, t }: { user: NavUser | null; t: Translate }) {
+export function MobileNav({ user, locale }: { user: NavUser | null; locale: Locale }) {
+  const t = translator(locale);
   const pathname = usePathname();
 
   // Storing which route it was opened on means a navigation closes it for free,
@@ -49,7 +51,7 @@ export function MobileNav({ user, t }: { user: NavUser | null; t: Translate }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  const close = useCallback(() => setOpenedOn(null), []);
+  const close = useCallback(() => setOpenedOn(null), [setOpenedOn]);
 
   // createPortal needs document.body, which does not exist while rendering on
   // the server. Read as external state rather than a `mounted` flag set in an
@@ -222,7 +224,7 @@ export function MobileNav({ user, t }: { user: NavUser | null; t: Translate }) {
               </Button>
             </form>
           ) : (
-            <AuthCta stacked t={t} />
+            <AuthCta stacked locale={locale} />
           )}
         </div>
       </div>

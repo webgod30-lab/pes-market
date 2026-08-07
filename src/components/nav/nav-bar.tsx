@@ -8,7 +8,8 @@ import { NavIcon } from "@/components/nav/nav-icons";
 import { PRIMARY_LINK, RESOURCES, dealsGroup, type NavGroup } from "@/components/nav/nav-links";
 import { cn } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
-import type { Translate } from "@/lib/dictionary";
+import { translator } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 
 /**
  * The desktop bar.
@@ -19,14 +20,17 @@ import type { Translate } from "@/lib/dictionary";
  * replacement — the actions were simply unreachable between 768 and 1024.
  * Grouping them into a dropdown means they survive at every desktop width.
  */
-export function NavBar({ role, t }: { role: Role | null; t: Translate }) {
+export function NavBar({ role, locale }: { role: Role | null; locale: Locale }) {
+  // Built here, not passed in: a function cannot cross the server/client
+  // boundary, and translator() is a pure lookup over a plain string.
+  const t = translator(locale);
   return (
     <nav aria-label="Main" className="hidden items-center gap-0.5 text-sm md:flex">
-      {role ? <GroupMenu group={dealsGroup(role)} t={t} /> : null}
+      {role ? <GroupMenu group={dealsGroup(role)} locale={locale} /> : null}
 
       <NavLink href={PRIMARY_LINK.href}>{t(PRIMARY_LINK.labelKey)}</NavLink>
 
-      <GroupMenu group={RESOURCES} t={t} />
+      <GroupMenu group={RESOURCES} locale={locale} />
     </nav>
   );
 }
@@ -91,7 +95,8 @@ function ActiveUnderline({ active }: { active: boolean }) {
 }
 
 /** A bar item that opens a menu of related routes. */
-function GroupMenu({ group, t }: { group: NavGroup; t: Translate }) {
+function GroupMenu({ group, locale }: { group: NavGroup; locale: Locale }) {
+  const t = translator(locale);
   const pathname = usePathname();
   const active = group.items.some((item) => isActive(pathname, item.href));
 

@@ -10,7 +10,8 @@ import { Menu, MenuRow } from "@/components/nav/menu";
 import { NavIcon } from "@/components/nav/nav-icons";
 import { accountLinks, type NavUser } from "@/components/nav/nav-links";
 import { cn } from "@/components/ui";
-import type { Translate } from "@/lib/dictionary";
+import { translator } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 
 /**
  * The account menu.
@@ -21,7 +22,8 @@ import type { Translate } from "@/lib/dictionary";
  * area is the same shape at every width, and there is room to say who you are
  * signed in as, which the bar never had.
  */
-export function ProfileMenu({ user, t }: { user: NavUser; t: Translate }) {
+export function ProfileMenu({ user, locale }: { user: NavUser; locale: Locale }) {
+  const t = translator(locale);
   const pathname = usePathname();
   const links = accountLinks(user.role);
 

@@ -1,5 +1,6 @@
 import { ButtonLink, cn } from "@/components/ui";
-import type { Translate } from "@/lib/dictionary";
+import { translator } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 
 /**
  * The signed-out call to action.
@@ -13,7 +14,8 @@ import type { Translate } from "@/lib/dictionary";
  * is the only element in the bar with a shadow, which is what makes the eye
  * land on it first without it having to be bigger or louder.
  */
-export function AuthCta({ stacked = false, t }: { stacked?: boolean; t: Translate }) {
+export function AuthCta({ stacked = false, locale }: { stacked?: boolean; locale: Locale }) {
+  const t = translator(locale);
   return (
     <div className={cn(stacked ? "flex flex-col gap-2" : "flex items-center gap-2")}>
       <ButtonLink
