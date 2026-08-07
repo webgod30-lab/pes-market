@@ -1,10 +1,13 @@
-// Everything the landing page says, in one place.
+// Everything the landing page says, in both languages.
 //
 // Copy lives here rather than inside the sections so the whole page can be
 // read and rewritten without opening twelve components, and so nothing gets
-// quietly reworded in one place and not another.
+// quietly reworded in one place and not another. Each block is keyed by locale
+// for the same reason: English and Arabic sit next to each other, so a change
+// to one is visibly a change that has to be made to the other.
 
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/escrow-flow";
+import type { Locale } from "@/lib/locale";
 import type { TrustStats } from "@/lib/reviews";
 
 // ---------------------------------------------------------------------------
@@ -57,29 +60,35 @@ const money = (cents: number) => {
   return dollars >= 1000 ? `$${(dollars / 1000).toFixed(0)}K+` : `$${Math.round(dollars)}`;
 };
 
-export function headlineStats(stats: TrustStats | null, monthlyVisits: number): HeadlineStat[] {
+const STAT_TEXT: Record<Locale, { label: string; caption: string }[]> = {
+  en: [
+    { label: "Monthly visitors", caption: "people weighing up a trade" },
+    { label: "Protected transactions", caption: "held in escrow and released safely" },
+    { label: "Reviews", caption: "both sides rate each other" },
+  ],
+  ar: [
+    { label: "زوار شهريًا", caption: "أشخاص يفكرون في إتمام صفقة" },
+    { label: "معاملات محمية", caption: "محتجزة في الضمان ثم سُلِّمت بأمان" },
+    { label: "تقييمات", caption: "كل طرف يقيّم الآخر" },
+  ],
+};
+
+export function headlineStats(
+  stats: TrustStats | null,
+  monthlyVisits: number,
+  locale: Locale = "en",
+): HeadlineStat[] {
+  const text = STAT_TEXT[locale];
+
   return [
-    {
-      display: DISPLAY_STATS.monthlyVisitors,
-      value: monthlyVisits,
-      format: compact,
-      label: "Monthly visitors",
-      caption: "people weighing up a trade",
-    },
+    { display: DISPLAY_STATS.monthlyVisitors, value: monthlyVisits, format: compact, ...text[0] },
     {
       display: DISPLAY_STATS.protectedTransactions,
       value: stats?.protectedCents ?? 0,
       format: money,
-      label: "Protected transactions",
-      caption: "held in escrow and released safely",
+      ...text[1],
     },
-    {
-      display: DISPLAY_STATS.reviews,
-      value: stats?.reviews ?? 0,
-      format: compact,
-      label: "Reviews",
-      caption: "both sides rate each other",
-    },
+    { display: DISPLAY_STATS.reviews, value: stats?.reviews ?? 0, format: compact, ...text[2] },
   ];
 }
 
@@ -95,16 +104,110 @@ export function headlineStats(stats: TrustStats | null, monthlyVisits: number): 
  * landing page. What this service actually has is a set of guarantees, so
  * those scroll instead.
  */
-export const TRUST_POINTS = [
-  "AES-256-GCM encrypted at rest",
-  "Funds held until both sides are proven",
-  `${CONFIRMATION_WINDOW_HOURS}-hour confirmation window`,
-  "Every deal reviewable by both parties",
-  "Disputes decided from the record",
-  "No card details ever touch this service",
-  "Single-use invite codes",
-  "Two-factor on every account",
-] as const;
+export const TRUST_POINTS: Record<Locale, string[]> = {
+  en: [
+    "AES-256-GCM encrypted at rest",
+    "Funds held until both sides are proven",
+    `${CONFIRMATION_WINDOW_HOURS}-hour confirmation window`,
+    "Every deal reviewable by both parties",
+    "Disputes decided from the record",
+    "No card details ever touch this service",
+    "Single-use invite codes",
+    "Two-factor on every account",
+  ],
+  ar: [
+    "تشفير AES-256-GCM للبيانات المخزَّنة",
+    "الأموال محتجزة حتى يثبت الطرفان التزامهما",
+    `نافذة تأكيد مدتها ${CONFIRMATION_WINDOW_HOURS} ساعة`,
+    "كل صفقة قابلة للتقييم من الطرفين",
+    "النزاعات تُحسم من السجل",
+    "لا تمر أي بيانات بطاقة عبر هذه الخدمة",
+    "رموز دعوة تُستخدم مرة واحدة",
+    "مصادقة ثنائية لكل حساب",
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Hero
+// ---------------------------------------------------------------------------
+
+export const HERO: Record<
+  Locale,
+  { badge: string; titleTop: string; titleAccent: string; body: string; note: string; cta: { start: string; code: string; deals: string } }
+> = {
+  en: {
+    badge: "Escrow for game account trades",
+    titleTop: "You two agreed the deal.",
+    titleAccent: "We make sure nobody gets robbed.",
+    body: "Not a shop — there is nothing to browse here. Bring a deal you already agreed on. The account is held encrypted, the money is held in escrow, and neither moves until the trade actually works.",
+    note: "Free to open a deal. You only pay when one completes.",
+    cta: { start: "Start a deal", code: "I have an invite code", deals: "Go to your deals" },
+  },
+  ar: {
+    badge: "ضمان لصفقات حسابات الألعاب",
+    titleTop: "أنتما اتفقتما على الصفقة.",
+    titleAccent: "ونحن نضمن ألا يُسرق أحد.",
+    body: "هذا ليس متجرًا — لا يوجد ما تتصفحه هنا. أحضر صفقة اتفقتما عليها مسبقًا. يُحفظ الحساب مشفَّرًا، ويُحتجز المال في الضمان، ولا يتحرك أي منهما حتى تتم الصفقة فعليًا.",
+    note: "فتح الصفقة مجاني. لا تدفع إلا عند إتمامها.",
+    cta: { start: "ابدأ صفقة", code: "لديّ رمز دعوة", deals: "اذهب إلى صفقاتك" },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Section headings
+// ---------------------------------------------------------------------------
+
+export const SECTIONS: Record<
+  Locale,
+  {
+    featuresTitle: string;
+    featuresBody: string;
+    howTitle: string;
+    howBody: string;
+    howMore: string;
+    reviewsTitle: string;
+    reviewsBody: string;
+    reviewsMore: string;
+    faqTitle: string;
+    faqBody: string;
+    faqAll: string;
+    faqAsk: string;
+  }
+> = {
+  en: {
+    featuresTitle: "Both halves are held. Neither side is exposed.",
+    featuresBody:
+      "In a normal account trade someone has to move first, and that person can simply be robbed. This removes the choice.",
+    howTitle: "Seven steps, and the money moves on the last one",
+    howBody:
+      "Nothing happens automatically. Every release is a deliberate action by someone who has checked.",
+    howMore: "Read the whole thing, in detail →",
+    reviewsTitle: "Both sides rate each other",
+    reviewsBody:
+      "Every review here came from a deal that completed through escrow. A buyer who never pays is as visible as a seller who hands over a dead account.",
+    reviewsMore: "Read every review →",
+    faqTitle: "The questions people ask first",
+    faqBody: "Including the ones with awkward answers.",
+    faqAll: "Every question, answered",
+    faqAsk: "ask us directly",
+  },
+  ar: {
+    featuresTitle: "كلا الطرفين محفوظ. ولا أحد مكشوف.",
+    featuresBody:
+      "في أي صفقة حساب عادية، على أحدهما أن يتحرك أولًا — وهذا الشخص يمكن ببساطة أن يُسرق. هذا النظام يلغي ذلك الخيار.",
+    howTitle: "سبع خطوات، والمال يتحرك في الأخيرة فقط",
+    howBody: "لا شيء يحدث تلقائيًا. كل تسليم إجراء مقصود من شخص تحقّق أولًا.",
+    howMore: "اقرأ التفاصيل كاملة ←",
+    reviewsTitle: "كل طرف يقيّم الآخر",
+    reviewsBody:
+      "كل تقييم هنا جاء من صفقة اكتملت عبر الضمان. المشتري الذي لا يدفع ظاهر تمامًا مثل البائع الذي يسلّم حسابًا معطّلًا.",
+    reviewsMore: "اقرأ كل التقييمات ←",
+    faqTitle: "الأسئلة التي تُطرح أولًا",
+    faqBody: "بما فيها تلك التي إجاباتها غير مريحة.",
+    faqAll: "كل الأسئلة، مُجابة",
+    faqAsk: "اسألنا مباشرة",
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Features
@@ -119,30 +222,58 @@ export type Feature = {
   wide?: boolean;
 };
 
-export const FEATURES: Feature[] = [
-  {
-    title: "The account is encrypted the moment it arrives",
-    body: "AES-256-GCM before it touches the database, with the key held outside it. Decrypted exactly twice: once for the admin to check the account works, once for the buyer after that check passes. Never logged, never sent anywhere else.",
-    icon: "lock",
-    wide: true,
-  },
-  {
-    title: "Money is held, not forwarded",
-    body: `It reaches the seller only after the buyer confirms they have the account — and the buyer has ${CONFIRMATION_WINDOW_HOURS} hours to say otherwise.`,
-    icon: "vault",
-  },
-  {
-    title: "Either side can freeze it",
-    body: "One button stops the deal dead. No credentials, no payout, and a case decided from the record rather than from whoever shouts loudest.",
-    icon: "scales",
-  },
-];
+export const FEATURES: Record<Locale, Feature[]> = {
+  en: [
+    {
+      title: "The account is encrypted the moment it arrives",
+      body: "AES-256-GCM before it touches the database, with the key held outside it. Decrypted exactly twice: once for the admin to check the account works, once for the buyer after that check passes. Never logged, never sent anywhere else.",
+      icon: "lock",
+      wide: true,
+    },
+    {
+      title: "Money is held, not forwarded",
+      body: `It reaches the seller only after the buyer confirms they have the account — and the buyer has ${CONFIRMATION_WINDOW_HOURS} hours to say otherwise.`,
+      icon: "vault",
+    },
+    {
+      title: "Either side can freeze it",
+      body: "One button stops the deal dead. No credentials, no payout, and a case decided from the record rather than from whoever shouts loudest.",
+      icon: "scales",
+    },
+  ],
+  ar: [
+    {
+      title: "الحساب يُشفَّر لحظة وصوله",
+      body: "تشفير AES-256-GCM قبل أن يصل إلى قاعدة البيانات، والمفتاح محفوظ خارجها. يُفك التشفير مرتين فقط: مرة ليتحقق المشرف من أن الحساب يعمل، ومرة للمشتري بعد نجاح ذلك التحقق. لا يُسجَّل أبدًا، ولا يُرسل إلى أي جهة أخرى.",
+      icon: "lock",
+      wide: true,
+    },
+    {
+      title: "المال محتجز، لا مُحوَّل",
+      body: `لا يصل إلى البائع إلا بعد أن يؤكد المشتري استلامه الحساب — وأمام المشتري ${CONFIRMATION_WINDOW_HOURS} ساعة ليقول غير ذلك.`,
+      icon: "vault",
+    },
+    {
+      title: "أي طرف يستطيع تجميدها",
+      body: "زر واحد يوقف الصفقة تمامًا. لا بيانات دخول، ولا دفع، وقضية تُحسم من السجل لا ممن يرفع صوته أكثر.",
+      icon: "scales",
+    },
+  ],
+};
 
 // ---------------------------------------------------------------------------
 // Final call to action
 // ---------------------------------------------------------------------------
 
-export const FINAL_CTA = {
-  heading: "Whoever goes first is the one taking the risk.",
-  body: "Escrow removes the choice. Both halves are handed to a third party, and neither is released until the other is proven. You keep the deal you already agreed — you just stop being the one exposed.",
-} as const;
+export const FINAL_CTA: Record<Locale, { heading: string; body: string; secondary: string }> = {
+  en: {
+    heading: "Whoever goes first is the one taking the risk.",
+    body: "Escrow removes the choice. Both halves are handed to a third party, and neither is released until the other is proven. You keep the deal you already agreed — you just stop being the one exposed.",
+    secondary: "See how it works",
+  },
+  ar: {
+    heading: "من يتحرك أولًا هو من يتحمل المخاطرة.",
+    body: "الضمان يلغي هذا الخيار. يُسلَّم كلا الطرفين إلى طرف ثالث، ولا يُفرج عن أحدهما حتى يثبت الآخر. تحتفظ بالصفقة التي اتفقتما عليها — وتتوقف فقط عن كونك الطرف المكشوف.",
+    secondary: "اطّلع على طريقة العمل",
+  },
+};

@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
+import type { Locale } from "@/lib/locale";
+import { SECTIONS } from "@/components/landing/content";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
@@ -15,7 +17,8 @@ import type { Faq } from "@/components/faq-content";
  * to animate. React elements cross the server boundary fine, so the server
  * renders the answers and this only opens and closes them.
  */
-export function LandingFaq({ items }: { items: Faq[] }) {
+export function LandingFaq({ items, locale }: { items: Faq[]; locale: Locale }) {
+  const copy = SECTIONS[locale];
   const [open, setOpen] = useState<string | null>(items[0]?.q ?? null);
 
   return (
@@ -25,10 +28,10 @@ export function LandingFaq({ items }: { items: Faq[] }) {
           id="faq-heading"
           className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl"
         >
-          The questions people ask first
+          {copy.faqTitle}
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-pretty text-[var(--muted)]">
-          Including the ones with awkward answers.
+          {copy.faqBody}
         </p>
       </Reveal>
 
@@ -50,14 +53,14 @@ export function LandingFaq({ items }: { items: Faq[] }) {
           href="/faq"
           className="inline-flex min-h-9 items-center text-[var(--accent)] hover:underline"
         >
-          Every question, answered
+          {copy.faqAll}
         </Link>{" "}
         — or{" "}
         <Link
           href="/contact"
           className="inline-flex min-h-9 items-center text-[var(--accent)] hover:underline"
         >
-          ask us directly
+          {copy.faqAsk}
         </Link>
       </Reveal>
     </section>

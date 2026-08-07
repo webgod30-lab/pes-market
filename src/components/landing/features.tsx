@@ -1,7 +1,8 @@
 "use client";
 
 import { Reveal, RevealGroup, RevealItem } from "@/components/landing/motion";
-import { FEATURES } from "@/components/landing/content";
+import type { Locale } from "@/lib/locale";
+import { FEATURES, SECTIONS } from "@/components/landing/content";
 import { LockIcon, ScalesIcon, VaultIcon } from "@/components/graphics";
 
 const ICONS = {
@@ -17,7 +18,8 @@ const ICONS = {
  * the most weight and gets the wide cell, which stops the section reading as
  * three interchangeable features and tells the eye what matters most.
  */
-export function Features() {
+export function Features({ locale }: { locale: Locale }) {
+  const copy = SECTIONS[locale];
   return (
     <section aria-labelledby="features-heading">
       <Reveal className="mb-10 text-center">
@@ -25,16 +27,15 @@ export function Features() {
           id="features-heading"
           className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl"
         >
-          Both halves are held. Neither side is exposed.
+          {copy.featuresTitle}
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-pretty text-[var(--muted)]">
-          In a normal account trade someone has to move first, and that person can simply be robbed.
-          This removes the choice.
+          {copy.featuresBody}
         </p>
       </Reveal>
 
       <RevealGroup className="grid gap-3 sm:grid-cols-2">
-        {FEATURES.map((feature) => {
+        {FEATURES[locale].map((feature) => {
           const Icon = ICONS[feature.icon];
 
           return (

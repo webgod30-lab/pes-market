@@ -1,6 +1,7 @@
 "use client";
 
 import { Reveal } from "@/components/landing/motion";
+import type { Locale } from "@/lib/locale";
 import { FINAL_CTA } from "@/components/landing/content";
 import { ButtonLink } from "@/components/ui";
 
@@ -12,14 +13,18 @@ import { ButtonLink } from "@/components/ui";
  * whole point of the section.
  */
 export function FinalCta({
+  locale,
   primaryHref,
   primaryLabel,
   feeLine,
 }: {
+  locale: Locale;
   primaryHref: string;
   primaryLabel: string;
   feeLine: string;
 }) {
+  const copy = FINAL_CTA[locale];
+
   return (
     <section aria-labelledby="cta-heading">
       <Reveal className="relative isolate overflow-hidden rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--surface)] px-6 py-14 text-center sm:px-12 sm:py-20">
@@ -39,17 +44,17 @@ export function FinalCta({
           id="cta-heading"
           className="mx-auto max-w-xl text-balance text-3xl font-semibold tracking-tight sm:text-4xl"
         >
-          {FINAL_CTA.heading}
+          {copy.heading}
         </h2>
 
-        <p className="mx-auto mt-4 max-w-lg text-pretty text-[var(--muted)]">{FINAL_CTA.body}</p>
+        <p className="mx-auto mt-4 max-w-lg text-pretty text-[var(--muted)]">{copy.body}</p>
 
         <div className="mt-9 flex flex-wrap justify-center gap-3">
           <ButtonLink href={primaryHref} size="lg">
             {primaryLabel}
           </ButtonLink>
           <ButtonLink href="/how-it-works" variant="secondary" size="lg">
-            See how it works
+            {copy.secondary}
           </ButtonLink>
         </div>
 

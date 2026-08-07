@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import type { Locale } from "@/lib/locale";
+import { SECTIONS } from "@/components/landing/content";
 import { motion, useReducedMotion } from "motion/react";
 
 import { Reveal } from "@/components/landing/motion";
-import { ESCROW_STEPS } from "@/lib/escrow-flow";
+import { escrowSteps } from "@/lib/escrow-flow";
 
 /**
  * The seven steps, as a vertical timeline.
@@ -15,7 +17,9 @@ import { ESCROW_STEPS } from "@/lib/escrow-flow";
  * carries meaning rather than polish: it traces the sequence in the order it
  * happens.
  */
-export function HowItWorks() {
+export function HowItWorks({ locale }: { locale: Locale }) {
+  const copy = SECTIONS[locale];
+  const steps = escrowSteps(locale);
   const reduced = useReducedMotion();
 
   return (
@@ -25,11 +29,10 @@ export function HowItWorks() {
           id="how-heading"
           className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl"
         >
-          Seven steps, and the money moves on the last one
+          {copy.howTitle}
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-pretty text-[var(--muted)]">
-          Nothing happens automatically. Every release is a deliberate action by someone who has
-          checked.
+          {copy.howBody}
         </p>
       </Reveal>
 
@@ -48,7 +51,7 @@ export function HowItWorks() {
           ) : null}
         </div>
 
-        {ESCROW_STEPS.map((step, index) => (
+        {steps.map((step, index) => (
           <motion.li
             key={step.n}
             className="relative flex gap-5 pb-8 last:pb-0"
@@ -78,7 +81,7 @@ export function HowItWorks() {
           href="/how-it-works"
           className="inline-flex min-h-9 items-center text-sm text-[var(--accent)] hover:underline"
         >
-          Read the whole thing, in detail →
+          {copy.howMore}
         </Link>
       </Reveal>
     </section>

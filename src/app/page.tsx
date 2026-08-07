@@ -1,4 +1,6 @@
 import { headers } from "next/headers";
+import { getLocale } from "@/lib/locale-server";
+import type { Locale } from "@/lib/locale";
 
 import { getCurrentUserQuietly } from "@/lib/dal";
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
@@ -29,6 +31,7 @@ import { FinalCta } from "@/components/landing/final-cta";
 export default async function HomePage() {
   const user = await getCurrentUserQuietly();
   const feeBps = defaultFeeBps();
+  const locale = await getLocale();
 
   const [stats, reviews] = await Promise.all([
     getTrustStats().catch(() => null),
@@ -51,29 +54,52 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-24 sm:space-y-32">
-      <Hero signedIn={signedIn} dashboardHref={dashboardHref} />
+      <Hero signedIn={signedIn} dashboardHref={dashboardHref} locale={locale} />
 
-      <TrustBanner />
+      <TrustBanner locale={locale} />
 
-      <Stats stats={stats} monthlyVisits={monthlyVisits} />
+      <Stats stats={stats} monthlyVisits={monthlyVisits} locale={locale} />
 
-      <Features />
+      <Features locale={locale} />
 
-      <HowItWorks />
+      <HowItWorks locale={locale} />
 
-      <Testimonials reviews={reviews} />
+      <Testimonials reviews={reviews} locale={locale} />
 
-      <LandingFaq items={featuredFaqs()} />
+      <LandingFaq items={featuredFaqs()} locale={locale} />
 
       <FinalCta
+        locale={locale}
         primaryHref={signedIn ? "/deals/new" : "/register"}
-        primaryLabel={signedIn ? "Open a deal" : "Start a deal"}
-        feeLine={
-          feeBps > 0
-            ? `${formatFeeBps(feeBps)} of the deal, taken from the seller's payout. The buyer pays exactly the agreed price.`
-            : "No fee at the moment — the seller receives exactly what the buyer paid."
+        primaryLabel={
+          locale === "ar"
+            ? signedIn
+              ? "افتح صفقة"
+              : "ابدأ صفقة"
+            : signedIn
+              ? "Open a deal"
+              : "Start a deal"
         }
+        feeLine={feeLine(locale, feeBps)}
       />
     </div>
   );
+}
+
+/**
+ * The fee sentence under the closing call to action.
+ *
+ * Not in content.ts because it interpolates the configured rate, which is read
+ * from the environment at request time rather than being copy.
+ */
+function feeLine(locale: Locale, feeBps: number): string {
+  if (feeBps <= 0) {
+    return locale === "ar"
+      ? "لا توجد رسوم حاليًا — يستلم البائع بالضبط ما دفعه المشتري."
+      : "No fee at the moment — the seller receives exactly what the buyer paid.";
+  }
+
+  return locale === "ar"
+    ? `${formatFeeBps(feeBps)} من قيمة الصفقة، تُخصم من مستحقات البائع. ويدفع المشتري السعر المتفق عليه بالضبط.`
+    : `${formatFeeBps(feeBps)} of the deal, taken from the seller's payout. The buyer pays exactly the agreed price.`;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Marquee } from "@/components/landing/motion";
+import type { Locale } from "@/lib/locale";
 import { TRUST_POINTS } from "@/components/landing/content";
 
 /**
@@ -13,7 +14,7 @@ import { TRUST_POINTS } from "@/components/landing/content";
  * Masked at both edges so items fade in and out rather than being clipped
  * mid-word against a hard boundary.
  */
-export function TrustBanner() {
+export function TrustBanner({ locale }: { locale: Locale }) {
   return (
     <section
       aria-label="What this service guarantees"
@@ -23,7 +24,7 @@ export function TrustBanner() {
         className="[mask-image:linear-gradient(to_right,transparent,#000_9%,#000_91%,transparent)]"
       >
         <Marquee speed={44}>
-          {TRUST_POINTS.map((point) => (
+          {TRUST_POINTS[locale].map((point) => (
             <span
               key={point}
               className="flex shrink-0 items-center gap-2.5 whitespace-nowrap text-sm text-[var(--muted)]"

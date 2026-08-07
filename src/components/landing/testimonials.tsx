@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { Locale } from "@/lib/locale";
+import { SECTIONS } from "@/components/landing/content";
 
 import { Reveal, RevealGroup, RevealItem } from "@/components/landing/motion";
 import { Stars } from "@/components/reputation";
@@ -18,7 +20,8 @@ import type { PublicReview } from "@/lib/reviews";
  * completed. It also means the section renders nothing when there is nothing
  * to show, which is the honest failure mode.
  */
-export function Testimonials({ reviews }: { reviews: PublicReview[] }) {
+export function Testimonials({ reviews, locale }: { reviews: PublicReview[]; locale: Locale }) {
+  const copy = SECTIONS[locale];
   if (reviews.length === 0) return null;
 
   return (
@@ -28,11 +31,10 @@ export function Testimonials({ reviews }: { reviews: PublicReview[] }) {
           id="testimonials-heading"
           className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl"
         >
-          Both sides rate each other
+          {copy.reviewsTitle}
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-pretty text-[var(--muted)]">
-          Every review here came from a deal that completed through escrow. A buyer who never pays
-          is as visible as a seller who hands over a dead account.
+          {copy.reviewsBody}
         </p>
       </Reveal>
 
@@ -73,7 +75,7 @@ export function Testimonials({ reviews }: { reviews: PublicReview[] }) {
           href="/reviews"
           className="inline-flex min-h-9 items-center text-sm text-[var(--accent)] hover:underline"
         >
-          Read every review →
+          {copy.reviewsMore}
         </Link>
       </Reveal>
     </section>

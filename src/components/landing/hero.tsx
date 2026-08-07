@@ -1,6 +1,8 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import type { Locale } from "@/lib/locale";
+import { HERO } from "@/components/landing/content";
 
 import { ButtonLink, PulseBadge } from "@/components/ui";
 import { AnimatedBackground } from "@/components/landing/animated-background";
@@ -21,7 +23,8 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  * headline, subhead, buttons, preview, each a beat behind the last. Above the
  * fold this runs on mount instead of on scroll, since it is already in view.
  */
-export function Hero({ signedIn, dashboardHref }: { signedIn: boolean; dashboardHref: string }) {
+export function Hero({ signedIn, dashboardHref, locale }: { signedIn: boolean; dashboardHref: string; locale: Locale }) {
+  const copy = HERO[locale];
   const reduced = useReducedMotion();
 
   // A single ladder of delays, so the sequence is legible in one place.
@@ -40,7 +43,7 @@ export function Hero({ signedIn, dashboardHref }: { signedIn: boolean; dashboard
 
       <div className="text-center">
         <motion.div {...step(0)} className="mb-5 flex justify-center">
-          <PulseBadge>Escrow for game account trades</PulseBadge>
+          <PulseBadge>{copy.badge}</PulseBadge>
         </motion.div>
 
         {/* The type scale earns its keep here: text-display carries its own
@@ -50,10 +53,10 @@ export function Hero({ signedIn, dashboardHref }: { signedIn: boolean; dashboard
           {...step(1)}
           className="mx-auto max-w-3xl text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.025em] sm:text-5xl lg:text-6xl"
         >
-          You two agreed the deal.
+          {copy.titleTop}
           <br className="hidden sm:block" />{" "}
           <span className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] bg-clip-text text-transparent">
-            We make sure nobody gets robbed.
+            {copy.titleAccent}
           </span>
         </motion.h1>
 
@@ -61,30 +64,28 @@ export function Hero({ signedIn, dashboardHref }: { signedIn: boolean; dashboard
           {...step(2)}
           className="mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-[var(--muted)] sm:text-lg"
         >
-          Not a shop — there is nothing to browse here. Bring a deal you already agreed on. The
-          account is held encrypted, the money is held in escrow, and neither moves until the trade
-          actually works.
+          {copy.body}
         </motion.p>
 
         <motion.div {...step(3)} className="mt-9 flex flex-wrap items-center justify-center gap-3">
           {signedIn ? (
             <ButtonLink href={dashboardHref} size="lg">
-              Go to your deals
+              {copy.cta.deals}
             </ButtonLink>
           ) : (
             <>
               <ButtonLink href="/register" size="lg">
-                Start a deal
+                {copy.cta.start}
               </ButtonLink>
               <ButtonLink href="/login" variant="secondary" size="lg">
-                I have an invite code
+                {copy.cta.code}
               </ButtonLink>
             </>
           )}
         </motion.div>
 
         <motion.p {...step(4)} className="mt-4 text-sm text-[var(--muted)]">
-          Free to open a deal. You only pay when one completes.
+          {copy.note}
         </motion.p>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { CountUp, RevealGroup, RevealItem } from "@/components/landing/motion";
+import type { Locale } from "@/lib/locale";
 import { headlineStats, USE_LIVE_STATS } from "@/components/landing/content";
 import type { TrustStats } from "@/lib/reviews";
 
@@ -17,11 +18,13 @@ import type { TrustStats } from "@/lib/reviews";
 export function Stats({
   stats,
   monthlyVisits,
+  locale,
 }: {
   stats: TrustStats | null;
   monthlyVisits: number;
+  locale: Locale;
 }) {
-  const figures = headlineStats(stats, monthlyVisits);
+  const figures = headlineStats(stats, monthlyVisits, locale);
 
   return (
     <section aria-label="By the numbers" className="relative">
