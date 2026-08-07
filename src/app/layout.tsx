@@ -6,7 +6,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui";
-import { themeBootScript } from "@/components/theme-toggle";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -51,18 +50,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // No suppressHydrationWarning any more: nothing edits <html> before React
+  // sees it now that the theme is fixed. The blocking boot script that used to
+  // read the stored choice went with it.
   return (
-    <html
-      lang="en"
-      className={`h-full antialiased ${display.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={`h-full antialiased ${display.variable}`}>
       <head>
-        {/* Blocking, and deliberately before anything paints: a visitor who
-            chose light must not see a dark frame first. suppressHydrationWarning
-            above is because this script edits <html> before React sees it. */}
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
-
         {/* Scroll-reveal animations ship their starting state in the HTML, so
             the landing page arrives with ~26 elements at opacity 0 and only
             JavaScript turns them on. With scripting off that is a blank page

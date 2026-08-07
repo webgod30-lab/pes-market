@@ -1,13 +1,18 @@
 @import "tailwindcss";
 
-/* Two palettes. Emerald reads as "safe / verified" in both, which is the whole
-   promise of an escrow service.
+/* One palette. Emerald on near-black reads as "safe / verified", which is the
+   whole promise of an escrow service.
 
-   Dark is the default: it is what a signed-out visitor sees if their device
-   expresses no preference, and it is what this service looked like first.
-   The light palette is not the dark one inverted — on white, the same emerald
-   is too bright to sit under body text, so the accent darkens and the borders
-   lighten. */
+   There was a light theme, and it was removed rather than repaired. It was not
+   the dark one inverted — the accent had to darken, the borders had to lighten,
+   and every glass surface, texture and scroll animation needed a second set of
+   values tuned separately. Keeping the two in step cost more attention than the
+   light version was getting, and it showed: text fitting differently and
+   animations reading wrong against white.
+
+   `color-scheme: dark` is what tells the browser to draw form controls,
+   scrollbars and autofill in dark — without it those come back white on a page
+   that is now always dark. */
 :root {
   --background: #0b0f14;
   --surface: #121821;
@@ -73,157 +78,6 @@
   color-scheme: dark;
 }
 
-/* The visitor's system preference, when they have not chosen for themselves. */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-    --background: #ffffff;
-    --surface: #ffffff;
-    --surface-2: #f8fafc;
-    --border: #e2e8f0;
-    --foreground: #020817;
-    --muted: #64748b;
-    --accent: #047857;
-    --accent-strong: #065f46;
-    /* The logo mark. A filled shape, so it can be brighter than --accent. */
-    --brand-mark: #17a86a;
-    --grid-line: rgba(2, 8, 23, 0.04);
-    --ring: rgba(2, 8, 23, 0.05);
-
-    --glass-bar: rgba(255, 255, 255, 0.62);
-    --glass-bar-dense: rgba(255, 255, 255, 0.86);
-    --glass-panel: rgba(255, 255, 255, 0.92);
-    --glass-border: rgba(2, 8, 23, 0.1);
-    --glass-highlight: rgba(255, 255, 255, 0.85);
-
-    --tone-neutral: #475569;
-    --tone-success: #047857;
-    --tone-warning: #92400e;
-    --tone-danger: #b91c1c;
-    --tone-info: #0369a1;
-    --tone-neutral-bg: rgba(71, 85, 105, 0.08);
-    --tone-neutral-border: rgba(71, 85, 105, 0.20);
-    --tone-success-bg: rgba(4, 120, 87, 0.09);
-    --tone-success-border: rgba(4, 120, 87, 0.24);
-    --tone-warning-bg: rgba(180, 83, 9, 0.09);
-    --tone-warning-border: rgba(180, 83, 9, 0.26);
-    --tone-danger-bg: rgba(185, 28, 28, 0.08);
-    --tone-danger-border: rgba(185, 28, 28, 0.22);
-    --tone-info-bg: rgba(3, 105, 161, 0.08);
-    --tone-info-border: rgba(3, 105, 161, 0.22);
-
-    --surface-3: #eef2f1;
-    --border-strong: #c3cfcb;
-    --faint: #8a9a95;
-
-    --shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.06), 0 0 0 1px rgba(2, 8, 23, 0.04);
-    --shadow-md: 0 2px 8px rgba(2, 8, 23, 0.08), 0 0 0 1px rgba(2, 8, 23, 0.05);
-    --shadow-lg: 0 10px 28px rgba(2, 8, 23, 0.10), 0 0 0 1px rgba(2, 8, 23, 0.06);
-    color-scheme: light;
-  }
-}
-
-/* An explicit choice always wins over the system preference, in both
-   directions — a visitor on a light device who picks dark must get dark. */
-:root[data-theme="light"] {
-  --background: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e2e8f0;
-  --foreground: #020817;
-  --muted: #64748b;
-  --accent: #047857;
-  --accent-strong: #065f46;
-  /* The logo mark. A filled shape, so it can be brighter than --accent. */
-  --brand-mark: #17a86a;
-  --grid-line: rgba(2, 8, 23, 0.04);
-  --ring: rgba(2, 8, 23, 0.05);
-
-  --glass-bar: rgba(255, 255, 255, 0.62);
-  --glass-bar-dense: rgba(255, 255, 255, 0.86);
-  --glass-panel: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(2, 8, 23, 0.1);
-  --glass-highlight: rgba(255, 255, 255, 0.85);
-
-  --tone-neutral: #475569;
-  --tone-success: #047857;
-  --tone-warning: #92400e;
-  --tone-danger: #b91c1c;
-  --tone-info: #0369a1;
-  --tone-neutral-bg: rgba(71, 85, 105, 0.08);
-  --tone-neutral-border: rgba(71, 85, 105, 0.20);
-  --tone-success-bg: rgba(4, 120, 87, 0.09);
-  --tone-success-border: rgba(4, 120, 87, 0.24);
-  --tone-warning-bg: rgba(180, 83, 9, 0.09);
-  --tone-warning-border: rgba(180, 83, 9, 0.26);
-  --tone-danger-bg: rgba(185, 28, 28, 0.08);
-  --tone-danger-border: rgba(185, 28, 28, 0.22);
-  --tone-info-bg: rgba(3, 105, 161, 0.08);
-  --tone-info-border: rgba(3, 105, 161, 0.22);
-
-  --surface-3: #eef2f1;
-  --border-strong: #c3cfcb;
-  --faint: #8a9a95;
-
-  --shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.06), 0 0 0 1px rgba(2, 8, 23, 0.04);
-  --shadow-md: 0 2px 8px rgba(2, 8, 23, 0.08), 0 0 0 1px rgba(2, 8, 23, 0.05);
-  --shadow-lg: 0 10px 28px rgba(2, 8, 23, 0.10), 0 0 0 1px rgba(2, 8, 23, 0.06);
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  --background: #0b0f14;
-  --surface: #121821;
-  --surface-2: #1a222d;
-  --border: #263140;
-  --foreground: #e7edf4;
-  --muted: #94a3b8;
-  --accent: #34d399;
-  --accent-strong: #6ee7b7;
-  /* The logo mark. A filled shape, so it can be brighter than --accent. */
-  --brand-mark: #3ef2a0;
-  --grid-line: rgba(255, 255, 255, 0.045);
-  --ring: rgba(255, 255, 255, 0.06);
-
-  --glass-bar: rgba(11, 15, 20, 0.58);
-  --glass-bar-dense: rgba(11, 15, 20, 0.82);
-  --glass-panel: rgba(18, 24, 33, 0.88);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-highlight: rgba(255, 255, 255, 0.08);
-
-  --tone-neutral: #cbd5e1;
-  --tone-success: #6ee7b7;
-  --tone-warning: #fcd34d;
-  --tone-danger: #fca5a5;
-  --tone-info: #7dd3fc;
-  /* Tone surfaces and borders. Alpha, so one value works over either ground.
-     Before these existed, callouts hardcoded things like "bg-amber-500/10
-     border-amber-500/30" and eleven different opacity pairs were in use for
-     what are really four states. */
-  --tone-neutral-bg: rgba(148, 163, 184, 0.12);
-  --tone-neutral-border: rgba(148, 163, 184, 0.28);
-  --tone-success-bg: rgba(52, 211, 153, 0.12);
-  --tone-success-border: rgba(52, 211, 153, 0.30);
-  --tone-warning-bg: rgba(251, 191, 36, 0.12);
-  --tone-warning-border: rgba(251, 191, 36, 0.32);
-  --tone-danger-bg: rgba(248, 113, 113, 0.12);
-  --tone-danger-border: rgba(248, 113, 113, 0.30);
-  --tone-info-bg: rgba(56, 189, 248, 0.12);
-  --tone-info-border: rgba(56, 189, 248, 0.30);
-
-  /* A third elevation, and a border with enough contrast to read as an edge
-     rather than a suggestion. */
-  --surface-3: #1f2a35;
-  --border-strong: #38495c;
-  /* Text quieter than --muted: timestamps, gutter numbers, help text. */
-  --faint: #64798c;
-
-  /* Elevation. On a dark ground a drop shadow is nearly invisible, so each
-     level pairs a shadow with a hairline ring that does the real work. */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  color-scheme: dark;
-}
 
 @theme inline {
   /* Palette, exposed to Tailwind so `bg-surface-2` and `text-muted` work as

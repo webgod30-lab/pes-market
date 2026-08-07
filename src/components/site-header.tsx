@@ -8,7 +8,6 @@ import { MobileNav } from "@/components/nav/mobile-nav";
 import { NavBar } from "@/components/nav/nav-bar";
 import { ProfileMenu } from "@/components/nav/profile-menu";
 import type { NavUser } from "@/components/nav/nav-links";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Skeleton } from "@/components/ui";
 
 /**
@@ -37,10 +36,6 @@ export function SiteHeader() {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {/* Outside the Suspense boundaries: switching theme must not wait on a
-            database round trip. */}
-        <ThemeToggle />
-
         <Suspense fallback={<Skeleton className="h-9 w-[6.5rem]" />}>
           <AccountArea />
         </Suspense>
