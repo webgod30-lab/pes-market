@@ -1,239 +1,205 @@
 import Link from "next/link";
 
-import { cn } from "@/components/ui/tone";
+import { cn } from "@/components/ui";
 
 /**
- * The brand.
+ * The brand, in one place.
  *
- * One module owns the emblem geometry and the palette, and everything else —
- * header, footer, favicon, home-screen icon, social card, the escrow diagram —
- * draws from here. Before this, the shield existed as four hand-copied path
- * strings that had already drifted apart.
+ * This is variant 5c from the logo exploration — "clipped tag, status line".
+ * The idea is a single piece of geometry used at every size: a rectangle with
+ * its bottom-right corner cut off, like a stamped tag or a HUD panel. At
+ * wordmark size it holds "PES"; at icon size it holds "PE"; at favicon size it
+ * survives as the silhouette alone.
  *
- * What the mark is trying to say, in order of how quickly it should land:
- *
- *   shield    the money and the account are protected
- *   keyhole   they are locked, and only released deliberately
- *   dark      this handles money; a bright green square reads as a game, not
- *             a place you would leave $300 overnight
- *
- * The one hard constraint is the browser tab. At 16 pixels a thin outline or a
- * letterform turns to mush, so the mark is a solid tile with shapes knocked
- * out of it — a silhouette that survives being tiny, which is where most
- * people meet a brand most often.
+ * Everything that draws the brand draws it from here — except the two places
+ * that physically cannot import (see the notes on CLIP_* below).
  */
 
 // ---------------------------------------------------------------------------
 // Palette
 // ---------------------------------------------------------------------------
-//
-// Fixed hex, not theme variables. The mark has to be the same colour in a
-// browser tab, on an iOS home screen and in a Discord preview — none of which
-// know anything about this site's light and dark themes.
 
 export const BRAND = {
-  /** Deep emerald-teal. The ground the emblem sits on. */
-  vault: "#04241d",
-  vaultDeep: "#021712",
-  /** The luminous emerald the shield is drawn in. */
-  emerald: "#34d399",
-  emeraldDeep: "#10b981",
-  /** Page background used by the generated social card. */
-  ink: "#0b0f14",
-  paper: "#e7edf4",
-  muted: "#8ba39c",
+  /** Neon emerald. The mark's fill on dark, and the accent throughout. */
+  emerald: "#3ef2a0",
+  /** Darker emerald, for the mark on a light ground where neon would glare. */
+  emeraldDeep: "#17a86a",
+  /** Near-black. The ground the mark sits on. */
+  ink: "#0b0f12",
+  /** One step up from ink — panels, the icon tile. */
+  inkPanel: "#101619",
+  /** Off-white. Type on dark, and the mark's fill when it must be neutral. */
+  paper: "#eef7f3",
+  /** Hairlines. */
+  line: "#2b3a34",
+  /** Secondary type — the status line under the wordmark. */
+  muted: "#7d8f88",
 } as const;
 
 // ---------------------------------------------------------------------------
 // Geometry
 // ---------------------------------------------------------------------------
-//
-// Drawn on a 64×64 grid. Both paths are exported because the static
-// `src/app/icon.svg` cannot import from a module — it is a file the browser
-// fetches directly — so it carries a copy, and its comment points back here.
-// If either changes, both change.
-
-/** The shield outline: flat shoulders, straight flanks, a rounded point. */
-export const SHIELD_PATH =
-  "M32 9 L50 15.5 V32.5 C50 42 42.6 49.8 32 55 C21.4 49.8 14 42 14 32.5 V15.5 Z";
-
-/** An inset copy, stroked faintly, so the shield reads as formed rather than flat. */
-export const SHIELD_INNER_PATH =
-  "M32 14 L45.5 19 V32.5 C45.5 39.5 40 45.6 32 49.8 C24 45.6 18.5 39.5 18.5 32.5 V19 Z";
-
-/** Keyhole stem. The bow is a circle, placed separately. */
-export const KEYHOLE_STEM_PATH = "M29.6 30.4 h4.8 l-1.3 9.8 h-2.2 z";
-export const KEYHOLE_BOW = { cx: 32, cy: 27, r: 5.4 };
-
-// ---------------------------------------------------------------------------
-// The emblem
-// ---------------------------------------------------------------------------
 
 /**
- * The shield on its own, no tile.
+ * The clip. Two of them, because the proportion differs with the shape.
  *
- * `tone="current"` draws it in the surrounding text colour, for places that
- * are already inside a themed context — the escrow diagram, an inline bullet.
- * `tone="brand"` uses the fixed brand emerald.
+ * On the wide "PES" tag the cut starts at 68% of the height; on the square icon
+ * it starts at 72%, which keeps the diagonal at a similar angle rather than
+ * scaling with the box. Copied verbatim from the design so the two match.
  */
-export function ShieldEmblem({
-  size = 40,
-  tone = "brand",
-  knockout = BRAND.vault,
-  className = "",
-  title,
-}: {
-  size?: number;
-  tone?: "brand" | "current";
-  /** What shows through the keyhole. Match whatever sits behind the shield. */
-  knockout?: string;
-  className?: string;
-  /** Give this only when the emblem is the sole label for something. */
-  title?: string;
-}) {
-  const brand = tone === "brand";
-  const id = `shield-${tone}`;
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      className={className}
-      role={title ? "img" : "presentation"}
-      aria-label={title}
-      aria-hidden={title ? undefined : true}
-    >
-      {brand ? (
-        <defs>
-          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={BRAND.emerald} />
-            <stop offset="100%" stopColor={BRAND.emeraldDeep} />
-          </linearGradient>
-        </defs>
-      ) : null}
-
-      <path d={SHIELD_PATH} fill={brand ? `url(#${id})` : "currentColor"} />
-
-      {/* Bevel. Invisible by the time the mark is 16px, which is intended —
-          it is the detail that makes the large sizes look considered. */}
-      <path
-        d={SHIELD_INNER_PATH}
-        fill="none"
-        stroke={brand ? BRAND.vaultDeep : "currentColor"}
-        strokeOpacity={brand ? 0.22 : 0.18}
-        strokeWidth="1.5"
-      />
-
-      <circle {...KEYHOLE_BOW} fill={brand ? knockout : "currentColor"} fillOpacity={brand ? 1 : 0.25} />
-      <path d={KEYHOLE_STEM_PATH} fill={brand ? knockout : "currentColor"} fillOpacity={brand ? 1 : 0.25} />
-    </svg>
-  );
-}
+export const CLIP_TAG = "polygon(0 0, 100% 0, 100% 68%, 82% 100%, 0 100%)";
+export const CLIP_ICON = "polygon(0 0, 100% 0, 100% 72%, 72% 100%, 0 100%)";
 
 /**
- * The emblem on its tile — the app-icon form, and what the favicon shows.
+ * The same square clip as an SVG path, on a 64-unit grid.
  *
- * A dark ground rather than a bright one. This is a service that holds other
- * people's money, and the visual vocabulary for that is closer to a bank card
- * than to a game launcher.
+ * `clip-path` is CSS and does not exist inside a standalone .svg file or inside
+ * satori, which renders the generated icons. Those need real geometry, so the
+ * shape is written out once here and mirrored in src/app/icon.svg — the browser
+ * fetches that file directly and it cannot import from this module. Change one,
+ * change the other.
+ */
+export const ICON_TAG_PATH = "M0 0 H64 V46 L46 64 H0 Z";
+
+/**
+ * "PE", drawn rather than typeset.
+ *
+ * The wordmark uses Chakra Petch, but the icon cannot: a favicon does not
+ * reliably load a webfont, and satori would need the font binary shipped with
+ * it. Paths render identically everywhere with no font at all. Cut square, to
+ * echo Chakra Petch's flat terminals.
+ *
+ * Deliberately heavier than the wordmark's letterforms. The first version was
+ * drawn at the wordmark's proportions and rasterised to mush in a browser tab —
+ * the P's counter and the gaps between the E's arms both landed under a pixel
+ * at 32px. Stems are 7 units of 64 and the counters 6, which survives down to
+ * 16px. It also matches the design's own icon application, where the letters
+ * nearly fill the tag.
+ */
+export const PE_PATH =
+  // P — stem, top bar, the bowl's right edge, and the bar that closes it.
+  "M7 12 h7 v32 h-7 z M14 12 h13 v7 h-13 z M20 19 h7 v7 h-7 z M14 26 h13 v7 h-13 z " +
+  // E — stem and three arms, the middle one short.
+  "M33 12 h7 v32 h-7 z M40 12 h16 v7 h-16 z M40 24.5 h12 v7 h-12 z M40 37 h16 v7 h-16 z";
+
+// ---------------------------------------------------------------------------
+// The mark
+// ---------------------------------------------------------------------------
+
+/**
+ * The square mark: a clipped tag holding "PE".
+ *
+ * `tone` picks which way round it sits. Emerald on ink is the default and the
+ * one used almost everywhere; `paper` is the quiet version for a light surface
+ * that already has enough green on it.
  */
 export function BrandMark({
   size = 28,
+  tone = "emerald",
   className = "",
-  title,
 }: {
   size?: number;
+  tone?: "emerald" | "paper";
   className?: string;
-  title?: string;
 }) {
+  // --brand-mark, not --accent. The mark is a filled shape, not text, so it is
+  // free to use the design's full neon on dark; the text accent is a separate
+  // token because it has a contrast ratio to meet and cannot be that bright on
+  // white. On light the token resolves to the design's deeper green, which is
+  // the substitution the design itself makes for its light application.
+  const fill = tone === "emerald" ? "var(--brand-mark)" : BRAND.paper;
+
   return (
     <svg
+      viewBox="0 0 64 64"
       width={size}
       height={size}
-      viewBox="0 0 64 64"
       className={cn("shrink-0", className)}
-      role={title ? "img" : "presentation"}
-      aria-label={title}
-      aria-hidden={title ? undefined : true}
+      aria-hidden="true"
+      focusable="false"
     >
-      <defs>
-        <linearGradient id="brand-tile" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={BRAND.vault} />
-          <stop offset="100%" stopColor={BRAND.vaultDeep} />
-        </linearGradient>
-        <linearGradient id="brand-shield" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={BRAND.emerald} />
-          <stop offset="100%" stopColor={BRAND.emeraldDeep} />
-        </linearGradient>
-      </defs>
-
-      <rect width="64" height="64" rx="15" fill="url(#brand-tile)" />
-      {/* A hairline edge, so the tile still has a boundary on a dark page. */}
-      <rect
-        x="0.75"
-        y="0.75"
-        width="62.5"
-        height="62.5"
-        rx="14.25"
-        fill="none"
-        stroke={BRAND.emerald}
-        strokeOpacity="0.18"
-        strokeWidth="1.5"
-      />
-
-      <path d={SHIELD_PATH} fill="url(#brand-shield)" />
-      <path
-        d={SHIELD_INNER_PATH}
-        fill="none"
-        stroke={BRAND.vaultDeep}
-        strokeOpacity="0.22"
-        strokeWidth="1.5"
-      />
-      <circle {...KEYHOLE_BOW} fill={BRAND.vault} />
-      <path d={KEYHOLE_STEM_PATH} fill={BRAND.vault} />
+      <path d={ICON_TAG_PATH} fill={fill} />
+      {/* Always ink, never the page background: the counter has to stay dark
+          against the fill in both themes. */}
+      <path d={PE_PATH} fill={BRAND.ink} />
     </svg>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Wordmark
+// The wordmark
 // ---------------------------------------------------------------------------
 
 /**
- * PESescrow.com, set as real text.
+ * PES in the tag, ESCROW beside it.
  *
- * Text rather than a drawn logotype so it is selectable, searchable, indexed,
- * and readable by a screen reader without an alt attribute standing in for it.
+ * Real type rather than paths, so the name stays selectable, searchable and
+ * readable by a screen reader without an alt attribute standing in for it.
  *
- * The three parts are weighted deliberately: PES is the game, escrow is the
- * product and takes the accent, and .com sits back — it belongs to the name
- * but should not compete with it.
+ * The tag's emerald is a token, not a constant: on the dark theme it is the
+ * neon `--accent`, and on light it resolves to the deeper green — the same
+ * substitution the design makes between its dark board and its light
+ * application. Text on the tag is always ink.
  */
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
-    <span className={cn("font-semibold tracking-tight whitespace-nowrap", className)}>
-      PES<span className="text-[var(--accent)]">escrow</span>
-      <span className="font-normal text-[var(--muted)]">.com</span>
+    <span className={cn("font-display flex items-stretch gap-[0.18em] leading-none", className)}>
+      <span
+        className="bg-[var(--accent)] px-[0.32em] pb-[0.28em] pt-[0.22em] font-bold tracking-[0.02em] text-[var(--background)]"
+        style={{ clipPath: CLIP_TAG }}
+      >
+        PES
+      </span>
+      <span className="pb-[0.28em] pt-[0.22em] font-bold tracking-[0.02em]">ESCROW</span>
     </span>
   );
 }
 
-/** Mark plus wordmark. */
-export function Logo({ size = 28, className = "" }: { size?: number; className?: string }) {
+/**
+ * The status line that sits under the wordmark in the design.
+ *
+ * Only used where there is vertical room for it — the auth pages and the
+ * footer. The header is 56px tall and has none.
+ */
+export function StatusLine({ children = "Escrow service" }: { children?: React.ReactNode }) {
   return (
-    <span className={cn("flex shrink-0 items-center gap-2.5", className)}>
-      <BrandMark size={size} />
+    <span className="inline-flex items-center gap-2.5 border border-[var(--border)] px-2.5 py-1.5">
+      <span aria-hidden="true" className="size-[7px] shrink-0 bg-[var(--accent)]" />
+      <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--muted)]">
+        {children}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The lockup used in the header and the footer: wordmark only.
+ *
+ * No mark beside it. The wordmark already opens with the clipped tag, so
+ * setting the square tag next to it repeated the same shape twice in 150px and
+ * read as two logos rather than one. The mark still carries the brand where
+ * there is no room for words — the favicon, the iOS icon, the auth pages.
+ */
+export function Logo({ className = "" }: { className?: string }) {
+  return (
+    <span className={cn("flex shrink-0 items-center", className)}>
       <Wordmark />
     </span>
   );
 }
 
 /** The lockup as a link home. Carries the accessible name for the whole thing. */
-export function LogoLink({ size = 28 }: { size?: number }) {
+export function LogoLink() {
   return (
-    <Link href="/" aria-label="PESescrow.com — home" className="rounded-[var(--radius-control)]">
-      <Logo size={size} className="text-sm sm:text-base" />
+    // inline-flex so the link hugs the wordmark. As a plain inline <a> around a
+    // block-level lockup it stretched to the width of its column in the footer,
+    // which made 240px of empty space navigate home.
+    <Link
+      href="/"
+      aria-label="PESescrow.com — home"
+      className="inline-flex rounded-[var(--radius-control)]"
+    >
+      <Logo className="text-sm sm:text-base" />
     </Link>
   );
 }

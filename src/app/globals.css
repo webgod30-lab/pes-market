@@ -19,6 +19,8 @@
      are identical in both themes because they always carry dark text. */
   --accent: #34d399;
   --accent-strong: #6ee7b7;
+  /* The logo mark. A filled shape, so it can be brighter than --accent. */
+  --brand-mark: #3ef2a0;
   /* Texture. Drawn over --background, so it inverts with it. */
   --grid-line: rgba(255, 255, 255, 0.045);
   /* Ring shadow used instead of heavy drop shadows. */
@@ -82,6 +84,8 @@
     --muted: #64748b;
     --accent: #047857;
     --accent-strong: #065f46;
+    /* The logo mark. A filled shape, so it can be brighter than --accent. */
+    --brand-mark: #17a86a;
     --grid-line: rgba(2, 8, 23, 0.04);
     --ring: rgba(2, 8, 23, 0.05);
 
@@ -129,6 +133,8 @@
   --muted: #64748b;
   --accent: #047857;
   --accent-strong: #065f46;
+  /* The logo mark. A filled shape, so it can be brighter than --accent. */
+  --brand-mark: #17a86a;
   --grid-line: rgba(2, 8, 23, 0.04);
   --ring: rgba(2, 8, 23, 0.05);
 
@@ -173,6 +179,8 @@
   --muted: #94a3b8;
   --accent: #34d399;
   --accent-strong: #6ee7b7;
+  /* The logo mark. A filled shape, so it can be brighter than --accent. */
+  --brand-mark: #3ef2a0;
   --grid-line: rgba(255, 255, 255, 0.045);
   --ring: rgba(255, 255, 255, 0.06);
 
@@ -242,6 +250,9 @@
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  /* The wordmark only. next/font sets --font-chakra on <html>; the fallbacks
+     keep the lockup upright and roughly the right width if it never arrives. */
+  --font-display: var(--font-chakra), "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
 
   /* ---------------------------------------------------------------------
      Type scale

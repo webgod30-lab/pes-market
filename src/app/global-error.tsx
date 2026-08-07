@@ -55,7 +55,7 @@ export default function GlobalError({
             style={{
               marginTop: "1.25rem",
               background: BRAND.emerald,
-              color: BRAND.vaultDeep,
+              color: BRAND.ink,
               border: 0,
               borderRadius: "0.5rem",
               padding: "0.625rem 1rem",

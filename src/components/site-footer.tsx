@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-import { LogoLink } from "@/components/brand";
-import { LockIcon } from "@/components/graphics";
+import { LogoLink, StatusLine } from "@/components/brand";
 import { SITE } from "@/lib/site";
 
 const COLUMNS = [
@@ -48,17 +47,18 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-14">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <LogoLink size={28} />
+            <LogoLink />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-[var(--muted)]">
               {SITE.tagline}. We hold the account and the money until both sides are proven — so
               whoever goes first is not the one taking the risk.
             </p>
 
-            {/* Stated once, quietly, where it can be checked against the rest
-                of the site rather than shouted as a badge. */}
-            <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] px-3 py-1.5 text-xs font-medium text-[var(--accent)]">
-              <LockIcon className="size-3.5" />
-              AES-256-GCM encrypted at rest
+            {/* The status line from the logo system — the third element of the
+                lockup, which the 56px header has no room for. Stated once,
+                quietly, where it can be checked against the rest of the site
+                rather than shouted as a badge. */}
+            <p className="mt-5">
+              <StatusLine>AES-256-GCM encrypted at rest</StatusLine>
             </p>
           </div>
 

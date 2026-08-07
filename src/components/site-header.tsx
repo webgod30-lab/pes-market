@@ -27,7 +27,7 @@ export function SiteHeader() {
   return (
     <HeaderShell>
       <div className="flex min-w-0 items-center gap-6">
-        <LogoLink size={28} />
+        <LogoLink />
 
         {/* The bar needs the role to decide whether to show a Deals menu, so
             it streams in with the session rather than blocking the logo. */}

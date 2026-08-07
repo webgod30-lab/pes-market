@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Chakra_Petch } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -8,6 +9,22 @@ import { Toaster } from "@/components/ui";
 import { themeBootScript } from "@/components/theme-toggle";
 import { SITE } from "@/lib/site";
 import "./globals.css";
+
+/**
+ * The one webfont on the site, and only the wordmark uses it.
+ *
+ * Body text stays on the system stack — no fetch, no layout shift, instant
+ * first paint — which is worth keeping. But the logo is Chakra Petch and a
+ * near-enough substitute is not the same logo, so this loads a single weight
+ * and nothing else. `display: swap` means a slow network delays the brand for a
+ * moment rather than blocking the page behind it.
+ */
+const display = Chakra_Petch({
+  subsets: ["latin"],
+  weight: ["700"],
+  display: "swap",
+  variable: "--font-chakra",
+});
 
 export const metadata: Metadata = {
   // Without this, the social preview image resolves against localhost and the
@@ -35,7 +52,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`h-full antialiased ${display.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Blocking, and deliberately before anything paints: a visitor who
             chose light must not see a dark frame first. suppressHydrationWarning

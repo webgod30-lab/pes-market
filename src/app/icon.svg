@@ -2,28 +2,18 @@
   Browser tab icon.
 
   A static file, because the browser fetches it directly and it cannot import
-  from src/components/brand.tsx — so the geometry below is a copy of
-  SHIELD_PATH and the keyhole from that module. Change one, change both.
+  from src/components/brand.tsx — so the tag outline and the "PE" below are a
+  copy of ICON_TAG_PATH and PE_PATH from that module. Change one, change both.
 
-  Deliberately simpler than the full emblem: the inner bevel stroke is dropped,
-  because at 16 pixels it merges into the fill and only muddies the silhouette.
-  Tile, shield and keyhole are what survive at that size.
+  The mark is the clipped tag: a square with its bottom-right corner cut off.
+  Letters are deliberately heavy — see the note on PE_PATH — because at 16px a
+  thin counter disappears and "PE" turns into two dark smudges.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#04241d"/>
-      <stop offset="100%" stop-color="#021712"/>
-    </linearGradient>
-    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#34d399"/>
-      <stop offset="100%" stop-color="#10b981"/>
-    </linearGradient>
-  </defs>
-
-  <rect width="64" height="64" rx="15" fill="url(#tile)"/>
-  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#34d399" stroke-opacity="0.18" stroke-width="1.5"/>
-  <path d="M32 9 L50 15.5 V32.5 C50 42 42.6 49.8 32 55 C21.4 49.8 14 42 14 32.5 V15.5 Z" fill="url(#shield)"/>
-  <circle cx="32" cy="27" r="5.4" fill="#04241d"/>
-  <path d="M29.6 30.4 h4.8 l-1.3 9.8 h-2.2 z" fill="#04241d"/>
+  <rect width="64" height="64" fill="#0b0f12"/>
+  <path d="M3 3 H61 V45 L45 61 H3 Z" fill="#3ef2a0"/>
+  <g fill="#0b0f12">
+    <path d="M7 12 h7 v32 h-7 z M14 12 h13 v7 h-13 z M20 19 h7 v7 h-7 z M14 26 h13 v7 h-13 z"/>
+    <path d="M33 12 h7 v32 h-7 z M40 12 h16 v7 h-16 z M40 24.5 h12 v7 h-12 z M40 37 h16 v7 h-16 z"/>
+  </g>
 </svg>
