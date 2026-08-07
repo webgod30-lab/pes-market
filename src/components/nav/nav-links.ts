@@ -13,18 +13,19 @@
 // Every href in this file already existed in the navigation. Reorganising which
 // menu a link sits in does not change where it goes.
 import type { NavIconName } from "@/components/nav/nav-icons";
+import type { MessageKey } from "@/lib/dictionary";
 import type { Role } from "@/generated/prisma/client";
 
 export type NavItem = {
   href: string;
-  label: string;
+  labelKey: MessageKey;
   /** Shown in dropdowns, which have room to say what a link is for. */
   description?: string;
   icon: NavIconName;
 };
 
 export type NavGroup = {
-  label: string;
+  labelKey: MessageKey | null;
   /** Announced on the mobile sheet's section heading. */
   items: NavItem[];
 };
@@ -60,29 +61,29 @@ export function initialOf(displayName: string): string {
  */
 export const PRIMARY_LINK: NavItem = {
   href: "/how-it-works",
-  label: "How it works",
+  labelKey: "nav.howItWorks",
   description: "The seven steps, and when the money actually moves",
   icon: "route",
 };
 
 export const RESOURCES: NavGroup = {
-  label: "Resources",
+  labelKey: "nav.resources",
   items: [
     {
       href: "/reviews",
-      label: "Reviews",
+      labelKey: "nav.reviews",
       description: "Every review, from both sides of a completed deal",
       icon: "star",
     },
     {
       href: "/faq",
-      label: "FAQ",
+      labelKey: "nav.faq",
       description: "Fees, disputes, and the awkward questions",
       icon: "help",
     },
     {
       href: "/contact",
-      label: "Contact",
+      labelKey: "nav.contact",
       description: "Ask before you send anything",
       icon: "mail",
     },
@@ -117,17 +118,17 @@ export function homeHref(role: Role): string {
 export function dealsGroup(role: Role): NavGroup {
   if (role === "admin") {
     return {
-      label: "Console",
+      labelKey: "nav.console",
       items: [
         {
           href: "/admin",
-          label: "Admin console",
+          labelKey: "nav.adminConsole",
           description: "Deals, disputes, withdrawals and users",
           icon: "gauge",
         },
         {
           href: "/deals/join",
-          label: "Join with a code",
+          labelKey: "nav.joinCode",
           description: "Someone sent you an invite",
           icon: "ticket",
         },
@@ -136,23 +137,23 @@ export function dealsGroup(role: Role): NavGroup {
   }
 
   return {
-    label: "Deals",
+    labelKey: "nav.deals",
     items: [
       {
         href: "/dashboard",
-        label: "Your deals",
+        labelKey: "nav.yourDeals",
         description: "Everything you have open right now",
         icon: "grid",
       },
       {
         href: "/deals/new",
-        label: "Open a deal",
+        labelKey: "nav.openDeal",
         description: "Record the terms and get an invite code",
         icon: "plus",
       },
       {
         href: "/deals/join",
-        label: "Join with a code",
+        labelKey: "nav.joinCode",
         description: "Someone sent you an invite",
         icon: "ticket",
       },
@@ -170,16 +171,16 @@ export function dealsGroup(role: Role): NavGroup {
 export function accountLinks(role: Role): NavItem[] {
   const home: NavItem = {
     href: homeHref(role),
-    label: role === "admin" ? "Admin console" : "Your deals",
+    labelKey: role === "admin" ? "nav.adminConsole" : "nav.yourDeals",
     icon: role === "admin" ? "gauge" : "grid",
   };
 
   const wallet: NavItem[] =
     role === "admin"
       ? []
-      : [{ href: "/wallet", label: "Your balance", icon: "wallet" }];
+      : [{ href: "/wallet", labelKey: "nav.balance", icon: "wallet" }];
 
-  return [home, ...wallet, { href: "/settings/security", label: "Security", icon: "shield" }];
+  return [home, ...wallet, { href: "/settings/security", labelKey: "nav.security", icon: "shield" }];
 }
 
 // ---------------------------------------------------------------------------
@@ -195,16 +196,16 @@ export function accountLinks(role: Role): NavItem[] {
  */
 export function mobileSections(role: Role | null): NavGroup[] {
   if (role === null) {
-    return [{ label: "", items: PUBLIC_LINKS }];
+    return [{ labelKey: null, items: PUBLIC_LINKS }];
   }
 
   const deals = dealsGroup(role);
 
   return [
     deals,
-    { label: "Learn", items: PUBLIC_LINKS },
+    { labelKey: "nav.learn", items: PUBLIC_LINKS },
     {
-      label: "Account",
+      labelKey: "nav.account",
       // The deals group already offers the home link; repeating it inside
       // Account would put the same row on screen twice, one above the other.
       items: accountLinks(role).filter(

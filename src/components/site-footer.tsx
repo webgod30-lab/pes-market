@@ -2,37 +2,42 @@ import Link from "next/link";
 
 import { LogoLink, StatusLine } from "@/components/brand";
 import { SITE } from "@/lib/site";
+import { translator } from "@/lib/dictionary";
+import { getLocale } from "@/lib/locale-server";
 
-const COLUMNS = [
+type Col = { headingKey: import("@/lib/dictionary").MessageKey; links: { href: string; labelKey: import("@/lib/dictionary").MessageKey }[] };
+
+const COLUMNS: Col[] = [
   {
-    heading: "Service",
+    headingKey: "footer.service",
     links: [
-      { href: "/how-it-works", label: "How it works" },
-      { href: "/reviews", label: "Reviews" },
-      { href: "/deals/new", label: "Open a deal" },
-      { href: "/deals/join", label: "Join with a code" },
+      { href: "/how-it-works", labelKey: "nav.howItWorks" },
+      { href: "/reviews", labelKey: "nav.reviews" },
+      { href: "/deals/new", labelKey: "nav.openDeal" },
+      { href: "/deals/join", labelKey: "nav.joinCode" },
     ],
   },
   {
-    heading: "Help",
+    headingKey: "footer.help",
     links: [
-      { href: "/faq", label: "FAQ" },
-      { href: "/contact", label: "Contact" },
-      { href: "/login", label: "Sign in" },
-      { href: "/register", label: "Create an account" },
+      { href: "/faq", labelKey: "nav.faq" },
+      { href: "/contact", labelKey: "nav.contact" },
+      { href: "/login", labelKey: "account.signIn" },
+      { href: "/register", labelKey: "footer.createAccount" },
     ],
   },
   {
-    heading: "Legal",
+    headingKey: "footer.legal",
     links: [
-      { href: "/terms", label: "Terms of service" },
-      { href: "/privacy", label: "Privacy policy" },
+      { href: "/terms", labelKey: "footer.terms" },
+      { href: "/privacy", labelKey: "footer.privacy" },
     ],
   },
 ];
 
-export function SiteFooter() {
+export async function SiteFooter() {
   const year = new Date().getFullYear();
+  const t = translator(await getLocale());
 
   return (
     <footer className="relative mt-24 border-t border-[var(--border)] bg-[var(--surface)]/40">
@@ -63,8 +68,8 @@ export function SiteFooter() {
           </div>
 
           {COLUMNS.map((column) => (
-            <div key={column.heading}>
-              <h2 className="text-overline uppercase text-[var(--foreground)]">{column.heading}</h2>
+            <div key={column.headingKey}>
+              <h2 className="text-overline uppercase text-[var(--foreground)]">{t(column.headingKey)}</h2>
               {/* space-y-0.5 rather than -2: the padding below now provides
                   the separation, and keeping the old gap as well would push
                   the footer to twice its height on a phone. */}
@@ -78,7 +83,7 @@ export function SiteFooter() {
                       // where they stack closely on a phone.
                       className="inline-flex min-h-9 items-center text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
                     >
-                      {link.label}
+                      {t(link.labelKey)}
                     </Link>
                   </li>
                 ))}

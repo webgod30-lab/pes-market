@@ -10,6 +10,7 @@ import { Menu, MenuRow } from "@/components/nav/menu";
 import { NavIcon } from "@/components/nav/nav-icons";
 import { accountLinks, type NavUser } from "@/components/nav/nav-links";
 import { cn } from "@/components/ui";
+import type { Translate } from "@/lib/dictionary";
 
 /**
  * The account menu.
@@ -20,7 +21,7 @@ import { cn } from "@/components/ui";
  * area is the same shape at every width, and there is room to say who you are
  * signed in as, which the bar never had.
  */
-export function ProfileMenu({ user }: { user: NavUser }) {
+export function ProfileMenu({ user, t }: { user: NavUser; t: Translate }) {
   const pathname = usePathname();
   const links = accountLinks(user.role);
 
@@ -60,7 +61,7 @@ export function ProfileMenu({ user }: { user: NavUser }) {
           href={item.href}
           aria-current={isActive(pathname, item.href) ? "page" : undefined}
           icon={<NavIcon name={item.icon} className="size-4" />}
-          title={item.label}
+          title={t(item.labelKey)}
         />
       ))}
 
@@ -72,7 +73,7 @@ export function ProfileMenu({ user }: { user: NavUser }) {
           variant="compact"
           type="submit"
           icon={<SignOutIcon />}
-          title="Sign out"
+          title={t("account.signOut")}
           className="text-[var(--tone-danger)] hover:bg-[var(--tone-danger-bg)]"
         />
       </form>

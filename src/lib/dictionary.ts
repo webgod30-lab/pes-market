@@ -34,6 +34,11 @@ const en = {
   "nav.balance": "Your balance",
   "nav.security": "Security",
   "nav.overview": "Overview",
+  "nav.learn": "Learn",
+  "nav.account": "Account",
+  "nav.money": "Money",
+  "nav.queues": "Queues",
+  "nav.settings": "Settings",
 
   // --- account ---
   "account.signIn": "Sign in",
@@ -84,6 +89,11 @@ const ar: Record<MessageKey, string> = {
   "nav.balance": "رصيدك",
   "nav.security": "الأمان",
   "nav.overview": "نظرة عامة",
+  "nav.learn": "تعرّف على الخدمة",
+  "nav.account": "الحساب",
+  "nav.money": "المال",
+  "nav.queues": "قوائم الانتظار",
+  "nav.settings": "الإعدادات",
 
   "account.signIn": "تسجيل الدخول",
   "account.signOut": "تسجيل الخروج",

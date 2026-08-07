@@ -8,6 +8,7 @@ import { NavIcon } from "@/components/nav/nav-icons";
 import { PRIMARY_LINK, RESOURCES, dealsGroup, type NavGroup } from "@/components/nav/nav-links";
 import { cn } from "@/components/ui";
 import type { Role } from "@/generated/prisma/client";
+import type { Translate } from "@/lib/dictionary";
 
 /**
  * The desktop bar.
@@ -18,14 +19,14 @@ import type { Role } from "@/generated/prisma/client";
  * replacement — the actions were simply unreachable between 768 and 1024.
  * Grouping them into a dropdown means they survive at every desktop width.
  */
-export function NavBar({ role }: { role: Role | null }) {
+export function NavBar({ role, t }: { role: Role | null; t: Translate }) {
   return (
     <nav aria-label="Main" className="hidden items-center gap-0.5 text-sm md:flex">
-      {role ? <GroupMenu group={dealsGroup(role)} /> : null}
+      {role ? <GroupMenu group={dealsGroup(role)} t={t} /> : null}
 
-      <NavLink href={PRIMARY_LINK.href}>{PRIMARY_LINK.label}</NavLink>
+      <NavLink href={PRIMARY_LINK.href}>{t(PRIMARY_LINK.labelKey)}</NavLink>
 
-      <GroupMenu group={RESOURCES} />
+      <GroupMenu group={RESOURCES} t={t} />
     </nav>
   );
 }
@@ -90,19 +91,19 @@ function ActiveUnderline({ active }: { active: boolean }) {
 }
 
 /** A bar item that opens a menu of related routes. */
-function GroupMenu({ group }: { group: NavGroup }) {
+function GroupMenu({ group, t }: { group: NavGroup; t: Translate }) {
   const pathname = usePathname();
   const active = group.items.some((item) => isActive(pathname, item.href));
 
   return (
     <Menu
-      label={group.label}
+      label={group.labelKey ? t(group.labelKey) : ""}
       align="start"
       panelClassName="w-[22rem]"
       triggerClassName={barItemClass(active)}
       trigger={({ open }) => (
         <>
-          {group.label}
+          {group.labelKey ? t(group.labelKey) : null}
           <Chevron open={open} />
           <ActiveUnderline active={active} />
         </>
@@ -115,7 +116,7 @@ function GroupMenu({ group }: { group: NavGroup }) {
           href={item.href}
           aria-current={isActive(pathname, item.href) ? "page" : undefined}
           icon={<NavIcon name={item.icon} />}
-          title={item.label}
+          title={t(item.labelKey)}
           description={item.description}
         />
       ))}

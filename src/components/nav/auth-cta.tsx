@@ -1,4 +1,5 @@
 import { ButtonLink, cn } from "@/components/ui";
+import type { Translate } from "@/lib/dictionary";
 
 /**
  * The signed-out call to action.
@@ -12,7 +13,7 @@ import { ButtonLink, cn } from "@/components/ui";
  * is the only element in the bar with a shadow, which is what makes the eye
  * land on it first without it having to be bigger or louder.
  */
-export function AuthCta({ stacked = false }: { stacked?: boolean }) {
+export function AuthCta({ stacked = false, t }: { stacked?: boolean; t: Translate }) {
   return (
     <div className={cn(stacked ? "flex flex-col gap-2" : "flex items-center gap-2")}>
       <ButtonLink
@@ -24,7 +25,7 @@ export function AuthCta({ stacked = false }: { stacked?: boolean }) {
         // and the primary action should be the first thing reachable.
         className={cn(stacked && "order-2")}
       >
-        Sign in
+        {t("account.signIn")}
       </ButtonLink>
 
       <ButtonLink
@@ -37,7 +38,7 @@ export function AuthCta({ stacked = false }: { stacked?: boolean }) {
           stacked ? "order-1" : "hidden sm:inline-flex",
         )}
       >
-        Start a deal
+        {t("account.startDeal")}
       </ButtonLink>
     </div>
   );

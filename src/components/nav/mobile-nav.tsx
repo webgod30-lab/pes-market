@@ -12,6 +12,7 @@ import { isActive } from "@/components/nav/nav-bar";
 import { NavIcon } from "@/components/nav/nav-icons";
 import { mobileSections, type NavUser } from "@/components/nav/nav-links";
 import { Button, cn } from "@/components/ui";
+import type { Translate } from "@/lib/dictionary";
 
 /** Resting header height (h-16 = 64px). The sheet hangs below it. */
 const HEADER_HEIGHT = 64;
@@ -37,7 +38,7 @@ const HEADER_HEIGHT = 64;
  * unmounting would, and unlike `visibility` it applies instantly rather than
  * waiting for a transition to start.
  */
-export function MobileNav({ user }: { user: NavUser | null }) {
+export function MobileNav({ user, t }: { user: NavUser | null; t: Translate }) {
   const pathname = usePathname();
 
   // Storing which route it was opened on means a navigation closes it for free,
@@ -152,10 +153,10 @@ export function MobileNav({ user }: { user: NavUser | null }) {
         {user ? <SheetIdentity user={user} /> : null}
 
         {sections.map((section, sectionIndex) => (
-          <section key={section.label || "links"} className="mb-4 last:mb-0">
-            {section.label ? (
+          <section key={section.labelKey ?? "links"} className="mb-4 last:mb-0">
+            {section.labelKey ? (
               <h2 className="mb-1 px-3 text-overline uppercase text-[var(--muted)]">
-                {section.label}
+                {t(section.labelKey)}
               </h2>
             ) : null}
 
@@ -198,7 +199,7 @@ export function MobileNav({ user }: { user: NavUser | null }) {
                       >
                         <NavIcon name={item.icon} />
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-base">{item.label}</span>
+                      <span className="min-w-0 flex-1 truncate text-base">{t(item.labelKey)}</span>
                       {active ? (
                         <span
                           aria-hidden="true"
@@ -217,11 +218,11 @@ export function MobileNav({ user }: { user: NavUser | null }) {
           {user ? (
             <form action={signOutAction}>
               <Button type="submit" variant="secondary" block>
-                Sign out
+                {t("account.signOut")}
               </Button>
             </form>
           ) : (
-            <AuthCta stacked />
+            <AuthCta stacked t={t} />
           )}
         </div>
       </div>
