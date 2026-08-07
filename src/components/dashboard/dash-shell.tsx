@@ -155,7 +155,7 @@ function RailLink({
       {item.badge ? (
         <span
           className={cn(
-            "ml-auto grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums",
+            "ms-auto grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums",
             active
               ? "bg-[var(--accent)] text-[var(--background)]"
               : "bg-[var(--tone-warning-bg)] text-[var(--tone-warning)]",

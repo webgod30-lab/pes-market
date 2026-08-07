@@ -92,9 +92,9 @@ export function DealListSkeleton({ rows = 3 }: { rows?: number }) {
               <Skeleton className="mt-2.5 h-3 w-full max-w-sm" />
               <Skeleton className="mt-1.5 h-3 w-2/3 max-w-xs" />
             </div>
-            <div className="shrink-0 text-right">
-              <Skeleton className="ml-auto h-4 w-20" />
-              <Skeleton className="ml-auto mt-2 h-5 w-24" />
+            <div className="shrink-0 text-end">
+              <Skeleton className="ms-auto h-4 w-20" />
+              <Skeleton className="ms-auto mt-2 h-5 w-24" />
             </div>
           </div>
         </li>

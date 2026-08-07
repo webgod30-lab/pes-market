@@ -36,7 +36,7 @@ export function HowItWorks() {
       <ol className="relative mx-auto max-w-2xl">
         {/* The rail. Absolutely positioned behind the markers, drawn top-down
             as the list enters view. */}
-        <div aria-hidden="true" className="absolute left-[15px] top-2 bottom-2 w-px bg-[var(--border)]">
+        <div aria-hidden="true" className="absolute start-[15px] top-2 bottom-2 w-px bg-[var(--border)]">
           {!reduced ? (
             <motion.div
               className="h-full w-full origin-top bg-gradient-to-b from-[var(--accent)] to-transparent"

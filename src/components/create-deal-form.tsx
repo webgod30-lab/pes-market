@@ -109,7 +109,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "ml-auto grid size-4 shrink-0 place-items-center rounded-full border",
+                      "ms-auto grid size-4 shrink-0 place-items-center rounded-full border",
                       selected
                         ? "border-transparent bg-[var(--accent)] text-[var(--background)]"
                         : "border-[var(--border)]",
@@ -227,7 +227,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
               hint: PRICE_HINT,
               error: state?.fieldErrors?.agreedPriceCents,
             })}
-            className={cn(inputClassName, "pl-7 tabular-nums")}
+            className={cn(inputClassName, "ps-7 tabular-nums")}
             placeholder="185.00"
           />
         </div>

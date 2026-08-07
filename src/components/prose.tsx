@@ -17,7 +17,7 @@ export function Section({ title, children }: { title: string; children: ReactNod
 /** Bulleted list with readable spacing. */
 export function Points({ items }: { items: ReactNode[] }) {
   return (
-    <ul className="space-y-2 pl-5">
+    <ul className="space-y-2 ps-5">
       {items.map((item, index) => (
         <li key={index} className="list-disc marker:text-emerald-500">
           {item}

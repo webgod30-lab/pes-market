@@ -72,7 +72,7 @@ export function DealTimeline({
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "absolute left-[11px] top-6 h-[calc(100%-1.5rem)] w-px",
+                    "absolute start-[11px] top-6 h-[calc(100%-1.5rem)] w-px",
                     isDone ? "bg-[var(--accent)]/40" : "bg-[var(--border)]",
                   )}
                 />

@@ -50,7 +50,7 @@ export function DashboardPreview() {
             <span className="size-2.5 rounded-full bg-[var(--border-strong)]" />
           </span>
           <span className="ml-2 font-mono text-xs text-[var(--muted)]">ESC-7F3K9Q</span>
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--tone-success)]">
+          <span className="ms-auto inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--tone-success)]">
             <span className="size-1.5 rounded-full bg-current" />
             Funds held
           </span>

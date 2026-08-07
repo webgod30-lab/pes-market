@@ -93,7 +93,7 @@ export function TradeHistory({ facts }: { facts: HistoryFacts }) {
           {index < entries.length - 1 ? (
             <span
               aria-hidden="true"
-              className="absolute left-[3.5px] top-3 h-[calc(100%-0.75rem)] w-px bg-[var(--border)]"
+              className="absolute start-[3.5px] top-3 h-[calc(100%-0.75rem)] w-px bg-[var(--border)]"
             />
           ) : null}
 

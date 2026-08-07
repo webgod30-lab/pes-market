@@ -7,6 +7,8 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui";
 import { SITE } from "@/lib/site";
+import { directionOf } from "@/lib/locale";
+import { getLocale } from "@/lib/locale-server";
 import "./globals.css";
 
 /**
@@ -45,16 +47,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Read on the server, so the first byte already carries the right direction.
+  // Setting dir in the browser would flip the whole layout after first paint.
+  const locale = await getLocale();
+
   // No suppressHydrationWarning any more: nothing edits <html> before React
   // sees it now that the theme is fixed. The blocking boot script that used to
   // read the stored choice went with it.
   return (
-    <html lang="en" className={`h-full antialiased ${display.variable}`}>
+    <html
+      lang={locale}
+      dir={directionOf(locale)}
+      className={`h-full antialiased ${display.variable}`}
+    >
       <head>
         {/* Scroll-reveal animations ship their starting state in the HTML, so
             the landing page arrives with ~26 elements at opacity 0 and only

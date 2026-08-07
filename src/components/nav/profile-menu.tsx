@@ -30,7 +30,7 @@ export function ProfileMenu({ user }: { user: NavUser }) {
       align="end"
       panelClassName="w-64"
       triggerClassName={cn(
-        "flex items-center gap-2 rounded-[var(--radius-pill)] py-1 pl-1 pr-2",
+        "flex items-center gap-2 rounded-[var(--radius-pill)] py-1 ps-1 pe-2",
         "border border-[var(--glass-border)] bg-[var(--surface-2)]/60 transition-colors",
         "hover:bg-[var(--surface-2)]",
       )}

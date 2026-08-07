@@ -70,7 +70,7 @@ export function DataTable<Row>({
                   scope="col"
                   className={cn(
                     "px-4 py-2.5 text-overline uppercase text-[var(--muted)]",
-                    column.align === "end" ? "text-right" : "text-left",
+                    column.align === "end" ? "text-end" : "text-start",
                   )}
                 >
                   {column.header}
@@ -90,7 +90,7 @@ export function DataTable<Row>({
                     key={column.key}
                     className={cn(
                       "px-4 py-3 align-middle",
-                      column.align === "end" && "text-right tabular-nums",
+                      column.align === "end" && "text-end tabular-nums",
                     )}
                   >
                     {/* The link lives in the identifying cell rather than
@@ -130,7 +130,7 @@ export function DataTable<Row>({
                 {rest.map((column) => (
                   <div key={column.key} className="flex items-baseline justify-between gap-3">
                     <dt className="shrink-0 text-xs text-[var(--muted)]">{column.header}</dt>
-                    <dd className="min-w-0 text-right text-sm">{column.cell(row)}</dd>
+                    <dd className="min-w-0 text-end text-sm">{column.cell(row)}</dd>
                   </div>
                 ))}
               </dl>

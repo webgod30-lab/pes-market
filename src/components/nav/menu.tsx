@@ -177,7 +177,7 @@ export function Menu({
           "border border-[var(--glass-border)] bg-[var(--glass-panel)] shadow-[var(--shadow-lg)]",
           "backdrop-blur-xl backdrop-saturate-150",
           "transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none",
-          align === "end" ? "right-0" : "left-0",
+          align === "end" ? "end-0" : "start-0",
           open
             ? "translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-1 scale-95 opacity-0",
@@ -226,7 +226,7 @@ export function MenuRow({
     <Component
       role="menuitem"
       className={cn(
-        "group flex w-full gap-3 rounded-[var(--radius-control)] px-2.5 text-left",
+        "group flex w-full gap-3 rounded-[var(--radius-control)] px-2.5 text-start",
         "transition-colors hover:bg-[var(--surface-2)] focus-visible:bg-[var(--surface-2)]",
         "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]",
         rich ? "items-start py-2" : "items-center py-2",

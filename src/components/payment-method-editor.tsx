@@ -123,13 +123,13 @@ export function PaymentMethodForm({
           />
           Confirm payments automatically
         </label>
-        <p className="mt-1 pl-6 text-xs text-[var(--muted)]">
+        <p className="mt-1 ps-6 text-xs text-[var(--muted)]">
           A provider tells us when the money lands, and the deal moves to verification on its own.
           Leave this off to keep checking payments yourself.
         </p>
 
         {isAutomatic ? (
-          <div className="mt-3 pl-6">
+          <div className="mt-3 ps-6">
             <label
               htmlFor={`provider-${existing?.id ?? "new"}`}
               className="mb-1.5 block text-xs font-medium"

@@ -65,7 +65,7 @@ export function PasswordInput({
           onChange={onValueChange ? (event) => onValueChange(event.target.value) : undefined}
           onKeyUp={(event) => setCapsLock(event.getModifierState?.("CapsLock") ?? false)}
           onBlur={() => setCapsLock(false)}
-          className={cn(inputClassName, "pr-11", revealed && "font-mono")}
+          className={cn(inputClassName, "pe-11", revealed && "font-mono")}
           placeholder="••••••••"
         />
 

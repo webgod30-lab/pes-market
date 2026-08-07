@@ -7,8 +7,10 @@ import { HeaderShell } from "@/components/nav/header-shell";
 import { MobileNav } from "@/components/nav/mobile-nav";
 import { NavBar } from "@/components/nav/nav-bar";
 import { ProfileMenu } from "@/components/nav/profile-menu";
+import { LanguageMenu } from "@/components/nav/language-menu";
 import type { NavUser } from "@/components/nav/nav-links";
 import { Skeleton } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
 
 /**
  * The site header.
@@ -22,7 +24,9 @@ import { Skeleton } from "@/components/ui";
  * sheet — but getCurrentUserQuietly is wrapped in React's cache(), so it is one
  * query per render either way.
  */
-export function SiteHeader() {
+export async function SiteHeader() {
+  const locale = await getLocale();
+
   return (
     <HeaderShell>
       <div className="flex min-w-0 items-center gap-6">
@@ -36,6 +40,10 @@ export function SiteHeader() {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        {/* Outside the Suspense boundaries below: changing language must not
+            wait on a database round trip. */}
+        <LanguageMenu locale={locale} />
+
         <Suspense fallback={<Skeleton className="h-9 w-[6.5rem]" />}>
           <AccountArea />
         </Suspense>

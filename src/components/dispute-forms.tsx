@@ -131,7 +131,7 @@ export function ResolveDisputeForm({
               />
               <span className="text-sm font-medium">Refund {buyerName}</span>
             </span>
-            <span className="mt-1 block pl-6 text-xs text-[var(--muted)]">
+            <span className="mt-1 block ps-6 text-xs text-[var(--muted)]">
               Send {refundLabel} back to the buyer. The deal ends as refunded.
             </span>
           </label>
@@ -148,7 +148,7 @@ export function ResolveDisputeForm({
               />
               <span className="text-sm font-medium">Pay {sellerName}</span>
             </span>
-            <span className="mt-1 block pl-6 text-xs text-[var(--muted)]">
+            <span className="mt-1 block ps-6 text-xs text-[var(--muted)]">
               The deal completes and you owe the seller {payoutLabel}.
             </span>
           </label>

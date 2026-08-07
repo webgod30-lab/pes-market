@@ -41,7 +41,7 @@ export function Stat({
     <div
       className={cn(
         "rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5",
-        align === "center" ? "text-center" : "text-left",
+        align === "center" ? "text-center" : "text-start",
       )}
     >
       <p

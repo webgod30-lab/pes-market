@@ -250,14 +250,14 @@ export function MobileNav({ user }: { user: NavUser | null }) {
         <span aria-hidden="true" className="relative block h-3 w-4">
           <span
             className={cn(
-              "absolute left-0 block h-0.5 w-4 rounded-full bg-current",
+              "absolute start-0 block h-0.5 w-4 rounded-full bg-current",
               "transition-transform duration-200 ease-out motion-reduce:transition-none",
               open ? "top-1.5 rotate-45" : "top-0",
             )}
           />
           <span
             className={cn(
-              "absolute left-0 block h-0.5 w-4 rounded-full bg-current",
+              "absolute start-0 block h-0.5 w-4 rounded-full bg-current",
               "transition-transform duration-200 ease-out motion-reduce:transition-none",
               open ? "top-1.5 -rotate-45" : "top-3",
             )}
