@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/escrow-flow";
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
+import { FAQ_AR, FAQ_GROUPS_AR } from "@/lib/faq-ar";
+import type { Locale } from "@/lib/locale";
 
 /**
  * Every question the site answers, in one place.
@@ -229,4 +231,32 @@ export function faqGroups(): FaqGroup[] {
 /** The subset worth putting in front of someone who has not decided yet. */
 export function featuredFaqs(): Faq[] {
   return faqGroups().flatMap((group) => group.items.filter((item) => item.featured));
+}
+
+/**
+ * The same questions, in the requested language.
+ *
+ * An overlay rather than a second tree: faqGroups() stays the single source of
+ * which questions exist and in what order, and Arabic is applied on top by
+ * matching the English question. Anything without a translation falls through
+ * to English, so adding a question to the list above can never blank this page.
+ */
+export function faqGroupsFor(locale: Locale): FaqGroup[] {
+  const groups = faqGroups();
+
+  if (locale !== "ar") return groups;
+
+  return groups.map((group) => ({
+    group: FAQ_GROUPS_AR[group.group] ?? group.group,
+    items: group.items.map((item) => {
+      const translated = FAQ_AR[item.q];
+
+      return translated ? { ...item, q: translated.q, a: translated.a } : item;
+    }),
+  }));
+}
+
+/** The featured subset, in the requested language. */
+export function featuredFaqsFor(locale: Locale): Faq[] {
+  return faqGroupsFor(locale).flatMap((group) => group.items.filter((item) => item.featured));
 }

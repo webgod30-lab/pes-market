@@ -1,6 +1,8 @@
 import Link from "next/link";
 
-import { faqGroups } from "@/components/faq-content";
+import { faqGroupsFor } from "@/components/faq-content";
+import { getLocale } from "@/lib/locale-server";
+import { FAQ_PAGE } from "@/lib/page-copy";
 import { Prose } from "@/components/prose";
 import { Card, PageHeading } from "@/components/ui";
 
@@ -10,14 +12,16 @@ export const metadata = {
     "Common questions about escrowed game account trades: fees, timing, disputes, what happens if the seller takes the account back, and what this service does not cover.",
 };
 
-export default function FaqPage() {
-  const groups = faqGroups();
+export default async function FaqPage() {
+  const locale = await getLocale();
+  const copy = FAQ_PAGE[locale];
+  const groups = faqGroupsFor(locale);
 
   return (
     <Prose>
       <PageHeading
-        title="Questions"
-        description="If your question is about a specific deal, ask on the deal itself — that keeps it on the record."
+        title={copy.title}
+        description={copy.intro}
       />
 
       <div className="space-y-8">
@@ -39,9 +43,9 @@ export default function FaqPage() {
       </div>
 
       <p className="mt-10 text-sm text-[var(--muted)]">
-        Not answered here?{" "}
+        {copy.notAnswered}{" "}
         <Link href="/contact" className="text-[var(--accent)] hover:underline">
-          Contact us
+          {copy.contactUs}
         </Link>
         .
       </p>

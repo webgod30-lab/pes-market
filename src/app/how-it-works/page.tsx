@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
-import { ESCROW_STEPS } from "@/lib/escrow-flow";
+import { escrowSteps } from "@/lib/escrow-flow";
+import { getLocale } from "@/lib/locale-server";
+import { HOW_IT_WORKS } from "@/lib/page-copy";
 import { Prose, Section, Points } from "@/components/prose";
 import { ButtonLink, Card, PageHeading } from "@/components/ui";
 
@@ -11,18 +13,18 @@ export const metadata = {
     "How an escrowed game account trade works, step by step: what each side does, what the admin checks, and when the money actually moves.",
 };
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
   const feeBps = defaultFeeBps();
+  const locale = await getLocale();
+  const copy = HOW_IT_WORKS[locale];
+  const steps = escrowSteps(locale);
 
   return (
     <Prose>
-      <PageHeading
-        title="How it works"
-        description="Both sides are exposed in a normal account trade: whoever goes first can be robbed. Escrow removes that by holding each half until the other is proven."
-      />
+      <PageHeading title={copy.title} description={copy.intro} />
 
       <ol className="space-y-3">
-        {ESCROW_STEPS.map((step) => (
+        {steps.map((step) => (
           <li key={step.n}>
             <Card>
               <div className="flex items-start gap-3">
@@ -42,60 +44,43 @@ export default function HowItWorksPage() {
         ))}
       </ol>
 
-      <Section title="What it costs">
+      <Section title={copy.costTitle}>
         <p>
           {feeBps > 0 ? (
             <>
-              The escrow fee is <strong className="text-[var(--foreground)]">{formatFeeBps(feeBps)}</strong>,
-              taken out of the seller&apos;s payout. The buyer pays exactly the agreed price — never
-              more. The exact split is shown on the deal before either side commits, and it is locked
-              in when the deal is opened, so changing the rate later cannot alter a deal already in
-              progress.
+              {copy.costFeePrefix}{" "}
+              <strong className="text-[var(--foreground)]">{formatFeeBps(feeBps)}</strong>
+              {locale === "ar" ? "، " : ", "}
+              {copy.costFee}
             </>
           ) : (
-            <>There is currently no escrow fee. The seller receives exactly what the buyer paid.</>
+            <>{copy.costFree}</>
           )}
         </p>
       </Section>
 
-      <Section title="If something goes wrong">
-        <p>
-          Either side can open a dispute from the deal page once money is involved. That freezes
-          everything immediately — no credentials, no payout — and opens a case for the admin, who
-          decides from the record: the frozen payment details, the verification note, and the whole
-          conversation on the deal.
-        </p>
-        <p>
-          Before any money moves, there is no dispute to have: either party can simply cancel and walk
-          away.
-        </p>
+      <Section title={copy.wrongTitle}>
+        <p>{copy.wrongBody}</p>
+        <p>{copy.wrongBefore}</p>
       </Section>
 
-      <Section title="Rules that protect you">
-        <Points
-          items={[
-            "Never send account details or money outside a deal. If it is not on this site, the admin cannot help you and there is no record.",
-            "Check the terms on the invite before you join. If the price or the account is not what you agreed, do not join.",
-            "Buyers: change the email and password the moment you get the account, then confirm. The confirmation window exists for you, not against you.",
-            "Sellers: do not touch the account after depositing it. Recovering an account you have sold is the fastest way to lose a dispute.",
-            "Sellers: stay reachable until the buyer confirms. Konami sends the transfer code to your inbox, and the buyer cannot finish without it — going quiet at that point is what turns a normal deal into a dispute.",
-          ]}
-        />
+      <Section title={copy.rulesTitle}>
+        <Points items={copy.rules} />
       </Section>
 
       <div className="mt-10 flex flex-wrap gap-3">
-        <ButtonLink href="/register">Start a deal</ButtonLink>
+        <ButtonLink href="/register">{copy.ctaStart}</ButtonLink>
         <ButtonLink href="/faq" variant="secondary">
-          Read the FAQ
+          {copy.ctaFaq}
         </ButtonLink>
       </div>
 
       <p className="mt-6 text-xs text-[var(--muted)]">
-        Still unsure?{" "}
+        {copy.unsure}{" "}
         <Link href="/contact" className="text-[var(--accent)] hover:underline">
-          Get in touch
+          {copy.getInTouch}
         </Link>{" "}
-        before you send anything.
+        {copy.beforeSending}
       </p>
     </Prose>
   );

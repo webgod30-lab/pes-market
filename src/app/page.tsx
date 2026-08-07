@@ -6,7 +6,7 @@ import { getCurrentUserQuietly } from "@/lib/dal";
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { getTrustStats, listPublicReviews } from "@/lib/reviews";
 import { getMonthlyVisits, looksAutomated, recordVisit } from "@/lib/visits";
-import { featuredFaqs } from "@/components/faq-content";
+import { featuredFaqsFor } from "@/components/faq-content";
 import { Hero } from "@/components/landing/hero";
 import { TrustBanner } from "@/components/landing/trust-banner";
 import { Stats } from "@/components/landing/stats";
@@ -66,7 +66,7 @@ export default async function HomePage() {
 
       <Testimonials reviews={reviews} locale={locale} />
 
-      <LandingFaq items={featuredFaqs()} locale={locale} />
+      <LandingFaq items={featuredFaqsFor(locale)} locale={locale} />
 
       <FinalCta
         locale={locale}

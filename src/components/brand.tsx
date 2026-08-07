@@ -143,7 +143,14 @@ export function BrandMark({
  */
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
-    <span className={cn("font-display flex items-stretch gap-[0.18em] leading-none", className)}>
+    <span
+      // dir="ltr" is not optional here. The lockup is a flex row of two spans,
+      // so inside the Arabic page it laid out right-to-left and rendered the
+      // brand backwards — "ESCROW PES", with the clipped corner on the wrong
+      // side. A Latin wordmark keeps its own direction whatever the page does.
+      dir="ltr"
+      className={cn("font-display flex items-stretch gap-[0.18em] leading-none", className)}
+    >
       <span
         className="bg-[var(--accent)] px-[0.32em] pb-[0.28em] pt-[0.22em] font-bold tracking-[0.02em] text-[var(--background)]"
         style={{ clipPath: CLIP_TAG }}
