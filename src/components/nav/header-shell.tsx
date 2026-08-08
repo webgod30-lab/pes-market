@@ -53,6 +53,16 @@ export function HeaderShell({ children }: { children: ReactNode }) {
           rather than just changing colour, which is what makes it feel like it
           is reacting to the scroll instead of toggling a class. */}
       <div
+        // The bar keeps its left-to-right order in every language: logo first,
+        // then the nav, with the account controls at the far end. Only the
+        // *arrangement* is pinned — each label inside is still Arabic text and
+        // the browser's bidi handling renders it right-to-left within its own
+        // box. Mirroring the whole bar would move the logo across and reverse
+        // the reading order of a masthead people already know.
+        //
+        // Scoped to this element, not the page: the content below stays RTL,
+        // which is what Arabic prose needs.
+        dir="ltr"
         className={cn(
           "mx-auto flex max-w-6xl items-center justify-between gap-3 px-4",
           "transition-[height] duration-300 motion-reduce:transition-none",
