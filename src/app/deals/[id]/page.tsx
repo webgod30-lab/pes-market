@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUserOrProblem } from "@/lib/dal";
+import { getLocale } from "@/lib/locale-server";
+import { translator } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 import { loadDealForViewer, type DealView, type DealViewerRole } from "@/lib/deals";
 import { listActivePaymentMethods, type PaymentMethodView } from "@/lib/payment-methods";
 import { formatCents } from "@/lib/money";
@@ -61,6 +64,8 @@ export default async function DealPage({
   const { deal, role } = result;
   const isParty = role === "seller" || role === "buyer";
   const isSwapDeal = deal.tradeKind === "swap";
+  const locale = await getLocale();
+  const t = translator(locale);
 
   // Only needed when the buyer is actually about to pay.
   const paymentMethods =
@@ -148,6 +153,7 @@ export default async function DealPage({
           <DealTimeline
             status={deal.status}
             tradeKind={deal.tradeKind}
+            locale={locale}
             // DealView deliberately does not expose when the invite was
             // accepted, so that step shows no date rather than a guessed one.
             // The deposit is dated from credentialsUpdatedAt, which is the last
@@ -171,7 +177,7 @@ export default async function DealPage({
       <div className="mt-6 grid gap-3 lg:grid-cols-2">
         <Card>
           <h2 className="text-sm font-semibold">
-            {isSwapDeal ? "The seller's account" : "What is being traded"}
+            {isSwapDeal ? t("swap.sellerAccount") : "What is being traded"}
           </h2>
           <p className="mt-2 text-sm leading-relaxed">{deal.accountSummary}</p>
           <p className="mt-3 text-xs text-[var(--muted)]">
@@ -185,14 +191,11 @@ export default async function DealPage({
           // A swap has two descriptions and no money, so the panel that would
           // show the split shows the other half of the trade instead.
           <Card>
-            <h2 className="text-sm font-semibold">The buyer&apos;s account</h2>
+            <h2 className="text-sm font-semibold">{t("swap.buyerAccount")}</h2>
             <p className="mt-2 text-sm leading-relaxed">
-              {deal.counterAccountSummary ?? "Not described."}
+              {deal.counterAccountSummary ?? t("swap.notDescribed")}
             </p>
-            <p className="mt-3 text-xs text-[var(--muted)]">
-              No money changes hands. Both accounts are held and released together, so neither side
-              can take one and walk away. No fee.
-            </p>
+            <p className="mt-3 text-xs text-[var(--muted)]">{t("swap.noMoney")}</p>
           </Card>
         ) : (
         <Card>
@@ -221,7 +224,7 @@ export default async function DealPage({
       </div>
 
       <div className="mt-3">
-        <NextStep deal={deal} role={role} paymentMethods={paymentMethods} />
+        <NextStep deal={deal} role={role} paymentMethods={paymentMethods} locale={locale} />
       </div>
 
       {/* --- publisher verification codes, during the handover --- */}
@@ -382,11 +385,14 @@ function NextStep({
   deal,
   role,
   paymentMethods,
+  locale,
 }: {
   deal: DealView;
   role: DealViewerRole;
   paymentMethods: PaymentMethodView[];
+  locale: Locale;
 }) {
+  const t = translator(locale);
   const isSeller = role === "seller";
   const isBuyer = role === "buyer";
   const isParty = isSeller || isBuyer;
@@ -415,17 +421,31 @@ function NextStep({
       if (isSwap && isParty) {
         const yoursIn = isSeller ? deal.hasCredentials : deal.hasCounterCredentials;
         const theirsIn = isSeller ? deal.hasCounterCredentials : deal.hasCredentials;
-        const them = (isSeller ? deal.buyer : deal.seller)?.displayName ?? "The other person";
+        const them =
+          (isSeller ? deal.buyer : deal.seller)?.displayName ??
+          (locale === "ar" ? "الطرف الآخر" : "The other person");
+
+        // Interpolated, so these live here rather than in the dictionary, which
+        // maps a key to a finished string and takes no parameters.
+        const ar = locale === "ar";
 
         return (
           <Card>
             <h2 className="text-sm font-semibold">
-              {yoursIn ? `Waiting for ${them}` : "Your turn: hand over your account"}
+              {yoursIn
+                ? ar
+                  ? `في انتظار ${them}`
+                  : `Waiting for ${them}`
+                : t("swap.deposit.yourTurn")}
             </h2>
             <p className="mt-2 mb-4 text-sm text-[var(--muted)]">
               {yoursIn
-                ? `Your account is deposited and encrypted. Nothing is released until ${them} deposits theirs too — then both are checked and handed over together. You can still correct yours until then.`
-                : `Submit the login for the account you are giving up. It is encrypted immediately and held by the admin. ${theirsIn ? `${them} has already deposited theirs.` : `${them} has not deposited yet either.`} Neither account moves until both are in.`}
+                ? ar
+                  ? `حسابك مودَع ومشفَّر. لن يُسلَّم أي شيء حتى يودع ${them} حسابه أيضًا — عندها يُفحص الحسابان ويُسلَّمان معًا. ويمكنك تصحيح بياناتك حتى ذلك الحين.`
+                  : `Your account is deposited and encrypted. Nothing is released until ${them} deposits theirs too — then both are checked and handed over together. You can still correct yours until then.`
+                : ar
+                  ? `أدخل بيانات دخول الحساب الذي ستتخلى عنه. تُشفَّر فورًا ويحتفظ بها المشرف. ${theirsIn ? `${them} أودع حسابه بالفعل.` : `${them} لم يودع حسابه بعد كذلك.`} لا يتحرك أي حساب حتى يُودَع الاثنان.`
+                  : `Submit the login for the account you are giving up. It is encrypted immediately and held by the admin. ${theirsIn ? `${them} has already deposited theirs.` : `${them} has not deposited yet either.`} Neither account moves until both are in.`}
             </p>
             <DepositCredentialsForm dealId={deal.id} alreadyDeposited={yoursIn} />
           </Card>
@@ -533,27 +553,37 @@ function NextStep({
       if (isSwap && isParty) {
         const youConfirmed = isSeller ? deal.sellerConfirmedAt : deal.buyerConfirmedAt;
         const theyConfirmed = isSeller ? deal.buyerConfirmedAt : deal.sellerConfirmedAt;
-        const them = (isSeller ? deal.buyer : deal.seller)?.displayName ?? "the other person";
+        const them =
+          (isSeller ? deal.buyer : deal.seller)?.displayName ??
+          (locale === "ar" ? "الطرف الآخر" : "the other person");
+        const ar = locale === "ar";
 
         return (
           <Card>
             <h2 className="text-sm font-semibold">
-              {youConfirmed ? `Waiting for ${them} to confirm` : "Both accounts released"}
+              {youConfirmed
+                ? ar
+                  ? `في انتظار تأكيد ${them}`
+                  : `Waiting for ${them} to confirm`
+                : t("swap.released.title")}
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
               {youConfirmed
-                ? `You have confirmed. The swap closes once ${them} confirms they have taken over the account you gave them.`
-                : "Log in, change the email and password straight away, then confirm below. The swap is not finished until both of you have."}
+                ? ar
+                  ? `لقد أكّدت. تنتهي المبادلة بمجرد أن يؤكد ${them} أنه استلم الحساب الذي سلّمته له.`
+                  : `You have confirmed. The swap closes once ${them} confirms they have taken over the account you gave them.`
+                : t("swap.released.body")}
             </p>
             {deal.confirmationDeadline && !youConfirmed ? (
               <p className="mt-2 text-xs text-[var(--tone-warning)]">
-                Please confirm by {deal.confirmationDeadline.toLocaleString("en-GB")}. If you go
-                quiet, the admin will chase you.
+                {ar
+                  ? `يرجى التأكيد قبل ${deal.confirmationDeadline.toLocaleString("ar")}. إن تأخرت، سيتواصل معك المشرف.`
+                  : `Please confirm by ${deal.confirmationDeadline.toLocaleString("en-GB")}. If you go quiet, the admin will chase you.`}
               </p>
             ) : null}
             {theyConfirmed ? (
               <p className="mt-2 text-xs text-[var(--accent)]">
-                {them} has already confirmed their side.
+                {ar ? `${them} أكّد جانبه بالفعل.` : `${them} has already confirmed their side.`}
               </p>
             ) : null}
 
@@ -561,8 +591,8 @@ function NextStep({
               <CredentialsPanel
                 dealId={deal.id}
                 action={revealForBuyerAction}
-                revealLabel="Show the account you received"
-                note="Shown only when you ask, so they are not left sitting on screen."
+                revealLabel={t("swap.reveal")}
+                note={t("swap.reveal.note")}
               />
             </div>
 

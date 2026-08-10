@@ -1,4 +1,5 @@
 import { requireUserOrProblem } from "@/lib/dal";
+import { getLocale } from "@/lib/locale-server";
 import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { CreateDealForm } from "@/components/create-deal-form";
 import { traderSections } from "@/components/dashboard/dash-nav";
@@ -14,6 +15,7 @@ export default async function NewDealPage() {
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
   const feeBps = defaultFeeBps();
+  const locale = await getLocale();
 
   return (
     <DashShell
@@ -23,7 +25,7 @@ export default async function NewDealPage() {
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
         <Card>
-          <CreateDealForm feeBps={feeBps} />
+          <CreateDealForm feeBps={feeBps} locale={locale} />
         </Card>
 
         {/* What happens after the form. Someone opening their first deal is

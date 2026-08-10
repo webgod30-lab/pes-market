@@ -3,6 +3,7 @@
 // Kept in one place so the dashboard, the admin console and (later) the deal
 // page all describe a status the same way.
 import type { DealStatus, TradeKind } from "@/generated/prisma/client";
+import type { MessageKey } from "@/lib/dictionary";
 import type { Tone } from "@/components/ui";
 
 export const DEAL_STATUS_LABEL: Record<DealStatus, string> = {
@@ -92,27 +93,33 @@ export function isTurnOf(
 
 /** The happy path, for the progress timeline on a deal page. */
 export const DEAL_STEPS = [
-  { key: "opened", label: "Deal opened" },
-  { key: "joined", label: "Both parties in" },
-  { key: "deposited", label: "Account deposited" },
-  { key: "held", label: "Payment held" },
-  { key: "released", label: "Credentials released" },
-  { key: "paid", label: "Seller paid" },
-] as const;
+  { key: "opened", labelKey: "step.opened" },
+  { key: "joined", labelKey: "step.joined" },
+  { key: "deposited", labelKey: "step.deposited" },
+  { key: "held", labelKey: "step.held" },
+  { key: "released", labelKey: "step.released" },
+  { key: "paid", labelKey: "step.paid" },
+] as const satisfies readonly Step[];
 
 /**
  * The same path for a swap. There is no money, so the two payment steps are
  * replaced by the one thing a swap waits on instead: the second account.
  */
 export const SWAP_STEPS = [
-  { key: "opened", label: "Deal opened" },
-  { key: "joined", label: "Both parties in" },
-  { key: "deposited", label: "Both accounts deposited" },
-  { key: "checked", label: "Accounts checked" },
-  { key: "released", label: "Accounts swapped" },
-] as const;
+  { key: "opened", labelKey: "step.opened" },
+  { key: "joined", labelKey: "step.joined" },
+  { key: "deposited", labelKey: "step.bothDeposited" },
+  { key: "checked", labelKey: "step.checked" },
+  { key: "released", labelKey: "step.swapped" },
+] as const satisfies readonly Step[];
 
-export function stepsFor(tradeKind: TradeKind): readonly { key: string; label: string }[] {
+/**
+ * A step names itself by dictionary key rather than by English text, so the
+ * timeline can render in whichever language the reader chose.
+ */
+export type Step = { key: string; labelKey: MessageKey };
+
+export function stepsFor(tradeKind: TradeKind): readonly Step[] {
   return tradeKind === "swap" ? SWAP_STEPS : DEAL_STEPS;
 }
 

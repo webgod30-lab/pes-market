@@ -1,4 +1,6 @@
 import { completedStepCount, isTerminalFailure, stepsFor } from "@/lib/deal-status";
+import { translator } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 import { cn } from "@/components/ui";
 import type { DealStatus, TradeKind } from "@/generated/prisma/client";
 
@@ -60,11 +62,14 @@ export function DealTimeline({
   status,
   stamps = {},
   tradeKind = "cash",
+  locale = "en",
 }: {
   status: DealStatus;
   stamps?: TimelineStamps;
   tradeKind?: TradeKind;
+  locale?: Locale;
 }) {
+  const t = translator(locale);
   const steps = stepsFor(tradeKind);
   const done = completedStepCount(status, tradeKind);
   const failed = isTerminalFailure(status);
@@ -115,7 +120,7 @@ export function DealTimeline({
                     !isDone && !isCurrent && "text-[var(--muted)]",
                   )}
                 >
-                  {step.label}
+                  {t(step.labelKey)}
                 </p>
 
                 {when ? (

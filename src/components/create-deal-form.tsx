@@ -6,6 +6,8 @@ import { createDealAction } from "@/app/actions/deal-actions";
 import { splitDealMoney } from "@/lib/fees";
 import { formatCents, parsePriceToCents } from "@/lib/money";
 import { NavIcon, type NavIconName } from "@/components/nav/nav-icons";
+import { translator, type MessageKey, type Translate } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 import {
   Button,
   Field,
@@ -18,38 +20,39 @@ import {
 const SIDES = [
   {
     value: "seller",
-    title: "I am selling",
-    detail: "You hand over the account. You get paid once the buyer confirms.",
-    icon: "payout" as NavIconName,
+    titleKey: "deal.side.seller",
+    detailKey: "deal.side.sellerDetail",
+    icon: "payout",
   },
   {
     value: "buyer",
-    title: "I am buying",
-    detail: "You pay into escrow. Your money is held until the account works.",
-    icon: "wallet" as NavIconName,
+    titleKey: "deal.side.buyer",
+    detailKey: "deal.side.buyerDetail",
+    icon: "wallet",
   },
-] as const;
+] as const satisfies readonly Choice[];
 
 const KINDS = [
   {
     value: "cash",
-    title: "Account for money",
-    detail: "The buyer pays. We hold the money until the account is confirmed working.",
-    icon: "wallet" as NavIconName,
+    titleKey: "deal.kind.cash",
+    detailKey: "deal.kind.cashDetail",
+    icon: "wallet",
   },
   {
     value: "swap",
-    title: "Account for account",
-    detail: "No money. Both of you deposit an account, and both are released together.",
-    icon: "deals" as NavIconName,
+    titleKey: "deal.kind.swap",
+    detailKey: "deal.kind.swapDetail",
+    icon: "ticket",
   },
-] as const;
+] as const satisfies readonly Choice[];
 
-const SUMMARY_HINT =
-  "Be specific. This is what the admin checks the account against before releasing it.";
-const PRICE_HINT = "The price you already agreed between yourselves.";
-const COUNTER_HINT =
-  "The account coming the other way. Checked the same way as yours before anything is released.";
+type Choice = {
+  value: string;
+  titleKey: MessageKey;
+  detailKey: MessageKey;
+  icon: NavIconName;
+};
 
 /**
  * Open a deal.
@@ -61,7 +64,8 @@ const COUNTER_HINT =
  * cards, and the split panel now says plainly which of the two numbers is the
  * one *you* end up with.
  */
-export function CreateDealForm({ feeBps }: { feeBps: number }) {
+export function CreateDealForm({ feeBps, locale }: { feeBps: number; locale: Locale }) {
+  const t = translator(locale);
   const [state, formAction, pending] = useActionState(createDealAction, undefined);
 
   // Held in state purely to show the split as it is typed. The authoritative
@@ -82,27 +86,29 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
           no price, and the person on the other side owes an account rather
           than money. */}
       <ChoiceCards
-        legend="What kind of trade is this"
+        legend={t("deal.kind.legend")}
         name="tradeKind"
         options={KINDS}
         selected={tradeKind}
         onSelect={setTradeKind}
+        t={t}
       />
 
       <ChoiceCards
-        legend="Your side of this deal"
+        legend={t("deal.side.legend")}
         name="side"
         options={SIDES}
         selected={side}
         onSelect={setSide}
         error={state?.fieldErrors?.side}
+        t={t}
       />
 
       <Field
-        label={isSwap ? "The account you are putting up" : "What is being sold"}
+        label={t(isSwap ? "deal.summary.swapLabel" : "deal.summary.label")}
         name="accountSummary"
         error={state?.fieldErrors?.accountSummary}
-        hint={SUMMARY_HINT}
+        hint={t("deal.summary.hint")}
       >
         <textarea
           id="accountSummary"
@@ -112,7 +118,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
           defaultValue={state?.values?.accountSummary ?? ""}
           aria-invalid={Boolean(state?.fieldErrors?.accountSummary) || undefined}
           aria-describedby={fieldDescribedBy("accountSummary", {
-            hint: SUMMARY_HINT,
+            hint: t("deal.summary.hint"),
             error: state?.fieldErrors?.accountSummary,
           })}
           className={inputClassName}
@@ -123,10 +129,10 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
       {/* Grouped rather than three loose inputs: only one of the three is
           required, and saying so once beats writing "Optional" twice. */}
       <fieldset className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
-        <legend className="px-1.5 text-sm font-medium">The account itself</legend>
+        <legend className="px-1.5 text-sm font-medium">{t("deal.account.legend")}</legend>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Game" name="game" error={state?.fieldErrors?.game}>
+          <Field label={t("deal.account.game")} name="game" error={state?.fieldErrors?.game}>
             <input
               id="game"
               name="game"
@@ -137,18 +143,28 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
             />
           </Field>
 
-          <Field label="Platform" name="platform" error={state?.fieldErrors?.platform} hint="Optional">
+          <Field
+            label={t("deal.account.platform")}
+            name="platform"
+            error={state?.fieldErrors?.platform}
+            hint={t("deal.account.optional")}
+          >
             <input
               id="platform"
               name="platform"
               defaultValue={state?.values?.platform ?? ""}
-              aria-describedby={fieldDescribedBy("platform", { hint: "Optional" })}
+              aria-describedby={fieldDescribedBy("platform", { hint: t("deal.account.optional") })}
               className={inputClassName}
               placeholder="Mobile, PS5, Xbox, PC"
             />
           </Field>
 
-          <Field label="Level" name="level" error={state?.fieldErrors?.level} hint="Optional">
+          <Field
+            label={t("deal.account.level")}
+            name="level"
+            error={state?.fieldErrors?.level}
+            hint={t("deal.account.optional")}
+          >
             <input
               id="level"
               name="level"
@@ -156,7 +172,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
               defaultValue={state?.values?.level ?? ""}
               aria-invalid={Boolean(state?.fieldErrors?.level) || undefined}
               aria-describedby={fieldDescribedBy("level", {
-                hint: "Optional",
+                hint: t("deal.account.optional"),
                 error: state?.fieldErrors?.level,
               })}
               className={inputClassName}
@@ -168,10 +184,10 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
 
       {isSwap ? (
         <Field
-          label="The account coming back to you"
+          label={t("deal.counter.label")}
           name="counterAccountSummary"
           error={state?.fieldErrors?.counterAccountSummary}
-          hint={COUNTER_HINT}
+          hint={t("deal.counter.hint")}
         >
           <textarea
             id="counterAccountSummary"
@@ -181,7 +197,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
             defaultValue={state?.values?.counterAccountSummary ?? ""}
             aria-invalid={Boolean(state?.fieldErrors?.counterAccountSummary) || undefined}
             aria-describedby={fieldDescribedBy("counterAccountSummary", {
-              hint: COUNTER_HINT,
+              hint: t("deal.counter.hint"),
               error: state?.fieldErrors?.counterAccountSummary,
             })}
             className={inputClassName}
@@ -190,10 +206,10 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
         </Field>
       ) : (
         <Field
-          label="Agreed price (USD)"
+          label={t("deal.price.label")}
           name="agreedPriceCents"
           error={state?.fieldErrors?.agreedPriceCents}
-          hint={PRICE_HINT}
+          hint={t("deal.price.hint")}
         >
           <div className="relative">
           <span
@@ -211,7 +227,7 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
             onChange={(event) => setPrice(event.target.value)}
             aria-invalid={Boolean(state?.fieldErrors?.agreedPriceCents) || undefined}
             aria-describedby={fieldDescribedBy("agreedPriceCents", {
-              hint: PRICE_HINT,
+              hint: t("deal.price.hint"),
               error: state?.fieldErrors?.agreedPriceCents,
             })}
               className={cn(inputClassName, "ps-7 tabular-nums")}
@@ -223,29 +239,27 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
 
       {isSwap ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
-          <p className="text-overline uppercase text-[var(--muted)]">How a swap is protected</p>
+          <p className="text-overline uppercase text-[var(--muted)]">{t("swap.protection.title")}</p>
 
           <p className="mt-2.5 text-sm leading-relaxed text-[var(--muted)]">
-            There is no money to hold, so the protection is timing: both accounts are
-            deposited with us first, both are checked, and both are handed over at the
-            same moment. Neither of you can take one and walk away.
+            {t("swap.protection.body")}
           </p>
 
           <p className="mt-3 border-t border-[var(--border)] pt-2.5 text-xs text-[var(--muted)]">
-            No fee — there is nothing to take a percentage of.
+            {t("swap.protection.fee")}
           </p>
         </div>
       ) : null}
 
       {!isSwap && split ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
-          <p className="text-overline uppercase text-[var(--muted)]">How the money splits</p>
+          <p className="text-overline uppercase text-[var(--muted)]">{t("deal.split.title")}</p>
 
           <dl className="mt-2.5 space-y-1.5 text-sm">
-            <Split label="Buyer pays" value={formatCents(split.agreedPriceCents)} />
-            <Split label="Escrow fee" value={`−${formatCents(split.feeCents)}`} />
+            <Split label={t("deal.split.buyerPays")} value={formatCents(split.agreedPriceCents)} />
+            <Split label={t("deal.split.fee")} value={`−${formatCents(split.feeCents)}`} />
             <div className="flex justify-between border-t border-[var(--border)] pt-1.5">
-              <dt className="text-[var(--muted)]">Seller receives</dt>
+              <dt className="text-[var(--muted)]">{t("deal.split.sellerGets")}</dt>
               <dd className="font-semibold tabular-nums text-[var(--accent)]">
                 {formatCents(split.sellerPayoutCents)}
               </dd>
@@ -278,11 +292,11 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
 
       <div>
         <Button type="submit" loading={pending} disabled={pending} block>
-          {pending ? "Creating deal…" : "Create deal and get invite code"}
+          {pending ? t("deal.submitting") : t("deal.submit")}
         </Button>
 
         <p className="mt-2 text-center text-xs text-[var(--muted)]">
-          Nothing is shared yet. You will get a code to send to the other person.
+          {t("deal.submitNote")}
         </p>
       </div>
     </form>
@@ -303,10 +317,12 @@ function ChoiceCards({
   selected,
   onSelect,
   error,
+  t,
 }: {
   legend: string;
   name: string;
-  options: readonly { value: string; title: string; detail: string; icon: NavIconName }[];
+  options: readonly Choice[];
+  t: Translate;
   selected: string;
   onSelect: (value: string) => void;
   error?: string;
@@ -355,7 +371,7 @@ function ChoiceCards({
                   <NavIcon name={choice.icon} className="size-4" />
                 </span>
 
-                <span className="text-sm font-medium">{choice.title}</span>
+                <span className="text-sm font-medium">{t(choice.titleKey)}</span>
 
                 {/* The tick is the only thing that changes shape, so the
                     selected card is not distinguished by colour alone. */}
@@ -373,7 +389,7 @@ function ChoiceCards({
               </span>
 
               <span className="mt-1.5 block text-xs leading-relaxed text-[var(--muted)]">
-                {choice.detail}
+                {t(choice.detailKey)}
               </span>
             </label>
           );
