@@ -30,9 +30,26 @@ const SIDES = [
   },
 ] as const;
 
+const KINDS = [
+  {
+    value: "cash",
+    title: "Account for money",
+    detail: "The buyer pays. We hold the money until the account is confirmed working.",
+    icon: "wallet" as NavIconName,
+  },
+  {
+    value: "swap",
+    title: "Account for account",
+    detail: "No money. Both of you deposit an account, and both are released together.",
+    icon: "deals" as NavIconName,
+  },
+] as const;
+
 const SUMMARY_HINT =
   "Be specific. This is what the admin checks the account against before releasing it.";
 const PRICE_HINT = "The price you already agreed between yourselves.";
+const COUNTER_HINT =
+  "The account coming the other way. Checked the same way as yours before anything is released.";
 
 /**
  * Open a deal.
@@ -51,7 +68,9 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
   // numbers are recomputed on the server — this is a preview, not an input.
   const [side, setSide] = useState<string>(state?.values?.side ?? "seller");
   const [price, setPrice] = useState<string>(state?.values?.agreedPriceCents ?? "");
+  const [tradeKind, setTradeKind] = useState<string>(state?.values?.tradeKind ?? "cash");
 
+  const isSwap = tradeKind === "swap";
   const cents = parsePriceToCents(price);
   const split = cents === null ? null : splitDealMoney(cents, feeBps);
 
@@ -59,83 +78,28 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
     <form action={formAction} className="space-y-6">
       <FormError message={state?.message} />
 
-      <fieldset>
-        <legend className="mb-2 text-sm font-medium">Your side of this deal</legend>
+      {/* First, because it changes what every field below it means: a swap has
+          no price, and the person on the other side owes an account rather
+          than money. */}
+      <ChoiceCards
+        legend="What kind of trade is this"
+        name="tradeKind"
+        options={KINDS}
+        selected={tradeKind}
+        onSelect={setTradeKind}
+      />
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          {SIDES.map((choice) => {
-            const selected = side === choice.value;
-
-            return (
-              <label
-                key={choice.value}
-                className={cn(
-                  "cursor-pointer rounded-[var(--radius-card)] border p-3.5 transition-colors",
-                  // The radio itself is sr-only, so the focus ring has to be
-                  // drawn on the label instead — otherwise tabbing through this
-                  // group shows nothing at all.
-                  "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--accent)]",
-                  selected
-                    ? "border-[var(--accent)] bg-[var(--tone-success-bg)]"
-                    : "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--accent)]/40",
-                )}
-              >
-                <span className="flex items-center gap-2.5">
-                  <input
-                    type="radio"
-                    name="side"
-                    value={choice.value}
-                    checked={selected}
-                    onChange={(event) => setSide(event.target.value)}
-                    className="sr-only"
-                  />
-
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] border transition-colors",
-                      selected
-                        ? "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--accent)]"
-                        : "border-[var(--border)] text-[var(--muted)]",
-                    )}
-                  >
-                    <NavIcon name={choice.icon} className="size-4" />
-                  </span>
-
-                  <span className="text-sm font-medium">{choice.title}</span>
-
-                  {/* The tick is the only thing that changes shape, so the
-                      selected card is not distinguished by colour alone. */}
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "ms-auto grid size-4 shrink-0 place-items-center rounded-full border",
-                      selected
-                        ? "border-transparent bg-[var(--accent)] text-[var(--background)]"
-                        : "border-[var(--border)]",
-                    )}
-                  >
-                    {selected ? <TickIcon /> : null}
-                  </span>
-                </span>
-
-                <span className="mt-1.5 block text-xs leading-relaxed text-[var(--muted)]">
-                  {choice.detail}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-
-        {state?.fieldErrors?.side ? (
-          <p role="alert" className="mt-1.5 text-xs text-[var(--tone-danger)]">
-            {state.fieldErrors.side}
-          </p>
-        ) : null}
-      </fieldset>
+      <ChoiceCards
+        legend="Your side of this deal"
+        name="side"
+        options={SIDES}
+        selected={side}
+        onSelect={setSide}
+        error={state?.fieldErrors?.side}
+      />
 
       <Field
-        label="What is being sold"
+        label={isSwap ? "The account you are putting up" : "What is being sold"}
         name="accountSummary"
         error={state?.fieldErrors?.accountSummary}
         hint={SUMMARY_HINT}
@@ -202,13 +166,36 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
         </div>
       </fieldset>
 
-      <Field
-        label="Agreed price (USD)"
-        name="agreedPriceCents"
-        error={state?.fieldErrors?.agreedPriceCents}
-        hint={PRICE_HINT}
-      >
-        <div className="relative">
+      {isSwap ? (
+        <Field
+          label="The account coming back to you"
+          name="counterAccountSummary"
+          error={state?.fieldErrors?.counterAccountSummary}
+          hint={COUNTER_HINT}
+        >
+          <textarea
+            id="counterAccountSummary"
+            name="counterAccountSummary"
+            required
+            rows={4}
+            defaultValue={state?.values?.counterAccountSummary ?? ""}
+            aria-invalid={Boolean(state?.fieldErrors?.counterAccountSummary) || undefined}
+            aria-describedby={fieldDescribedBy("counterAccountSummary", {
+              hint: COUNTER_HINT,
+              error: state?.fieldErrors?.counterAccountSummary,
+            })}
+            className={inputClassName}
+            placeholder="eFootball 2026 mobile account. 3 Legends (Zidane, Pirlo, Nedved), squad rating 3050, original email included, no bans."
+          />
+        </Field>
+      ) : (
+        <Field
+          label="Agreed price (USD)"
+          name="agreedPriceCents"
+          error={state?.fieldErrors?.agreedPriceCents}
+          hint={PRICE_HINT}
+        >
+          <div className="relative">
           <span
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)]"
@@ -227,13 +214,30 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
               hint: PRICE_HINT,
               error: state?.fieldErrors?.agreedPriceCents,
             })}
-            className={cn(inputClassName, "ps-7 tabular-nums")}
-            placeholder="185.00"
-          />
-        </div>
-      </Field>
+              className={cn(inputClassName, "ps-7 tabular-nums")}
+              placeholder="185.00"
+            />
+          </div>
+        </Field>
+      )}
 
-      {split ? (
+      {isSwap ? (
+        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
+          <p className="text-overline uppercase text-[var(--muted)]">How a swap is protected</p>
+
+          <p className="mt-2.5 text-sm leading-relaxed text-[var(--muted)]">
+            There is no money to hold, so the protection is timing: both accounts are
+            deposited with us first, both are checked, and both are handed over at the
+            same moment. Neither of you can take one and walk away.
+          </p>
+
+          <p className="mt-3 border-t border-[var(--border)] pt-2.5 text-xs text-[var(--muted)]">
+            No fee — there is nothing to take a percentage of.
+          </p>
+        </div>
+      ) : null}
+
+      {!isSwap && split ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
           <p className="text-overline uppercase text-[var(--muted)]">How the money splits</p>
 
@@ -282,6 +286,106 @@ export function CreateDealForm({ feeBps }: { feeBps: number }) {
         </p>
       </div>
     </form>
+  );
+}
+
+/**
+ * A radio group drawn as cards.
+ *
+ * Extracted because the form now asks two either/or questions with the same
+ * shape, and the second one changes what the rest of the form means — a
+ * difference worth as much visual weight as the first.
+ */
+function ChoiceCards({
+  legend,
+  name,
+  options,
+  selected,
+  onSelect,
+  error,
+}: {
+  legend: string;
+  name: string;
+  options: readonly { value: string; title: string; detail: string; icon: NavIconName }[];
+  selected: string;
+  onSelect: (value: string) => void;
+  error?: string;
+}) {
+  return (
+    <fieldset>
+      <legend className="mb-2 text-sm font-medium">{legend}</legend>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map((choice) => {
+          const isSelected = selected === choice.value;
+
+          return (
+            <label
+              key={choice.value}
+              className={cn(
+                "cursor-pointer rounded-[var(--radius-card)] border p-3.5 transition-colors",
+                // The radio itself is sr-only, so the focus ring has to be
+                // drawn on the label instead — otherwise tabbing through this
+                // group shows nothing at all.
+                "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--accent)]",
+                isSelected
+                  ? "border-[var(--accent)] bg-[var(--tone-success-bg)]"
+                  : "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--accent)]/40",
+              )}
+            >
+              <span className="flex items-center gap-2.5">
+                <input
+                  type="radio"
+                  name={name}
+                  value={choice.value}
+                  checked={isSelected}
+                  onChange={(event) => onSelect(event.target.value)}
+                  className="sr-only"
+                />
+
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] border transition-colors",
+                    isSelected
+                      ? "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--accent)]"
+                      : "border-[var(--border)] text-[var(--muted)]",
+                  )}
+                >
+                  <NavIcon name={choice.icon} className="size-4" />
+                </span>
+
+                <span className="text-sm font-medium">{choice.title}</span>
+
+                {/* The tick is the only thing that changes shape, so the
+                    selected card is not distinguished by colour alone. */}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "ms-auto grid size-4 shrink-0 place-items-center rounded-full border",
+                    isSelected
+                      ? "border-transparent bg-[var(--accent)] text-[var(--background)]"
+                      : "border-[var(--border)]",
+                  )}
+                >
+                  {isSelected ? <TickIcon /> : null}
+                </span>
+              </span>
+
+              <span className="mt-1.5 block text-xs leading-relaxed text-[var(--muted)]">
+                {choice.detail}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      {error ? (
+        <p role="alert" className="mt-1.5 text-xs text-[var(--tone-danger)]">
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }
 

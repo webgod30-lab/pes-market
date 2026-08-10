@@ -30,7 +30,7 @@ import {
   depositCredentials,
   joinDealByCode,
   markPayoutSent,
-  revealCredentialsToBuyer,
+  revealDeliveredCredentials,
   submitPayment,
 } from "../src/lib/deals";
 import { postMessage } from "../src/lib/messages";
@@ -457,9 +457,9 @@ async function runOneDeal(index: number, admin: CurrentUser, paymentMethods: Pay
   if (!check("approveDelivery", await approveDelivery(admin, dealId))) return;
 
   // --- the buyer reads the account -----------------------------------------
-  const revealed = await revealCredentialsToBuyer(buyer, dealId);
+  const revealed = await revealDeliveredCredentials(buyer, dealId);
 
-  if (!check("revealCredentialsToBuyer", revealed)) return;
+  if (!check("revealDeliveredCredentials", revealed)) return;
 
   // --- the Konami code step ------------------------------------------------
   // Roughly half of real transfers need one, and it is where claims stall.

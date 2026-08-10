@@ -19,7 +19,7 @@ import { defaultFeeBps, splitDealMoney } from "@/lib/fees";
 import { PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/escrow-flow";
 import type { CurrentUser } from "@/lib/dal";
-import type { DealSide, DealStatus, PaymentMethod } from "@/generated/prisma/client";
+import type { DealSide, DealStatus, PaymentMethod, TradeKind } from "@/generated/prisma/client";
 
 /**
  * How long the buyer gets to claim the account and confirm, once credentials
@@ -57,14 +57,35 @@ export type CreateDealInput = {
   platform: string | null;
   level: number | null;
   agreedPriceCents: number;
+  /** Defaults to cash, so every existing caller keeps its meaning. */
+  tradeKind?: TradeKind;
+  /** Swap only: the account the BUYER puts up. Ignored on a cash deal. */
+  counterAccountSummary?: string | null;
 };
 
 export async function createDeal(
   input: CreateDealInput,
 ): Promise<DealResult<{ dealId: string; reference: string; inviteCode: string }>> {
+  const tradeKind: TradeKind = input.tradeKind ?? "cash";
+  const isSwap = tradeKind === "swap";
+
+  // A swap has no money in it, so there is nothing to take a percentage of and
+  // nothing to pay out. Both are forced to zero here rather than trusted from
+  // the caller: a swap that carried a price would put the deal in a state where
+  // the wallet expects a payment that can never arrive.
+  //
   // The fee rate is copied onto the deal now. Changing your rate later must not
   // alter terms the two parties have already agreed to.
-  const money = splitDealMoney(input.agreedPriceCents, defaultFeeBps());
+  const money = isSwap
+    ? { agreedPriceCents: 0, feeBps: 0, feeCents: 0, sellerPayoutCents: 0 }
+    : splitDealMoney(input.agreedPriceCents, defaultFeeBps());
+
+  if (isSwap) {
+    const counter = input.counterAccountSummary?.trim();
+    if (!counter) {
+      return { ok: false, error: "Describe the account being offered in exchange." };
+    }
+  }
 
   const isSeller = input.side === "seller";
 
@@ -84,6 +105,10 @@ export async function createDeal(
           sellerId: isSeller ? input.creator.id : null,
           buyerId: isSeller ? null : input.creator.id,
           accountSummary: input.accountSummary,
+          tradeKind,
+          counterAccountSummary: isSwap
+            ? (input.counterAccountSummary?.trim() ?? null)
+            : null,
           game: input.game,
           platform: input.platform,
           level: input.level,
@@ -248,12 +273,28 @@ export async function depositCredentials(
 ): Promise<DealResult> {
   const deal = await prisma.deal.findUnique({
     where: { id: dealId },
-    select: { id: true, sellerId: true, status: true },
+    select: {
+      id: true,
+      sellerId: true,
+      buyerId: true,
+      status: true,
+      tradeKind: true,
+      credentials: { select: { side: true } },
+    },
   });
 
   if (!deal) return { ok: false, error: "Deal not found." };
 
-  if (deal.sellerId !== user.id) {
+  // On a cash deal only the seller ever deposits. On a swap both do, each into
+  // their own row — which is what the (dealId, side) unique key is for.
+  const side: DealSide | null =
+    deal.sellerId === user.id ? "seller" : deal.buyerId === user.id ? "buyer" : null;
+
+  if (side === null) {
+    return { ok: false, error: "Only a party to this deal can submit account details." };
+  }
+
+  if (deal.tradeKind === "cash" && side !== "seller") {
     return { ok: false, error: "Only the seller can submit the account details." };
   }
 
@@ -268,17 +309,35 @@ export async function depositCredentials(
 
   const ciphertext = encryptCredentials(data);
 
+  // Where the deal goes next depends on who still owes an account.
+  //
+  //   cash — the seller has deposited, so the buyer now pays.
+  //   swap — nobody pays. The deal waits in awaiting_credentials until BOTH
+  //          sides have deposited, then goes straight to the admin. Computed
+  //          from the rows that will exist after this write, so a second
+  //          deposit by the same side cannot advance it.
+  const sidesAfter = new Set(deal.credentials.map((row) => row.side));
+  sidesAfter.add(side);
+
+  const bothDeposited = sidesAfter.has("seller") && sidesAfter.has("buyer");
+  const nextStatus: DealStatus =
+    deal.tradeKind === "swap"
+      ? bothDeposited
+        ? "admin_verifying"
+        : "awaiting_credentials"
+      : "awaiting_payment";
+
   // Both writes together: the deal must never claim credentials exist without
-  // the row, or move to awaiting_payment without them.
+  // the row, or advance without them.
   await prisma.$transaction([
     prisma.credential.upsert({
-      where: { dealId: deal.id },
+      where: { dealId_side: { dealId: deal.id, side } },
       update: { ciphertext },
-      create: { dealId: deal.id, ciphertext },
+      create: { dealId: deal.id, side, ciphertext },
     }),
     prisma.deal.updateMany({
-      where: { id: deal.id, sellerId: user.id, status: { in: editable } },
-      data: { status: "awaiting_payment" },
+      where: { id: deal.id, status: { in: editable } },
+      data: { status: nextStatus },
     }),
   ]);
 
@@ -306,7 +365,12 @@ export async function submitPayment(
 ): Promise<DealResult> {
   const deal = await prisma.deal.findUnique({
     where: { id: dealId },
-    select: { id: true, buyerId: true, status: true, credential: { select: { id: true } } },
+    select: {
+      id: true,
+      buyerId: true,
+      status: true,
+      credentials: { where: { side: "seller" }, select: { id: true } },
+    },
   });
 
   if (!deal) return { ok: false, error: "Deal not found." };
@@ -316,7 +380,7 @@ export async function submitPayment(
   }
 
   // Paying before the account is in escrow would defeat the point.
-  if (!deal.credential) {
+  if (deal.credentials.length === 0) {
     return { ok: false, error: "The seller has not deposited the account yet. Do not pay." };
   }
 
@@ -382,11 +446,14 @@ export async function confirmPaymentReceived(
 export async function revealCredentialsToAdmin(
   admin: CurrentUser,
   dealId: string,
+  side: DealSide = "seller",
 ): Promise<DealResult<{ credentials: CredentialData }>> {
   if (admin.role !== "admin") return { ok: false, error: "Admins only." };
 
+  // Defaults to the seller's account, which is the only one a cash deal has.
+  // A swap has two, and the admin has to check both before releasing either.
   const credential = await prisma.credential.findUnique({
-    where: { dealId },
+    where: { dealId_side: { dealId, side } },
     select: { ciphertext: true },
   });
 
@@ -400,18 +467,19 @@ export async function recordVerification(
   admin: CurrentUser,
   dealId: string,
   note: string,
+  side: DealSide = "seller",
 ): Promise<DealResult> {
   if (admin.role !== "admin") return { ok: false, error: "Admins only." };
 
   const credential = await prisma.credential.findUnique({
-    where: { dealId },
+    where: { dealId_side: { dealId, side } },
     select: { id: true },
   });
 
   if (!credential) return { ok: false, error: "No account details to verify." };
 
   await prisma.credential.update({
-    where: { dealId },
+    where: { dealId_side: { dealId, side } },
     data: { lastVerifiedAt: new Date(), lastVerifiedById: admin.id, verificationNote: note },
   });
 
@@ -430,13 +498,28 @@ export async function approveDelivery(admin: CurrentUser, dealId: string): Promi
 
   const deal = await prisma.deal.findUnique({
     where: { id: dealId },
-    select: { id: true, status: true, credential: { select: { ciphertext: true } } },
+    select: {
+      id: true,
+      status: true,
+      tradeKind: true,
+      credentials: { select: { side: true, ciphertext: true } },
+    },
   });
 
   if (!deal) return { ok: false, error: "Deal not found." };
 
-  if (!deal.credential) {
+  const sellerCredential = deal.credentials.find((row) => row.side === "seller");
+  const buyerCredential = deal.credentials.find((row) => row.side === "buyer");
+
+  if (!sellerCredential) {
     return { ok: false, error: "There are no account details to release." };
+  }
+
+  // A swap hands over two accounts at once. Releasing one without the other
+  // would hand the first party everything and leave the second with nothing —
+  // the simultaneity IS the escrow here, since there is no money to hold.
+  if (deal.tradeKind === "swap" && !buyerCredential) {
+    return { ok: false, error: "Both accounts must be deposited before release." };
   }
 
   const deadline = new Date(Date.now() + CONFIRMATION_WINDOW_HOURS * 60 * 60 * 1000);
@@ -447,7 +530,9 @@ export async function approveDelivery(admin: CurrentUser, dealId: string): Promi
       status: "credentials_released",
       deliveryApprovedAt: new Date(),
       deliveryApprovedById: admin.id,
-      deliveredCiphertext: deal.credential.ciphertext,
+      deliveredCiphertext: sellerCredential.ciphertext,
+      deliveredCounterCiphertext:
+        deal.tradeKind === "swap" ? (buyerCredential?.ciphertext ?? null) : null,
       credentialsReleasedAt: new Date(),
       confirmationDeadline: deadline,
     },
@@ -465,40 +550,64 @@ export async function approveDelivery(admin: CurrentUser, dealId: string): Promi
 // ---------------------------------------------------------------------------
 
 /**
- * The buyer reads the account details. Moves the deal to `claiming` on first
- * view, which is the audit point for "the buyer has had them".
+ * A party reads the account they are receiving. Moves the deal to `claiming` on
+ * first view, which is the audit point for "they have had them".
  *
- * Reads the delivered snapshot, not the live credential row — the buyer must
- * see exactly what was approved.
+ * On a cash deal only the buyer receives anything. On a swap both do, and each
+ * gets the *other* party's account — so the side asking determines which
+ * snapshot comes back.
+ *
+ * Reads the delivered snapshot, not the live credential row: everyone must see
+ * exactly what the admin approved.
  */
-export async function revealCredentialsToBuyer(
+export async function revealDeliveredCredentials(
   user: CurrentUser,
   dealId: string,
 ): Promise<DealResult<{ credentials: CredentialData }>> {
   const deal = await prisma.deal.findUnique({
     where: { id: dealId },
-    select: { id: true, buyerId: true, status: true, deliveredCiphertext: true },
+    select: {
+      id: true,
+      buyerId: true,
+      sellerId: true,
+      status: true,
+      tradeKind: true,
+      deliveredCiphertext: true,
+      deliveredCounterCiphertext: true,
+    },
   });
 
   if (!deal) return { ok: false, error: "Deal not found." };
 
-  if (deal.buyerId !== user.id) return { ok: false, error: "Only the buyer can view these." };
+  const isBuyer = deal.buyerId === user.id;
+  const isSeller = deal.sellerId === user.id;
+
+  // On a cash deal the seller keeps no claim on anything: they handed the
+  // account over and get money instead.
+  if (!isBuyer && !(isSeller && deal.tradeKind === "swap")) {
+    return { ok: false, error: "Only the buyer can view these." };
+  }
 
   const readable: DealStatus[] = ["credentials_released", "claiming", "completed", "disputed"];
 
-  if (!readable.includes(deal.status) || !deal.deliveredCiphertext) {
+  // The buyer receives the seller's account; on a swap the seller receives the
+  // buyer's.
+  const ciphertext = isBuyer ? deal.deliveredCiphertext : deal.deliveredCounterCiphertext;
+
+  if (!readable.includes(deal.status) || !ciphertext) {
     return { ok: false, error: "The account details have not been released yet." };
   }
 
-  // First view starts the claiming stage.
+  // First view starts the claiming stage — by either party, since on a swap
+  // whoever looks first has begun taking delivery.
   if (deal.status === "credentials_released") {
     await prisma.deal.updateMany({
-      where: { id: dealId, buyerId: user.id, status: "credentials_released" },
+      where: { id: dealId, status: "credentials_released" },
       data: { status: "claiming" },
     });
   }
 
-  return { ok: true, credentials: decryptCredentials(deal.deliveredCiphertext) };
+  return { ok: true, credentials: decryptCredentials(ciphertext) };
 }
 
 /**
@@ -507,17 +616,71 @@ export async function revealCredentialsToBuyer(
  */
 export async function confirmClaimed(user: CurrentUser, dealId: string): Promise<DealResult> {
   const now = new Date();
+  const open: DealStatus[] = ["credentials_released", "claiming"];
 
-  const result = await prisma.deal.updateMany({
-    where: {
-      id: dealId,
-      buyerId: user.id,
-      status: { in: ["credentials_released", "claiming"] },
-    },
-    data: { status: "completed", buyerConfirmedAt: now, completedAt: now },
+  const deal = await prisma.deal.findUnique({
+    where: { id: dealId },
+    select: { id: true, buyerId: true, sellerId: true, tradeKind: true, sellerConfirmedAt: true },
   });
 
-  if (result.count !== 1) {
+  if (!deal) return { ok: false, error: "Deal not found." };
+
+  // A cash deal turns on the buyer alone: the seller's side of the bargain is
+  // the money, which the service is already holding.
+  if (deal.tradeKind === "cash") {
+    const result = await prisma.deal.updateMany({
+      where: { id: dealId, buyerId: user.id, status: { in: open } },
+      data: { status: "completed", buyerConfirmedAt: now, completedAt: now },
+    });
+
+    if (result.count !== 1) {
+      return { ok: false, error: "This deal is not waiting for your confirmation." };
+    }
+
+    return { ok: true };
+  }
+
+  // A swap needs both. Neither party is protected by held money, so the deal
+  // only closes once each has said they have the other's account.
+  const isBuyer = deal.buyerId === user.id;
+  const isSeller = deal.sellerId === user.id;
+
+  if (!isBuyer && !isSeller) {
+    return { ok: false, error: "This deal is not waiting for your confirmation." };
+  }
+
+  // Whether the OTHER side has already confirmed decides if this one closes the
+  // deal. Read inside the same statement's WHERE clause below, so two
+  // simultaneous confirmations cannot both see "the other has not confirmed"
+  // and leave the deal open.
+  const mine = isBuyer ? "buyerConfirmedAt" : "sellerConfirmedAt";
+  const theirs = isBuyer ? "sellerConfirmedAt" : "buyerConfirmedAt";
+
+  const closes = await prisma.deal.updateMany({
+    where: {
+      id: dealId,
+      ...(isBuyer ? { buyerId: user.id } : { sellerId: user.id }),
+      status: { in: open },
+      [mine]: null,
+      [theirs]: { not: null },
+    },
+    data: { status: "completed", [mine]: now, completedAt: now },
+  });
+
+  if (closes.count === 1) return { ok: true };
+
+  // Otherwise this is the first confirmation: record it and wait for the other.
+  const first = await prisma.deal.updateMany({
+    where: {
+      id: dealId,
+      ...(isBuyer ? { buyerId: user.id } : { sellerId: user.id }),
+      status: { in: open },
+      [mine]: null,
+    },
+    data: { [mine]: now },
+  });
+
+  if (first.count !== 1) {
     return { ok: false, error: "This deal is not waiting for your confirmation." };
   }
 
@@ -619,6 +782,10 @@ export type DealView = {
   createdSide: DealSide;
   createdById: string;
   accountSummary: string;
+  /** cash: money for an account. swap: an account for an account. */
+  tradeKind: TradeKind;
+  /** Swap only: the account the buyer is putting up. Null on a cash deal. */
+  counterAccountSummary: string | null;
   game: string;
   platform: string | null;
   level: number | null;
@@ -633,6 +800,9 @@ export type DealView = {
   /** Whether the account details have been deposited — never the details. */
   hasCredentials: boolean;
   credentialsUpdatedAt: Date | null;
+  /** Swap only: the same, for the buyer's account. */
+  hasCounterCredentials: boolean;
+  counterCredentialsUpdatedAt: Date | null;
 
   // --- payment ---
   paymentMethod: PaymentMethod | null;
@@ -647,6 +817,8 @@ export type DealView = {
   credentialsReleasedAt: Date | null;
   confirmationDeadline: Date | null;
   buyerConfirmedAt: Date | null;
+  /** Swap only: a swap closes when both sides have confirmed. */
+  sellerConfirmedAt: Date | null;
 
   // --- settlement ---
   completedAt: Date | null;
@@ -680,6 +852,8 @@ export async function loadDealForViewer(
       createdSide: true,
       createdById: true,
       accountSummary: true,
+      tradeKind: true,
+      counterAccountSummary: true,
       game: true,
       platform: true,
       level: true,
@@ -701,13 +875,15 @@ export async function loadDealForViewer(
       credentialsReleasedAt: true,
       confirmationDeadline: true,
       buyerConfirmedAt: true,
+      sellerConfirmedAt: true,
       completedAt: true,
       refundedAt: true,
       payoutAt: true,
       payoutReference: true,
-      // updatedAt only — still never the ciphertext.
-      credential: {
-        select: { updatedAt: true, lastVerifiedAt: true, verificationNote: true },
+      // updatedAt only — still never the ciphertext. Both rows on a swap, so
+      // the page can tell each party whether the OTHER has deposited yet.
+      credentials: {
+        select: { side: true, updatedAt: true, lastVerifiedAt: true, verificationNote: true },
       },
     },
   });
@@ -725,7 +901,11 @@ export async function loadDealForViewer(
 
   if (!role) return null;
 
-  const { credential, ...rest } = deal;
+  // The seller's row: the only one a cash deal has, and the one carrying the
+  // verification note on either kind.
+  const { credentials, ...rest } = deal;
+  const credential = credentials.find((row) => row.side === "seller") ?? null;
+  const counterCredential = credentials.find((row) => row.side === "buyer") ?? null;
 
   return {
     role,
@@ -733,6 +913,10 @@ export async function loadDealForViewer(
       ...rest,
       hasCredentials: credential !== null,
       credentialsUpdatedAt: credential?.updatedAt ?? null,
+      // Swap only: whether the buyer has put their account up too. Both sides
+      // need to see this — it is the thing each is waiting on the other for.
+      hasCounterCredentials: counterCredential !== null,
+      counterCredentialsUpdatedAt: counterCredential?.updatedAt ?? null,
       // The verification note is the admin's working record, not something the
       // two parties should read.
       verification:
@@ -761,6 +945,7 @@ export function listDealsForUser(userId: string) {
       sellerPayoutCents: true,
       currency: true,
       sellerId: true,
+      tradeKind: true,
       createdAt: true,
     },
   });

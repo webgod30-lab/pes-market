@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireUserOrProblem } from "@/lib/dal";
 import { listDealsForUser } from "@/lib/deals";
 import { formatCents } from "@/lib/money";
-import { nextActorFor, OPEN_STATUSES } from "@/lib/deal-status";
+import { isTurnOf, OPEN_STATUSES } from "@/lib/deal-status";
 import { traderSections } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
@@ -70,7 +70,7 @@ export default async function TradeHistoryPage({
   return (
     <DashShell
       groups={traderSections({
-        waiting: all.filter((deal) => nextActorFor(deal.status) === sideOf(deal)).length,
+        waiting: all.filter((deal) => isTurnOf(deal.status, sideOf(deal), deal.tradeKind)).length,
       })}
       title="Trade history"
       description="Every deal you have been part of, on either side, whatever the outcome."

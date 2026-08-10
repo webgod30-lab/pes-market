@@ -126,6 +126,34 @@ export async function revealForAdminAction(
   }
 }
 
+/**
+ * The same, for the buyer's account on a swap.
+ *
+ * A swap has two accounts to check and the admin has to log into both — a
+ * single reveal would leave half the trade unverified.
+ */
+export async function revealCounterForAdminAction(
+  _previousState: { credentials?: CredentialData; error?: string } | undefined,
+  formData: FormData,
+): Promise<{ credentials?: CredentialData; error?: string }> {
+  const admin = await requireAdmin();
+
+  const dealId = String(formData.get("dealId") ?? "");
+  if (!dealId) return { error: "Missing deal." };
+
+  try {
+    const result = await revealCredentialsToAdmin(admin, dealId, "buyer");
+
+    if (!result.ok) return { error: result.error };
+
+    return { credentials: result.credentials };
+  } catch (error) {
+    const dbProblem = databaseProblemMessage(error);
+    if (dbProblem) return { error: dbProblem };
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Force actions — the escape hatches
 // ---------------------------------------------------------------------------

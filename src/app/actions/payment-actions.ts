@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/dal";
-import { confirmClaimed, revealCredentialsToBuyer, submitPayment } from "@/lib/deals";
+import { confirmClaimed, revealDeliveredCredentials, submitPayment } from "@/lib/deals";
 import { describePaymentInstructions, findActivePaymentMethod } from "@/lib/payment-methods";
 import { startAutomaticPayment } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
@@ -138,7 +138,7 @@ export async function revealForBuyerAction(
   if (!dealId) return { error: "Missing deal." };
 
   try {
-    const result = await revealCredentialsToBuyer(user, dealId);
+    const result = await revealDeliveredCredentials(user, dealId);
 
     if (!result.ok) return { error: result.error };
 

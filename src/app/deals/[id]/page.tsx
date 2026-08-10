@@ -60,6 +60,7 @@ export default async function DealPage({
 
   const { deal, role } = result;
   const isParty = role === "seller" || role === "buyer";
+  const isSwapDeal = deal.tradeKind === "swap";
 
   // Only needed when the buyer is actually about to pay.
   const paymentMethods =
@@ -132,8 +133,8 @@ export default async function DealPage({
         <div className="flex flex-wrap items-center gap-2">
           {isParty ? <Badge tone={role === "seller" ? "info" : "success"}>you are the {role}</Badge> : null}
           {role === "admin" ? <Badge tone="warning">admin view</Badge> : null}
-          <StatusBadge status={deal.status} side={isParty ? role : undefined} />
-          {isParty ? <TurnBadge status={deal.status} side={role} /> : null}
+          <StatusBadge status={deal.status} side={isParty ? role : undefined} tradeKind={deal.tradeKind} />
+          {isParty ? <TurnBadge status={deal.status} side={role} tradeKind={deal.tradeKind} /> : null}
         </div>
       </div>
 
@@ -146,6 +147,7 @@ export default async function DealPage({
           <h2 className="mb-3 text-sm font-semibold">Progress</h2>
           <DealTimeline
             status={deal.status}
+            tradeKind={deal.tradeKind}
             // DealView deliberately does not expose when the invite was
             // accepted, so that step shows no date rather than a guessed one.
             // The deposit is dated from credentialsUpdatedAt, which is the last
@@ -168,7 +170,9 @@ export default async function DealPage({
 
       <div className="mt-6 grid gap-3 lg:grid-cols-2">
         <Card>
-          <h2 className="text-sm font-semibold">What is being traded</h2>
+          <h2 className="text-sm font-semibold">
+            {isSwapDeal ? "The seller's account" : "What is being traded"}
+          </h2>
           <p className="mt-2 text-sm leading-relaxed">{deal.accountSummary}</p>
           <p className="mt-3 text-xs text-[var(--muted)]">
             {deal.game}
@@ -177,6 +181,20 @@ export default async function DealPage({
           </p>
         </Card>
 
+        {isSwapDeal ? (
+          // A swap has two descriptions and no money, so the panel that would
+          // show the split shows the other half of the trade instead.
+          <Card>
+            <h2 className="text-sm font-semibold">The buyer&apos;s account</h2>
+            <p className="mt-2 text-sm leading-relaxed">
+              {deal.counterAccountSummary ?? "Not described."}
+            </p>
+            <p className="mt-3 text-xs text-[var(--muted)]">
+              No money changes hands. Both accounts are held and released together, so neither side
+              can take one and walk away. No fee.
+            </p>
+          </Card>
+        ) : (
         <Card>
           <h2 className="text-sm font-semibold">The money</h2>
           <dl className="mt-3 space-y-1.5 text-sm">
@@ -199,6 +217,7 @@ export default async function DealPage({
             Locked when the deal was opened. Changing the fee later does not affect it.
           </p>
         </Card>
+        )}
       </div>
 
       <div className="mt-3">
@@ -370,6 +389,8 @@ function NextStep({
 }) {
   const isSeller = role === "seller";
   const isBuyer = role === "buyer";
+  const isParty = isSeller || isBuyer;
+  const isSwap = deal.tradeKind === "swap";
 
   switch (deal.status) {
     case "awaiting_counterparty":
@@ -388,7 +409,29 @@ function NextStep({
         </Card>
       );
 
-    case "awaiting_credentials":
+    case "awaiting_credentials": {
+      // On a swap both sides deposit, so the question is not "are you the
+      // seller" but "have you deposited yet".
+      if (isSwap && isParty) {
+        const yoursIn = isSeller ? deal.hasCredentials : deal.hasCounterCredentials;
+        const theirsIn = isSeller ? deal.hasCounterCredentials : deal.hasCredentials;
+        const them = (isSeller ? deal.buyer : deal.seller)?.displayName ?? "The other person";
+
+        return (
+          <Card>
+            <h2 className="text-sm font-semibold">
+              {yoursIn ? `Waiting for ${them}` : "Your turn: hand over your account"}
+            </h2>
+            <p className="mt-2 mb-4 text-sm text-[var(--muted)]">
+              {yoursIn
+                ? `Your account is deposited and encrypted. Nothing is released until ${them} deposits theirs too — then both are checked and handed over together. You can still correct yours until then.`
+                : `Submit the login for the account you are giving up. It is encrypted immediately and held by the admin. ${theirsIn ? `${them} has already deposited theirs.` : `${them} has not deposited yet either.`} Neither account moves until both are in.`}
+            </p>
+            <DepositCredentialsForm dealId={deal.id} alreadyDeposited={yoursIn} />
+          </Card>
+        );
+      }
+
       if (isSeller) {
         return (
           <Card>
@@ -411,6 +454,7 @@ function NextStep({
           </p>
         </Card>
       );
+    }
 
     case "awaiting_payment":
       if (isBuyer) {
@@ -484,6 +528,53 @@ function NextStep({
 
     case "credentials_released":
     case "claiming":
+      // On a swap both parties have an account waiting and both must confirm,
+      // so the same panel serves either side.
+      if (isSwap && isParty) {
+        const youConfirmed = isSeller ? deal.sellerConfirmedAt : deal.buyerConfirmedAt;
+        const theyConfirmed = isSeller ? deal.buyerConfirmedAt : deal.sellerConfirmedAt;
+        const them = (isSeller ? deal.buyer : deal.seller)?.displayName ?? "the other person";
+
+        return (
+          <Card>
+            <h2 className="text-sm font-semibold">
+              {youConfirmed ? `Waiting for ${them} to confirm` : "Both accounts released"}
+            </h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              {youConfirmed
+                ? `You have confirmed. The swap closes once ${them} confirms they have taken over the account you gave them.`
+                : "Log in, change the email and password straight away, then confirm below. The swap is not finished until both of you have."}
+            </p>
+            {deal.confirmationDeadline && !youConfirmed ? (
+              <p className="mt-2 text-xs text-[var(--tone-warning)]">
+                Please confirm by {deal.confirmationDeadline.toLocaleString("en-GB")}. If you go
+                quiet, the admin will chase you.
+              </p>
+            ) : null}
+            {theyConfirmed ? (
+              <p className="mt-2 text-xs text-[var(--accent)]">
+                {them} has already confirmed their side.
+              </p>
+            ) : null}
+
+            <div className="mt-4">
+              <CredentialsPanel
+                dealId={deal.id}
+                action={revealForBuyerAction}
+                revealLabel="Show the account you received"
+                note="Shown only when you ask, so they are not left sitting on screen."
+              />
+            </div>
+
+            {youConfirmed ? null : (
+              <div className="mt-5 border-t border-[var(--border)] pt-4">
+                <ConfirmClaimForm dealId={deal.id} />
+              </div>
+            )}
+          </Card>
+        );
+      }
+
       if (isBuyer) {
         return (
           <Card>

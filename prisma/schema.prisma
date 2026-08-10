@@ -48,6 +48,20 @@ enum DealSide {
   buyer
 }
 
+/// What the buyer gives in return.
+///
+/// "cash" is the original flow: the seller deposits an account, the buyer pays
+/// money. "swap" is account-for-account — both sides deposit, nobody pays, and
+/// the payment steps are skipped entirely.
+///
+/// One model rather than two, because everything else about the escrow is
+/// identical: the same encryption, the same admin verification before anything
+/// is released, the same disputes, the same reviews. Only who owes what differs.
+enum TradeKind {
+  cash
+  swap
+}
+
 /// The escrow lifecycle. Money and credentials only ever move on an admin
 /// action — never automatically.
 enum DealStatus {
@@ -176,8 +190,17 @@ model Deal {
   platform       String?
   level          Int?
 
+  /// cash or swap. Defaults to cash so every existing deal keeps its meaning.
+  tradeKind TradeKind @default(cash)
+
+  /// Swap only: what the BUYER hands over. The seller's side is
+  /// accountSummary above, so a swap carries one description per party.
+  counterAccountSummary String? @db.Text
+
   // --- money, in integer minor units ("cents"); never floats ---
   /// What the buyer pays. Agreed between the parties before they got here.
+  /// Zero on a swap: there is no money, so there is nothing to take a
+  /// percentage of and nothing to pay out.
   agreedPriceCents Int
   currency         String @default("USD")
 
@@ -212,12 +235,21 @@ model Deal {
 
   /// What was actually handed over, encrypted the same way as Credential.
   /// Snapshotted at release so a later edit cannot rewrite history.
+  /// On both kinds of deal this is the SELLER's account — the one the buyer
+  /// receives.
   deliveredCiphertext   String?   @db.Text
+  /// Swap only: the buyer's account, which the seller receives. Snapshotted at
+  /// the same moment and for the same reason. Null on a cash deal, where only
+  /// one account changes hands.
+  deliveredCounterCiphertext String? @db.Text
   credentialsReleasedAt DateTime?
 
   // --- buyer claim window (24-48h) ---
   confirmationDeadline DateTime?
   buyerConfirmedAt     DateTime?
+  /// Swap only. A swap completes when BOTH sides confirm, so the seller needs
+  /// a confirmation of their own — on a cash deal only the buyer claims.
+  sellerConfirmedAt    DateTime?
   lastReminderSentAt   DateTime?
 
   // --- terminal states ---
@@ -241,7 +273,7 @@ model Deal {
   buyer              User?       @relation("DealBuyer", fields: [buyerId], references: [id])
   paymentConfirmedBy User?       @relation("PaymentConfirmer", fields: [paymentConfirmedById], references: [id], onDelete: SetNull)
   deliveryApprovedBy User?       @relation("DeliveryApprover", fields: [deliveryApprovedById], references: [id], onDelete: SetNull)
-  credential         Credential?
+  credentials        Credential[]
   messages           Message[]
   reviews            Review[]
   disputes           Dispute[]
@@ -358,7 +390,12 @@ model WebhookEvent {
 /// delivery on the deal.
 model Credential {
   id     String @id @default(cuid())
-  dealId String @unique
+  dealId String
+
+  /// Whose account this is. On a cash deal only the seller ever deposits, so
+  /// existing rows are seller and the default keeps them that way. A swap has
+  /// one row per side.
+  side   DealSide @default(seller)
 
   ciphertext String @db.Text
 
@@ -372,6 +409,11 @@ model Credential {
 
   deal           Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
   lastVerifiedBy User? @relation("CredentialVerifier", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
+
+  /// Replaces a plain unique on dealId. side is non-null with a default, so
+  /// this cannot degrade into "many rows with NULL side" the way a nullable
+  /// discriminator would.
+  @@unique([dealId, side])
 }
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ import { loadDealForViewer } from "@/lib/deals";
 import { formatCents } from "@/lib/money";
 import { formatFeeBps } from "@/lib/fees";
 import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE } from "@/lib/deal-status";
-import { revealForAdminAction } from "@/app/actions/admin-actions";
+import { revealCounterForAdminAction, revealForAdminAction } from "@/app/actions/admin-actions";
 import { listMessages } from "@/lib/messages";
 import { getDisputeForDeal } from "@/lib/disputes";
 import { getReputation } from "@/lib/reviews";
@@ -65,10 +65,14 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       <div className="max-w-3xl">
       <div className="mb-6 flex flex-wrap gap-2">
         <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABEL[deal.status]}</Badge>
-        <Badge tone="neutral">
-          {formatCents(deal.agreedPriceCents, deal.currency)} · your cut{" "}
-          {formatCents(deal.feeCents, deal.currency)} ({formatFeeBps(deal.feeBps)})
-        </Badge>
+        {deal.tradeKind === "swap" ? (
+          <Badge tone="info">account for account · no money, no fee</Badge>
+        ) : (
+          <Badge tone="neutral">
+            {formatCents(deal.agreedPriceCents, deal.currency)} · your cut{" "}
+            {formatCents(deal.feeCents, deal.currency)} ({formatFeeBps(deal.feeBps)})
+          </Badge>
+        )}
       </div>
 
       {/* Progress and the full record together. The record is what an admin
@@ -78,6 +82,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
           <h2 className="mb-3 text-sm font-semibold">Progress</h2>
           <DealTimeline
             status={deal.status}
+            tradeKind={deal.tradeKind}
             stamps={{
               createdAt: deal.createdAt,
               depositedAt: deal.credentialsUpdatedAt,
@@ -166,6 +171,19 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
           {deal.platform ? ` · ${deal.platform}` : ""}
           {deal.level !== null ? ` · level ${deal.level}` : ""}
         </p>
+
+        {/* On a swap there is a second promise to check against. */}
+        {deal.tradeKind === "swap" ? (
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <h3 className="text-sm font-semibold">What the buyer promised</h3>
+            <p className="mt-2 text-sm leading-relaxed">
+              {deal.counterAccountSummary ?? "Not described."}
+            </p>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Account-for-account swap — no money, no fee. Both accounts release together.
+            </p>
+          </div>
+        ) : null}
       </Card>
 
       {/* --- payment --- */}
@@ -217,9 +235,30 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
             <CredentialsPanel
               dealId={deal.id}
               action={revealForAdminAction}
-              revealLabel="Reveal the account details"
+              revealLabel={
+                deal.tradeKind === "swap"
+                  ? "Reveal the seller's account"
+                  : "Reveal the account details"
+              }
               note="Decrypted only for this request. Not logged, not stored anywhere else."
             />
+
+            {/* A swap has two accounts and both are released at once, so both
+                have to be checked before either moves. */}
+            {deal.tradeKind === "swap" ? (
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
+                <p className="mb-3 text-sm text-[var(--muted)]">
+                  This is a swap. Check the buyer&apos;s account too — both are handed over together.
+                </p>
+                <CredentialsPanel
+                  dealId={deal.id}
+                  action={revealCounterForAdminAction}
+                  revealLabel="Reveal the buyer's account"
+                  note="Decrypted only for this request. Not logged, not stored anywhere else."
+                />
+              </div>
+            ) : null}
+
             <div className="mt-5 border-t border-[var(--border)] pt-4">
               <RecordVerificationForm dealId={deal.id} />
             </div>

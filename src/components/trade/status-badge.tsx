@@ -1,6 +1,6 @@
-import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, nextActorFor } from "@/lib/deal-status";
+import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, isTurnOf, nextActorFor } from "@/lib/deal-status";
 import { cn, TONE_SURFACE, type Tone } from "@/components/ui";
-import type { DealSide, DealStatus } from "@/generated/prisma/client";
+import type { DealSide, DealStatus, TradeKind } from "@/generated/prisma/client";
 
 /**
  * The status of a deal, said properly.
@@ -19,14 +19,17 @@ export function StatusBadge({
   status,
   side,
   size = "md",
+  tradeKind = "cash",
 }: {
   status: DealStatus;
   /** The viewer's side, when they are a party. Omitted for the admin view. */
   side?: DealSide;
   size?: "sm" | "md";
+  /** A swap waits on both sides at once, which changes whose turn it is. */
+  tradeKind?: TradeKind;
 }) {
   const tone = DEAL_STATUS_TONE[status];
-  const yourTurn = side !== undefined && nextActorFor(status) === side;
+  const yourTurn = isTurnOf(status, side, tradeKind);
 
   return (
     <span
@@ -81,10 +84,18 @@ function StatusDot({
  * this is what you should do about it, and squashing both into one pill makes a
  * label long enough that it wraps on a phone.
  */
-export function TurnBadge({ status, side }: { status: DealStatus; side: DealSide }) {
-  const actor = nextActorFor(status);
+export function TurnBadge({
+  status,
+  side,
+  tradeKind = "cash",
+}: {
+  status: DealStatus;
+  side: DealSide;
+  tradeKind?: TradeKind;
+}) {
+  const actor = nextActorFor(status, tradeKind);
 
-  if (actor === side) {
+  if (actor === side || actor === "both") {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--tone-warning-border)] bg-[var(--tone-warning-bg)] px-2.5 py-1 text-xs font-semibold text-[var(--tone-warning)]">
         <span aria-hidden="true" className="relative grid size-2 place-items-center">

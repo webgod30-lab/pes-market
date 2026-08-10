@@ -2,7 +2,7 @@
 //
 // Kept in one place so the dashboard, the admin console and (later) the deal
 // page all describe a status the same way.
-import type { DealStatus } from "@/generated/prisma/client";
+import type { DealStatus, TradeKind } from "@/generated/prisma/client";
 import type { Tone } from "@/components/ui";
 
 export const DEAL_STATUS_LABEL: Record<DealStatus, string> = {
@@ -33,10 +33,28 @@ export const DEAL_STATUS_TONE: Record<DealStatus, Tone> = {
   cancelled: "neutral",
 };
 
-/** Who has to do something next. "counterparty" means the invite is outstanding. */
-export type NextActor = "seller" | "buyer" | "admin" | "counterparty" | null;
+/**
+ * Who has to do something next. "counterparty" means the invite is outstanding;
+ * "both" only happens on a swap, where the two sides deposit and confirm in
+ * parallel rather than taking turns.
+ */
+export type NextActor = "seller" | "buyer" | "admin" | "counterparty" | "both" | null;
 
-export function nextActorFor(status: DealStatus): NextActor {
+export function nextActorFor(status: DealStatus, tradeKind: TradeKind = "cash"): NextActor {
+  // A swap is symmetric: both parties deposit an account, and both confirm they
+  // received one. Saying "waiting on the buyer" there would tell the seller
+  // their own outstanding action was somebody else's job.
+  if (tradeKind === "swap") {
+    switch (status) {
+      case "awaiting_credentials":
+      case "credentials_released":
+      case "claiming":
+        return "both";
+      default:
+        break;
+    }
+  }
+
   switch (status) {
     case "awaiting_counterparty":
       return "counterparty";
@@ -57,6 +75,21 @@ export function nextActorFor(status: DealStatus): NextActor {
   }
 }
 
+/**
+ * Whether it is this side's move. Use this rather than comparing `nextActorFor`
+ * to a side directly — on a swap the answer is "both", which no single side
+ * name equals.
+ */
+export function isTurnOf(
+  status: DealStatus,
+  side: "seller" | "buyer" | null | undefined,
+  tradeKind: TradeKind = "cash",
+): boolean {
+  if (!side) return false;
+  const actor = nextActorFor(status, tradeKind);
+  return actor === side || actor === "both";
+}
+
 /** The happy path, for the progress timeline on a deal page. */
 export const DEAL_STEPS = [
   { key: "opened", label: "Deal opened" },
@@ -68,10 +101,50 @@ export const DEAL_STEPS = [
 ] as const;
 
 /**
- * How many of DEAL_STEPS are finished. A deal that ended badly (cancelled,
+ * The same path for a swap. There is no money, so the two payment steps are
+ * replaced by the one thing a swap waits on instead: the second account.
+ */
+export const SWAP_STEPS = [
+  { key: "opened", label: "Deal opened" },
+  { key: "joined", label: "Both parties in" },
+  { key: "deposited", label: "Both accounts deposited" },
+  { key: "checked", label: "Accounts checked" },
+  { key: "released", label: "Accounts swapped" },
+] as const;
+
+export function stepsFor(tradeKind: TradeKind): readonly { key: string; label: string }[] {
+  return tradeKind === "swap" ? SWAP_STEPS : DEAL_STEPS;
+}
+
+/**
+ * How many of the steps are finished. A deal that ended badly (cancelled,
  * refunded) returns the point it stopped at rather than pretending to progress.
  */
-export function completedStepCount(status: DealStatus): number {
+export function completedStepCount(status: DealStatus, tradeKind: TradeKind = "cash"): number {
+  if (tradeKind === "swap") {
+    switch (status) {
+      case "awaiting_counterparty":
+        return 1;
+      // Both sides deposit here; the status only advances once the second one
+      // lands, so this single step covers the whole exchange of accounts.
+      case "awaiting_credentials":
+      case "awaiting_payment":
+      case "payment_submitted":
+        return 2;
+      case "admin_verifying":
+        return 3;
+      case "credentials_released":
+      case "claiming":
+        return 4;
+      case "completed":
+        return 5;
+      case "disputed":
+      case "refunded":
+      case "cancelled":
+        return 0;
+    }
+  }
+
   switch (status) {
     case "awaiting_counterparty":
       return 1;

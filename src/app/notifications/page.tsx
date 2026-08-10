@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireUserOrProblem } from "@/lib/dal";
 import { listDealsForUser } from "@/lib/deals";
 import { unreadCountForUser } from "@/lib/messages";
-import { nextActorFor } from "@/lib/deal-status";
+import { isTurnOf } from "@/lib/deal-status";
 import { traderSections } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
@@ -53,7 +53,7 @@ export default async function NotificationsPage() {
   // then things merely waiting on somebody else.
   const disputed = deals.filter((deal) => deal.status === "disputed");
   const yourTurn = deals.filter(
-    (deal) => deal.status !== "disputed" && nextActorFor(deal.status) === sideOf(deal),
+    (deal) => deal.status !== "disputed" && isTurnOf(deal.status, sideOf(deal), deal.tradeKind),
   );
   const awaitingJoin = deals.filter((deal) => deal.status === "awaiting_counterparty");
 

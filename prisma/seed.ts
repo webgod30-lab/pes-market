@@ -568,7 +568,7 @@ async function main() {
       const ciphertext = encryptCredentials(deal.credentials);
 
       await prisma.credential.upsert({
-        where: { dealId: deal.id },
+        where: { dealId_side: { dealId: deal.id, side: "seller" } },
         update: { ciphertext },
         create: { dealId: deal.id, ciphertext },
       });
@@ -666,7 +666,7 @@ async function main() {
     });
 
     await prisma.credential.upsert({
-      where: { dealId },
+      where: { dealId_side: { dealId, side: "seller" } },
       update: { ciphertext: demoCredentials },
       create: { dealId, ciphertext: demoCredentials },
     });

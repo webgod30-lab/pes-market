@@ -25,7 +25,7 @@ import {
   markPayoutSent,
   refundDeal,
   revealCredentialsToAdmin,
-  revealCredentialsToBuyer,
+  revealDeliveredCredentials,
   submitPayment,
 } from "../src/lib/deals";
 import { listMessages, postMessage } from "../src/lib/messages";
@@ -167,7 +167,7 @@ async function main() {
   ok("even the admin cannot deposit on the seller's behalf");
 
   const stored = await prisma.credential.findUniqueOrThrow({
-    where: { dealId: awaitingPayment },
+    where: { dealId_side: { dealId: awaitingPayment, side: "seller" } },
     select: { ciphertext: true },
   });
   assert.ok(!stored.ciphertext.includes("attacker"));
@@ -262,7 +262,7 @@ async function main() {
   assert.match((earlyRelease as { error: string }).error, /not ready for delivery approval/i);
   ok("delivery cannot be approved while the payment is still unconfirmed");
 
-  const sellerReads = await revealCredentialsToBuyer(sami, releasedDeal);
+  const sellerReads = await revealDeliveredCredentials(sami, releasedDeal);
   assert.equal(sellerReads.ok, false);
   ok("the seller cannot read credentials through the buyer's route");
 
@@ -270,7 +270,7 @@ async function main() {
   ok("a non-buyer cannot confirm the claim");
 
   // The one case that must work: the real buyer reading a released account.
-  const allowed = await revealCredentialsToBuyer(karim, releasedDeal);
+  const allowed = await revealDeliveredCredentials(karim, releasedDeal);
   assert.equal(allowed.ok, true);
   assert.equal(
     (allowed as { credentials: { loginEmail: string } }).credentials.loginEmail,
@@ -842,6 +842,164 @@ async function main() {
     ["Name on the account", "IBAN / account number", "Bank", "SWIFT / BIC"],
   );
   ok("a destination renders as separate labelled fields, not one blob");
+
+  // -------------------------------------------------------------------------
+  // Phase 9: account-for-account swaps
+  //
+  // A swap has no money in it, so the protection cannot be "we hold the cash".
+  // It is "neither account moves until both are in, and both are released at
+  // the same moment". These check that the asymmetry of a cash deal — one
+  // depositor, one payer, one confirmer — becomes symmetric here.
+  // -------------------------------------------------------------------------
+
+  // Captured before any swap exists, so the comparison at the end measures a
+  // real difference rather than comparing a number to itself.
+  const sellerBalanceBeforeSwap = (await getBalance(sami.id)).availableCents;
+  const buyerBalanceBeforeSwap = (await getBalance(karim.id)).availableCents;
+
+  const noCounter = await createDeal({
+    creator: sami,
+    side: "seller",
+    accountSummary: "GUARD FIXTURE — swap without a counter-offer, safe to delete.",
+    game: "eFootball",
+    platform: null,
+    level: null,
+    agreedPriceCents: 0,
+    tradeKind: "swap",
+    counterAccountSummary: "   ",
+  });
+  assert.equal(noCounter.ok, false);
+  ok("a swap with no account offered in exchange is refused");
+
+  const swapCreated = await createDeal({
+    creator: sami,
+    side: "seller",
+    accountSummary: "GUARD FIXTURE — swap seller side, safe to delete.",
+    game: "eFootball",
+    platform: null,
+    level: null,
+    // Deliberately non-zero, to prove the domain layer forces it to nothing
+    // rather than trusting the caller.
+    agreedPriceCents: 25_000,
+    tradeKind: "swap",
+    counterAccountSummary: "GUARD FIXTURE — swap buyer side, safe to delete.",
+  });
+
+  if (!swapCreated.ok) throw new Error(`swap setup failed: ${swapCreated.error}`);
+  fixtureIds.push(swapCreated.dealId);
+  const swap = swapCreated.dealId;
+
+  const swapRow = await prisma.deal.findUniqueOrThrow({
+    where: { id: swap },
+    select: { agreedPriceCents: true, feeCents: true, sellerPayoutCents: true, tradeKind: true },
+  });
+  assert.equal(swapRow.tradeKind, "swap");
+  assert.equal(swapRow.agreedPriceCents, 0);
+  assert.equal(swapRow.feeCents, 0);
+  assert.equal(swapRow.sellerPayoutCents, 0);
+  ok("a swap carries no price, no fee and no payout, whatever the caller asked for");
+
+  const swapJoin = await joinDealByCode(karim, swapCreated.inviteCode);
+  assert.equal(swapJoin.ok, true);
+
+  const swapSellerDeposit = await depositCredentials(sami, swap, CREDS);
+  assert.equal(swapSellerDeposit.ok, true);
+  ok("the seller can deposit on a swap");
+
+  // The whole point: releasing one account before the other is in would hand
+  // the first party everything for nothing.
+  const swapEarlyRelease = await approveDelivery(admin, swap);
+  assert.equal(swapEarlyRelease.ok, false);
+  ok("neither account is released while only one side has deposited");
+
+  const stillWaiting = await prisma.deal.findUniqueOrThrow({
+    where: { id: swap },
+    select: { status: true },
+  });
+  assert.equal(stillWaiting.status, "awaiting_credentials");
+  ok("a half-deposited swap stays waiting rather than advancing");
+
+  assert.equal((await depositCredentials(yassine, swap, ATTACK_CREDS)).ok, false);
+  ok("an unrelated user still cannot deposit on a swap");
+
+  const swapBuyerDeposit = await depositCredentials(karim, swap, {
+    ...CREDS,
+    loginEmail: "guard-swap-buyer@example.com",
+  });
+  assert.equal(swapBuyerDeposit.ok, true);
+  ok("the buyer can deposit their own account on a swap");
+
+  const bothIn = await prisma.deal.findUniqueOrThrow({
+    where: { id: swap },
+    select: { status: true },
+  });
+  assert.equal(bothIn.status, "admin_verifying");
+  ok("a swap goes to verification once both accounts are in — never to payment");
+
+  // No money means no payment step at all; the status machine must not offer
+  // one, or a buyer could be talked into paying for a swap they already paid
+  // for with an account.
+  const swapPay = await submitPayment(karim, swap, {
+    method: "crypto",
+    txHash: "0xshould-not-apply",
+    reference: null,
+    instructionsSnapshot: "fixture",
+  });
+  assert.equal(swapPay.ok, false);
+  ok("a swap cannot take a payment");
+
+  assert.equal((await approveDelivery(admin, swap)).ok, true);
+  ok("both accounts release together once verified");
+
+  const buyerReads = await revealDeliveredCredentials(karim, swap);
+  assert.equal(buyerReads.ok, true);
+  assert.equal(
+    (buyerReads as { credentials: { loginEmail: string } }).credentials.loginEmail,
+    CREDS.loginEmail,
+  );
+  ok("the buyer receives the seller's account on a swap");
+
+  const swapSellerReads = await revealDeliveredCredentials(sami, swap);
+  assert.equal(swapSellerReads.ok, true);
+  assert.equal(
+    (swapSellerReads as { credentials: { loginEmail: string } }).credentials.loginEmail,
+    "guard-swap-buyer@example.com",
+  );
+  ok("the seller receives the buyer's account on a swap — each gets the other's");
+
+  assert.equal((await revealDeliveredCredentials(yassine, swap)).ok, false);
+  ok("a non-party reads neither side of a swap");
+
+  const firstConfirm = await confirmClaimed(karim, swap);
+  assert.equal(firstConfirm.ok, true);
+
+  const halfConfirmed = await prisma.deal.findUniqueOrThrow({
+    where: { id: swap },
+    select: { status: true, buyerConfirmedAt: true, sellerConfirmedAt: true },
+  });
+  assert.notEqual(halfConfirmed.buyerConfirmedAt, null);
+  assert.equal(halfConfirmed.sellerConfirmedAt, null);
+  assert.notEqual(halfConfirmed.status, "completed");
+  ok("one party confirming does not complete a swap");
+
+  const secondConfirm = await confirmClaimed(sami, swap);
+  assert.equal(secondConfirm.ok, true);
+
+  const done = await prisma.deal.findUniqueOrThrow({
+    where: { id: swap },
+    select: { status: true, sellerConfirmedAt: true, completedAt: true },
+  });
+  assert.equal(done.status, "completed");
+  assert.notEqual(done.sellerConfirmedAt, null);
+  assert.notEqual(done.completedAt, null);
+  ok("a swap completes only when both parties have confirmed");
+
+  // A completed swap must not leave anything sitting in a balance: there was
+  // never any money, and a payout figure above zero would be one the admin
+  // could actually send.
+  assert.equal((await getBalance(sami.id)).availableCents, sellerBalanceBeforeSwap);
+  assert.equal((await getBalance(karim.id)).availableCents, buyerBalanceBeforeSwap);
+  ok("a completed swap leaves both balances exactly where they were");
 
   console.log(`\n${passed} guard checks passed.`);
 }

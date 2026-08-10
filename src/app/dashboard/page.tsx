@@ -7,7 +7,7 @@ import { unreadCountForUser } from "@/lib/messages";
 import { getReputation } from "@/lib/reviews";
 import { ReputationLine } from "@/components/reputation";
 import { formatCents } from "@/lib/money";
-import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, nextActorFor, OPEN_STATUSES } from "@/lib/deal-status";
+import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, isTurnOf, OPEN_STATUSES } from "@/lib/deal-status";
 import { Breakdown, type Segment } from "@/components/dashboard/breakdown";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
   ]);
 
   const sideOf = (deal: DealRow) => (deal.sellerId === user.id ? "seller" : "buyer");
-  const isYourTurn = (deal: DealRow) => nextActorFor(deal.status) === sideOf(deal);
+  const isYourTurn = (deal: DealRow) => isTurnOf(deal.status, sideOf(deal), deal.tradeKind);
 
   const openCount = deals.filter((deal) => OPEN_STATUSES.includes(deal.status)).length;
   const waitingOnYou = deals.filter(isYourTurn).length;

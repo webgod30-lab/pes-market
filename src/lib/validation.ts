@@ -83,19 +83,43 @@ const optionalTextField = (max: number) =>
     .max(max, `Must be at most ${max} characters.`)
     .transform((value) => (value === "" ? null : value));
 
-export const createDealSchema = z.object({
-  /** Which side the person opening the deal is on. */
-  side: z.enum(["seller", "buyer"], { message: "Choose whether you are buying or selling." }),
-  accountSummary: z
-    .string()
-    .trim()
-    .min(20, "Describe the account in at least 20 characters, so both sides agree what is being sold.")
-    .max(2000, "Keep the description under 2000 characters."),
-  game: z.string().trim().min(1, "Which game is this account for?").max(60),
-  platform: optionalTextField(40),
-  level: optionalLevelField,
-  agreedPriceCents: priceField,
-});
+export const createDealSchema = z
+  .object({
+    /** Which side the person opening the deal is on. */
+    side: z.enum(["seller", "buyer"], { message: "Choose whether you are buying or selling." }),
+    /** Money for an account, or an account for an account. */
+    tradeKind: z.enum(["cash", "swap"]).default("cash"),
+    accountSummary: z
+      .string()
+      .trim()
+      .min(20, "Describe the account in at least 20 characters, so both sides agree what is being sold.")
+      .max(2000, "Keep the description under 2000 characters."),
+    /** Swap only: the account offered in exchange. */
+    counterAccountSummary: z
+      .string()
+      .trim()
+      .max(2000, "Keep the description under 2000 characters.")
+      .optional(),
+    game: z.string().trim().min(1, "Which game is this account for?").max(60),
+    platform: optionalTextField(40),
+    level: optionalLevelField,
+    agreedPriceCents: priceField,
+  })
+  .superRefine((value, ctx) => {
+    if (value.tradeKind === "swap") {
+      const counter = value.counterAccountSummary?.trim() ?? "";
+
+      if (counter.length < 20) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["counterAccountSummary"],
+          message:
+            "Describe the account being offered in exchange, in at least 20 characters.",
+        });
+      }
+
+    }
+  });
 
 export const depositCredentialsSchema = z.object({
   loginEmail: z.string().trim().min(1, "The account login is required."),

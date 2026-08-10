@@ -1,6 +1,6 @@
-import { completedStepCount, DEAL_STEPS, isTerminalFailure } from "@/lib/deal-status";
+import { completedStepCount, isTerminalFailure, stepsFor } from "@/lib/deal-status";
 import { cn } from "@/components/ui";
-import type { DealStatus } from "@/generated/prisma/client";
+import type { DealStatus, TradeKind } from "@/generated/prisma/client";
 
 /**
  * How far the deal has got, and when each part happened.
@@ -29,40 +29,56 @@ export type TimelineStamps = {
   completedAt?: Date | null;
 };
 
-/** One date per step of DEAL_STEPS, in the same order. */
-function stampFor(index: number, stamps: TimelineStamps): Date | null {
-  return (
-    [
-      stamps.createdAt,
-      stamps.inviteAcceptedAt,
-      stamps.depositedAt,
-      stamps.paymentConfirmedAt,
-      stamps.credentialsReleasedAt,
-      stamps.completedAt,
-    ][index] ?? null
-  );
+/**
+ * One date per step, in the same order as the step list for this kind of deal.
+ * A swap has no payment step, so its fourth stamp is the admin check rather
+ * than money arriving.
+ */
+function stampFor(index: number, stamps: TimelineStamps, tradeKind: TradeKind): Date | null {
+  const order =
+    tradeKind === "swap"
+      ? [
+          stamps.createdAt,
+          stamps.inviteAcceptedAt,
+          stamps.depositedAt,
+          stamps.credentialsReleasedAt,
+          stamps.completedAt,
+        ]
+      : [
+          stamps.createdAt,
+          stamps.inviteAcceptedAt,
+          stamps.depositedAt,
+          stamps.paymentConfirmedAt,
+          stamps.credentialsReleasedAt,
+          stamps.completedAt,
+        ];
+
+  return order[index] ?? null;
 }
 
 export function DealTimeline({
   status,
   stamps = {},
+  tradeKind = "cash",
 }: {
   status: DealStatus;
   stamps?: TimelineStamps;
+  tradeKind?: TradeKind;
 }) {
-  const done = completedStepCount(status);
+  const steps = stepsFor(tradeKind);
+  const done = completedStepCount(status, tradeKind);
   const failed = isTerminalFailure(status);
 
   return (
     <div>
       <ol className="relative">
-        {DEAL_STEPS.map((step, index) => {
+        {steps.map((step, index) => {
           const isDone = index < done;
           // Nothing is "current" once the deal has stalled — the current thing
           // is the failure, which is stated underneath.
           const isCurrent = !failed && index === done;
-          const when = isDone ? stampFor(index, stamps) : null;
-          const isLast = index === DEAL_STEPS.length - 1;
+          const when = isDone ? stampFor(index, stamps, tradeKind) : null;
+          const isLast = index === steps.length - 1;
 
           return (
             <li key={step.key} className="relative flex gap-3 pb-4 last:pb-0">
