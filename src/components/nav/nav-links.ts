@@ -175,12 +175,21 @@ export function accountLinks(role: Role): NavItem[] {
     icon: role === "admin" ? "gauge" : "grid",
   };
 
-  const wallet: NavItem[] =
+  // Promote before balance, and both only for traders.
+  //
+  // The referrals page was reachable only from the dashboard sidebar, which
+  // does not exist on the marketing pages — so a signed-in user browsing the
+  // FAQ or the homepage had no route to their own code at all. For the one
+  // thing on this site that pays people, that is the wrong place to hide it.
+  const earning: NavItem[] =
     role === "admin"
       ? []
-      : [{ href: "/wallet", labelKey: "nav.balance", icon: "wallet" }];
+      : [
+          { href: "/referrals", labelKey: "nav.referrals", icon: "ticket" },
+          { href: "/wallet", labelKey: "nav.balance", icon: "wallet" },
+        ];
 
-  return [home, ...wallet, { href: "/settings/security", labelKey: "nav.security", icon: "shield" }];
+  return [home, ...earning, { href: "/settings/security", labelKey: "nav.security", icon: "shield" }];
 }
 
 // ---------------------------------------------------------------------------
