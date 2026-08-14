@@ -7,6 +7,7 @@ import { unreadCountForUser } from "@/lib/messages";
 import { getReputation } from "@/lib/reviews";
 import { ReputationLine } from "@/components/reputation";
 import { formatCents } from "@/lib/money";
+import { getBalance, MINIMUM_WITHDRAWAL_CENTS } from "@/lib/wallet";
 import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, isTurnOf, OPEN_STATUSES } from "@/lib/deal-status";
 import { Breakdown, type Segment } from "@/components/dashboard/breakdown";
 import { DashShell } from "@/components/dashboard/dash-shell";
@@ -48,15 +49,11 @@ export default async function DashboardPage() {
   const openCount = deals.filter((deal) => OPEN_STATUSES.includes(deal.status)).length;
   const waitingOnYou = deals.filter(isYourTurn).length;
 
-  // Money currently riding on open deals — what you would be out if every one
-  // of them went wrong at once. Derived from the rows already fetched.
-  const inFlightCents = deals
-    .filter((deal) => OPEN_STATUSES.includes(deal.status))
-    .reduce(
-      (sum, deal) =>
-        sum + (sideOf(deal) === "seller" ? deal.sellerPayoutCents : deal.agreedPriceCents),
-      0,
-    );
+  // This used to be "money riding on open deals". A swap has no money in it at
+  // all, so that figure was $0.00 on every account with no way for it ever to
+  // be anything else. What replaced it is the only balance a user can now have:
+  // what their promoter code has earned them.
+  const balance = await getBalance(user.id);
 
   return (
     <DashShell
@@ -101,10 +98,15 @@ export default async function DashboardPage() {
           urgent
         />
         <StatCard
-          label="In flight"
-          value={formatCents(inFlightCents)}
-          caption="value of your open deals"
+          label="Referral earnings"
+          value={formatCents(balance.availableCents)}
+          caption={
+            balance.meetsMinimum
+              ? "ready to withdraw"
+              : `${formatCents(MINIMUM_WITHDRAWAL_CENTS)} minimum`
+          }
           icon="wallet"
+          href="/referrals"
         />
       </StatGrid>
 
@@ -202,20 +204,31 @@ function dealColumns(
       },
     },
     {
-      key: "amount",
-      header: "Amount",
+      // Was "Amount". On a swap that column read $0.00 on every row, because
+      // there is no amount — so it now says what the trade actually is, and
+      // only shows a figure for the archived cash deals that really had one.
+      key: "trade",
+      header: "Trade",
       align: "end",
       cell: (deal) => {
+        if (deal.tradeKind === "swap") {
+          return (
+            <span className="whitespace-nowrap">
+              <span className="font-semibold">Swap</span>
+              <span className="block text-xs text-[var(--muted)]">account for account</span>
+            </span>
+          );
+        }
+
         const isSeller = sideOf(deal) === "seller";
 
         return (
           <span className="whitespace-nowrap">
-            {/* A seller cares about the payout; a buyer about the price. */}
             <span className="font-semibold">
               {formatCents(isSeller ? deal.sellerPayoutCents : deal.agreedPriceCents, deal.currency)}
             </span>
             <span className="block text-xs text-[var(--muted)]">
-              {isSeller ? "you receive" : "you pay"}
+              {isSeller ? "you received" : "you paid"}
             </span>
           </span>
         );

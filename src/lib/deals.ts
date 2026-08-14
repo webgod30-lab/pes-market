@@ -15,7 +15,7 @@
 import { prisma } from "@/lib/prisma";
 import { decryptCredentials, encryptCredentials, type CredentialData } from "@/lib/crypto";
 import { generateDealReference, generateInviteCode } from "@/lib/ids";
-import { defaultFeeBps, splitDealMoney } from "@/lib/fees";
+import { creditReferralsForDeal } from "@/lib/referrals";
 import { PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/escrow-flow";
 import type { CurrentUser } from "@/lib/dal";
@@ -56,35 +56,17 @@ export type CreateDealInput = {
   game: string;
   platform: string | null;
   level: number | null;
-  agreedPriceCents: number;
-  /** Defaults to cash, so every existing caller keeps its meaning. */
-  tradeKind?: TradeKind;
-  /** Swap only: the account the BUYER puts up. Ignored on a cash deal. */
-  counterAccountSummary?: string | null;
+  /** The account the other side puts up. Required: every deal is a swap. */
+  counterAccountSummary: string;
 };
 
 export async function createDeal(
   input: CreateDealInput,
 ): Promise<DealResult<{ dealId: string; reference: string; inviteCode: string }>> {
-  const tradeKind: TradeKind = input.tradeKind ?? "cash";
-  const isSwap = tradeKind === "swap";
+  const counter = input.counterAccountSummary.trim();
 
-  // A swap has no money in it, so there is nothing to take a percentage of and
-  // nothing to pay out. Both are forced to zero here rather than trusted from
-  // the caller: a swap that carried a price would put the deal in a state where
-  // the wallet expects a payment that can never arrive.
-  //
-  // The fee rate is copied onto the deal now. Changing your rate later must not
-  // alter terms the two parties have already agreed to.
-  const money = isSwap
-    ? { agreedPriceCents: 0, feeBps: 0, feeCents: 0, sellerPayoutCents: 0 }
-    : splitDealMoney(input.agreedPriceCents, defaultFeeBps());
-
-  if (isSwap) {
-    const counter = input.counterAccountSummary?.trim();
-    if (!counter) {
-      return { ok: false, error: "Describe the account being offered in exchange." };
-    }
+  if (!counter) {
+    return { ok: false, error: "Describe the account being offered in exchange." };
   }
 
   const isSeller = input.side === "seller";
@@ -105,18 +87,16 @@ export async function createDeal(
           sellerId: isSeller ? input.creator.id : null,
           buyerId: isSeller ? null : input.creator.id,
           accountSummary: input.accountSummary,
-          tradeKind,
-          counterAccountSummary: isSwap
-            ? (input.counterAccountSummary?.trim() ?? null)
-            : null,
+          tradeKind: "swap",
+          counterAccountSummary: counter,
           game: input.game,
           platform: input.platform,
           level: input.level,
-          agreedPriceCents: money.agreedPriceCents,
           currency: "USD",
-          feeBps: money.feeBps,
-          feeCents: money.feeCents,
-          sellerPayoutCents: money.sellerPayoutCents,
+          // agreedPriceCents, feeBps, feeCents and sellerPayoutCents all
+          // default to 0 in the schema. A swap has no price, and the service
+          // takes no commission from one — the money it makes is nothing, and
+          // the money it owes is $2 a side to the promoters. See lib/referrals.
           status: "awaiting_counterparty",
         },
         select: { id: true, reference: true, inviteCode: true },
@@ -637,6 +617,8 @@ export async function confirmClaimed(user: CurrentUser, dealId: string): Promise
       return { ok: false, error: "This deal is not waiting for your confirmation." };
     }
 
+    await creditReferralsForDeal(dealId);
+
     return { ok: true };
   }
 
@@ -667,7 +649,14 @@ export async function confirmClaimed(user: CurrentUser, dealId: string): Promise
     data: { status: "completed", [mine]: now, completedAt: now },
   });
 
-  if (closes.count === 1) return { ok: true };
+  // This confirmation was the second one, so the deal just closed and the two
+  // promoters are owed. Only on this branch: the first confirmation leaves the
+  // deal open, and an open deal earns nobody anything.
+  if (closes.count === 1) {
+    await creditReferralsForDeal(dealId);
+
+    return { ok: true };
+  }
 
   // Otherwise this is the first confirmation: record it and wait for the other.
   const first = await prisma.deal.updateMany({

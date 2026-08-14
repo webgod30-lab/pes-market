@@ -4,12 +4,11 @@ import { requireUserOrProblem } from "@/lib/dal";
 import {
   destinationFields,
   getBalance,
-  listEarnings,
-  listPending,
   listWithdrawals,
   MINIMUM_WITHDRAWAL_CENTS,
   WITHDRAWAL_TONE,
 } from "@/lib/wallet";
+import { listReferralEarnings, REFERRAL_REWARD_CENTS } from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
 import { WithdrawForm, CancelWithdrawalButton } from "@/components/withdraw-form";
 import { traderSections } from "@/components/dashboard/dash-nav";
@@ -37,20 +36,24 @@ export default async function WalletPage() {
 
   const user = auth.user;
 
-  const [balance, earnings, pending, withdrawals] = await Promise.all([
+  const [balance, earnings, withdrawals] = await Promise.all([
     getBalance(user.id),
-    listEarnings(user.id),
-    listPending(user.id),
+    listReferralEarnings(user.id),
     listWithdrawals(user.id),
   ]);
 
   const open = withdrawals.find((w) => w.status === "requested");
 
+  // How far off the minimum they are. Shown as a number of deals rather than
+  // only as money, because that is the thing a promoter can actually act on.
+  const shortfallCents = Math.max(0, MINIMUM_WITHDRAWAL_CENTS - balance.availableCents);
+  const dealsToGo = Math.ceil(shortfallCents / REFERRAL_REWARD_CENTS);
+
   return (
     <DashShell
       groups={traderSections({})}
       title="Your balance"
-      description="What you have earned from settled deals, and what you have taken out."
+      description="What you have earned from the people you brought to the site, and what you have taken out."
     >
       <div className="max-w-3xl">
       {/* --- the number, and what it is made of --- */}
@@ -62,7 +65,7 @@ export default async function WalletPage() {
 
         <dl className="mt-5 grid gap-3 border-t border-[var(--border)] pt-4 text-sm sm:grid-cols-2">
           <div className="flex justify-between gap-4">
-            <dt className="text-[var(--muted)]">Earned from settled deals</dt>
+            <dt className="text-[var(--muted)]">Earned from referrals</dt>
             <dd className="tabular-nums">{formatCents(balance.earnedCents, balance.currency)}</dd>
           </div>
           <div className="flex justify-between gap-4">
@@ -71,40 +74,52 @@ export default async function WalletPage() {
           </div>
         </dl>
 
-        {/* Money that has arrived but is not yours yet. Shown next to the
-            available figure rather than further down the page: the question
-            this answers — "has the buyer actually paid?" — is the one a seller
-            opens this page to ask, right after handing over an account. */}
-        {balance.pendingCents > 0 || balance.frozenCents > 0 ? (
-          <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="text-overline uppercase text-[var(--tone-info)]">Held for you</p>
-              <p className="text-lg font-semibold tabular-nums text-[var(--tone-info)]">
-                {formatCents(balance.pendingCents + balance.frozenCents, balance.currency)}
+        {/* The two rules of the programme, stated where the number is rather
+            than on a help page: what it takes to withdraw, and when the money
+            actually moves. Both are the questions this page exists to answer. */}
+        <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] p-4">
+          {balance.meetsMinimum ? (
+            <>
+              <p className="text-overline uppercase text-[var(--tone-info)]">Ready to request</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
+                You are over the {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)} minimum.
+                Request a payout whenever you like — payouts are sent in one batch on the 1st of
+                each month, so the next one goes out on{" "}
+                <strong className="text-[var(--foreground)]">
+                  {balance.nextPayoutAt.toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  })}
+                </strong>
+                .
               </p>
-            </div>
-
-            <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-              The buyer has paid and the admin is holding it. It moves into your balance — and
-              becomes withdrawable — once the buyer confirms they have the account.
-            </p>
-
-            {balance.frozenCents > 0 ? (
-              <p className="mt-2 text-xs text-[var(--tone-danger)]">
-                {formatCents(balance.frozenCents, balance.currency)} of that is frozen by a dispute
-                and may be refunded to the buyer instead.
+            </>
+          ) : (
+            <>
+              <p className="text-overline uppercase text-[var(--tone-info)]">
+                {formatCents(shortfallCents, balance.currency)} to go
               </p>
-            ) : null}
-          </div>
-        ) : null}
+              <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
+                The smallest payout is {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)}.
+                That is{" "}
+                <strong className="text-[var(--foreground)]">
+                  {dealsToGo} more completed {dealsToGo === 1 ? "deal" : "deals"}
+                </strong>{" "}
+                by the people you brought in. Payouts are sent on the 1st of each month.
+              </p>
+            </>
+          )}
+        </div>
 
-        {/* Only reachable if a settled deal was reversed after the money went
+        {/* Only reachable if a completed deal was reversed after the money went
             out. Saying so plainly beats showing a zero and no explanation. */}
         {balance.netCents < 0 ? (
           <Alert tone="danger" className="mt-4">
             Your balance is {formatCents(balance.netCents, balance.currency)}. A deal was reversed
-            after you had withdrawn the money for it. Earnings from your next deals go towards
-            clearing that before anything can be withdrawn again.
+            after you had been paid for it. Credits from the next deals your people complete go
+            towards clearing that before anything can be withdrawn again.
           </Alert>
         ) : null}
       </Card>
@@ -143,8 +158,9 @@ export default async function WalletPage() {
         {withdrawals.length === 0 ? (
           <div className="mt-3">
             <EmptyPanel icon="payout" title="Nothing withdrawn yet">
-              Once a deal you sold settles, its payout lands in the balance above and you can
-              request it here.
+              Once your referral earnings reach{" "}
+              {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)}, you can request a payout
+              here.
             </EmptyPanel>
           </div>
         ) : (
@@ -190,74 +206,40 @@ export default async function WalletPage() {
         )}
       </Card>
 
-      {/* --- money on the way, itemised --- */}
-      {pending.length > 0 ? (
-        <Card className="mt-3">
-          <h2 className="text-sm font-semibold">On the way</h2>
-          <p className="mb-3 mt-1 text-xs text-[var(--muted)]">
-            Paid by the buyer and held by the admin. Each one becomes withdrawable when that deal
-            completes.
-          </p>
-
-          <ul className="space-y-2">
-            {pending.map((row) => (
-              <li key={row.dealId}>
-                <Link
-                  href={`/deals/${row.dealId}`}
-                  className="block rounded-lg border border-[var(--border)] p-3 transition-colors hover:border-[var(--accent)]/40"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-mono text-xs">{row.reference}</span>
-                    <span className="text-sm font-medium tabular-nums text-[var(--tone-info)]">
-                      {formatCents(row.amountCents, row.currency)}
-                    </span>
-                  </div>
-                  <p className="mt-1 line-clamp-1 text-xs text-[var(--muted)]">
-                    {row.accountSummary}
-                  </p>
-                  <p className="mt-1.5 flex items-center gap-1.5 text-xs">
-                    <Badge tone={row.status === "disputed" ? "danger" : "info"}>
-                      {row.waitingOn}
-                    </Badge>
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
-
       {/* --- where the money came from --- */}
       <Card className="mt-3">
         <h2 className="text-sm font-semibold">What is in the balance</h2>
         <p className="mt-1 mb-3 text-xs text-[var(--muted)]">
-          Every settled deal you sold, and what it paid after the fee. This is the balance above,
-          itemised — so you can check it rather than trust it.
+          Every {formatCents(REFERRAL_REWARD_CENTS, balance.currency)} credit, and the deal that
+          earned it. This is the balance above, itemised — so you can check it rather than trust it.
         </p>
 
         {earnings.length === 0 ? (
-          <EmptyPanel icon="folder" title="No settled sales yet">
-            A deal counts towards your balance only after the buyer has confirmed they have the
-            account.
+          <EmptyPanel icon="folder" title="No referral earnings yet">
+            You earn {formatCents(REFERRAL_REWARD_CENTS, balance.currency)} each time someone who
+            signed up with your code completes a swap.{" "}
+            <Link href="/referrals" className="underline">
+              Share your code
+            </Link>{" "}
+            to get started.
           </EmptyPanel>
         ) : (
           <ul className="space-y-2">
             {earnings.map((earning) => (
-              <li key={earning.dealId}>
-                <Link
-                  href={`/deals/${earning.dealId}`}
-                  className="block rounded-lg border border-[var(--border)] p-3 transition-colors hover:border-emerald-500/40"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-mono text-xs">{earning.reference}</span>
-                    <span className="text-sm font-medium tabular-nums text-[var(--tone-success)]">
-                      +{formatCents(earning.amountCents, earning.currency)}
-                    </span>
-                  </div>
-                  <p className="mt-1 line-clamp-1 text-xs text-[var(--muted)]">
-                    {earning.accountSummary}
-                  </p>
-                </Link>
+              <li
+                key={earning.id}
+                className="rounded-lg border border-[var(--border)] p-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-xs">{earning.dealReference}</span>
+                  <span className="text-sm font-medium tabular-nums text-[var(--tone-success)]">
+                    +{formatCents(earning.amountCents, earning.currency)}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {earning.traderName} completed a swap ·{" "}
+                  {earning.createdAt.toLocaleDateString("en-GB")}
+                </p>
               </li>
             ))}
           </ul>

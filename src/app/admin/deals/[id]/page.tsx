@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { requireUserOrProblem } from "@/lib/dal";
 import { loadDealForViewer } from "@/lib/deals";
 import { formatCents } from "@/lib/money";
-import { formatFeeBps } from "@/lib/fees";
 import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE } from "@/lib/deal-status";
 import { revealCounterForAdminAction, revealForAdminAction } from "@/app/actions/admin-actions";
 import { listMessages } from "@/lib/messages";
@@ -68,9 +67,12 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
         {deal.tradeKind === "swap" ? (
           <Badge tone="info">account for account · no money, no fee</Badge>
         ) : (
+          // A deal from the retired cash flow. The figures are shown as they
+          // were actually charged at the time, not as today's rules would have
+          // it — this is the record of what these two people agreed to.
           <Badge tone="neutral">
-            {formatCents(deal.agreedPriceCents, deal.currency)} · your cut{" "}
-            {formatCents(deal.feeCents, deal.currency)} ({formatFeeBps(deal.feeBps)})
+            archived cash deal · {formatCents(deal.agreedPriceCents, deal.currency)} · cut{" "}
+            {formatCents(deal.feeCents, deal.currency)} ({(deal.feeBps / 100).toFixed(1)}%)
           </Badge>
         )}
       </div>

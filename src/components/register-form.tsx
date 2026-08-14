@@ -12,6 +12,7 @@ import { Button, Field, fieldDescribedBy, inputClassName } from "@/components/ui
 /** Named once so the visible hint and its aria-describedby cannot disagree. */
 const NAME_HINT = "What the other party and the admin will see.";
 const PASSWORD_HINT = "At least 8 characters. Length matters more than symbols.";
+const REFERRAL_HINT = "Looks like PES-7F3K9Q. Whoever invited you has one.";
 
 /**
  * Create an account.
@@ -20,8 +21,12 @@ const PASSWORD_HINT = "At least 8 characters. Length matters more than symbols."
  * still exactly what is accepted. The strength meter below is advice shown
  * while typing and has no say in whether the form submits — see the note in
  * password-strength.tsx.
+ *
+ * `initialReferralCode` comes from ?ref= on a promoter's share link. Someone
+ * arriving that way should not have to copy anything by hand, and someone
+ * arriving without it still gets an empty box they can paste into.
  */
-export function RegisterForm() {
+export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode?: string }) {
   const [state, formAction, pending] = useActionState(registerAction, undefined);
 
   // Held only to draw the meter. It is never submitted separately, never sent
@@ -31,6 +36,34 @@ export function RegisterForm() {
   return (
     <form action={formAction} className="space-y-4">
       <AuthFormError message={state?.message} />
+
+      {/* First, because it is the gate. Everything else on this form is wasted
+          effort if the person does not have one, and finding that out after
+          choosing a password is the worst moment to be told. */}
+      <Field
+        label="Promoter's code"
+        name="referralCode"
+        error={state?.fieldErrors?.referralCode}
+        hint={REFERRAL_HINT}
+      >
+        <input
+          id="referralCode"
+          name="referralCode"
+          type="text"
+          required
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          defaultValue={state?.values?.referralCode ?? initialReferralCode}
+          aria-invalid={Boolean(state?.fieldErrors?.referralCode) || undefined}
+          aria-describedby={fieldDescribedBy("referralCode", {
+            hint: REFERRAL_HINT,
+            error: state?.fieldErrors?.referralCode,
+          })}
+          className={`${inputClassName} font-mono uppercase tracking-wider`}
+          placeholder="PES-XXXXXX"
+        />
+      </Field>
 
       <Field
         label="Display name"
@@ -107,7 +140,8 @@ export function RegisterForm() {
       </Button>
 
       <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
-        One account covers both sides — you can be the seller in one deal and the buyer in another.
+        One account covers both sides of a swap — and comes with a promoter code of your own, so you
+        can earn from everyone you bring in.
       </p>
     </form>
   );

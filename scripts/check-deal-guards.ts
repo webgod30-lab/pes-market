@@ -44,8 +44,15 @@ import {
   markWithdrawalSent,
   rejectWithdrawal,
   requestWithdrawal,
+  MINIMUM_WITHDRAWAL_CENTS,
 } from "../src/lib/wallet";
 import { hashPassword } from "../src/lib/passwords";
+import { generateDealReference, generateInviteCode, generateReferralCode } from "../src/lib/ids";
+import {
+  creditReferralsForDeal,
+  reconcileReferralCredits,
+  REFERRAL_REWARD_CENTS,
+} from "../src/lib/referrals";
 import type { CurrentUser } from "../src/lib/dal";
 
 let passed = 0;
@@ -82,36 +89,55 @@ const fixtureIds: string[] = [];
 /** Users this run created, likewise. */
 const fixtureUserIds: string[] = [];
 
-/** Builds a deal and walks it to the requested stage. */
+/**
+ * Builds a CASH deal and walks it to the requested stage.
+ *
+ * The row is written directly rather than through createDeal(), because
+ * createDeal only makes swaps now — there is no supported route to a cash deal
+ * any more. The guards below still matter: the payment, refund and payout code
+ * paths are all still in the codebase and still reachable for the deals that
+ * were closed under that flow, so they are still worth proving nobody can walk
+ * around. What is no longer tested here is *creating* one, which is correct,
+ * because nobody can.
+ */
 async function makeDeal(
   seller: CurrentUser,
   buyer: CurrentUser,
   admin: CurrentUser,
   upTo: "awaiting_payment" | "payment_submitted" | "credentials_released" | "settled",
 ): Promise<string> {
-  const created = await createDeal({
-    creator: seller,
-    side: "seller",
-    accountSummary: "GUARD FIXTURE — created by npm run test:guards, safe to delete.",
-    game: "eFootball",
-    platform: null,
-    level: null,
-    agreedPriceCents: 10_000,
+  const inviteCode = generateInviteCode();
+
+  const created = await prisma.deal.create({
+    data: {
+      reference: generateDealReference(),
+      inviteCode,
+      createdById: seller.id,
+      createdSide: "seller",
+      sellerId: seller.id,
+      accountSummary: "GUARD FIXTURE — created by npm run test:guards, safe to delete.",
+      game: "eFootball",
+      tradeKind: "cash",
+      agreedPriceCents: 10_000,
+      feeBps: 500,
+      feeCents: 500,
+      sellerPayoutCents: 9_500,
+      status: "awaiting_counterparty",
+    },
+    select: { id: true },
   });
 
-  if (!created.ok) throw new Error(`fixture setup failed: ${created.error}`);
+  fixtureIds.push(created.id);
 
-  fixtureIds.push(created.dealId);
-
-  const joined = await joinDealByCode(buyer, created.inviteCode);
+  const joined = await joinDealByCode(buyer, inviteCode);
   if (!joined.ok) throw new Error(`fixture join failed: ${joined.error}`);
 
-  const deposited = await depositCredentials(seller, created.dealId, CREDS);
+  const deposited = await depositCredentials(seller, created.id, CREDS);
   if (!deposited.ok) throw new Error(`fixture deposit failed: ${deposited.error}`);
 
-  if (upTo === "awaiting_payment") return created.dealId;
+  if (upTo === "awaiting_payment") return created.id;
 
-  const paid = await submitPayment(buyer, created.dealId, {
+  const paid = await submitPayment(buyer, created.id, {
     method: "crypto",
     txHash: "0xfixture",
     reference: null,
@@ -119,21 +145,63 @@ async function makeDeal(
   });
   if (!paid.ok) throw new Error(`fixture payment failed: ${paid.error}`);
 
-  if (upTo === "payment_submitted") return created.dealId;
+  if (upTo === "payment_submitted") return created.id;
 
-  const confirmed = await confirmPaymentReceived(admin, created.dealId);
+  const confirmed = await confirmPaymentReceived(admin, created.id);
   if (!confirmed.ok) throw new Error(`fixture confirm failed: ${confirmed.error}`);
 
-  const released = await approveDelivery(admin, created.dealId);
+  const released = await approveDelivery(admin, created.id);
   if (!released.ok) throw new Error(`fixture release failed: ${released.error}`);
 
-  if (upTo === "credentials_released") return created.dealId;
+  if (upTo === "credentials_released") return created.id;
 
-  const claimed = await confirmClaimed(buyer, created.dealId);
+  const claimed = await confirmClaimed(buyer, created.id);
   if (!claimed.ok) throw new Error(`fixture claim failed: ${claimed.error}`);
 
-  const paidOut = await markPayoutSent(admin, created.dealId, "fixture-payout");
+  const paidOut = await markPayoutSent(admin, created.id, "fixture-payout");
   if (!paidOut.ok) throw new Error(`fixture payout failed: ${paidOut.error}`);
+
+  return created.id;
+}
+
+/**
+ * Builds a SWAP through the real routes and walks it to released.
+ *
+ * This is the flow the site actually offers, so unlike makeDeal it goes through
+ * createDeal, the invite, and both deposits rather than writing rows. Returned
+ * at credentials_released, because what the callers below test is what happens
+ * when the two confirmations arrive.
+ */
+async function makeSwap(
+  seller: CurrentUser,
+  buyer: CurrentUser,
+  admin: CurrentUser,
+): Promise<string> {
+  const created = await createDeal({
+    creator: seller,
+    side: "seller",
+    accountSummary: "GUARD FIXTURE — swap seller side, safe to delete.",
+    counterAccountSummary: "GUARD FIXTURE — swap buyer side, safe to delete.",
+    game: "eFootball",
+    platform: null,
+    level: null,
+  });
+
+  if (!created.ok) throw new Error(`swap fixture setup failed: ${created.error}`);
+
+  fixtureIds.push(created.dealId);
+
+  const joined = await joinDealByCode(buyer, created.inviteCode);
+  if (!joined.ok) throw new Error(`swap fixture join failed: ${joined.error}`);
+
+  // Both sides deposit: that symmetry is the whole difference from a cash deal.
+  for (const party of [seller, buyer]) {
+    const deposited = await depositCredentials(party, created.dealId, CREDS);
+    if (!deposited.ok) throw new Error(`swap fixture deposit failed: ${deposited.error}`);
+  }
+
+  const released = await approveDelivery(admin, created.dealId);
+  if (!released.ok) throw new Error(`swap fixture release failed: ${released.error}`);
 
   return created.dealId;
 }
@@ -199,7 +267,7 @@ async function main() {
     game: "eFootball",
     platform: null,
     level: null,
-    agreedPriceCents: 5_000,
+    counterAccountSummary: "GUARD FIXTURE — self-join counter side, safe to delete.",
   });
 
   if (!selfJoinFixture.ok) throw new Error("fixture setup failed");
@@ -452,6 +520,7 @@ async function main() {
       displayName: "Guard Fixture Admin",
       passwordHash: "not-a-real-hash",
       role: "admin",
+      referralCode: generateReferralCode(),
     },
     select: { id: true },
   });
@@ -633,51 +702,67 @@ async function main() {
   // Wallet: the balance is money, so every claim about it is asserted
   // -------------------------------------------------------------------------
 
-  // A fresh seller, so the arithmetic below is not competing with whatever
+  // A fresh promoter, so the arithmetic below is not competing with whatever
   // else the seed left lying around.
-  const walletSeller = await prisma.user.create({
+  const walletPromoter = await prisma.user.create({
     data: {
       email: `wallet-fixture-${Date.now()}@example.com`,
       displayName: "Wallet Fixture",
       passwordHash: await hashPassword("wallet-fixture-pw"),
+      referralCode: generateReferralCode(),
     },
     select: { id: true, email: true, displayName: true, role: true, createdAt: true },
   });
-  fixtureUserIds.push(walletSeller.id);
+  fixtureUserIds.push(walletPromoter.id);
 
-  const emptyBalance = await getBalance(walletSeller.id);
+  const emptyBalance = await getBalance(walletPromoter.id);
   assert.equal(emptyBalance.earnedCents, 0);
   assert.equal(emptyBalance.availableCents, 0);
-  ok("a seller with no settled deals has nothing to withdraw");
+  assert.equal(emptyBalance.meetsMinimum, false);
+  ok("a promoter with no referral credits has nothing to withdraw");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 5_000, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
-  ok("a withdrawal cannot be requested against an empty balance");
+  assert.equal((await requestWithdrawal(walletPromoter, { amountCents: 5_000, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
+  ok("a payout cannot be requested against an empty balance");
 
-  // Two settled sales, so the balance is a sum rather than a single figure.
-  const walletDealA = await makeDeal(walletSeller, karim, admin, "credentials_released");
-  await confirmClaimed(karim, walletDealA);
-  const walletDealB = await makeDeal(walletSeller, karim, admin, "credentials_released");
-  await confirmClaimed(karim, walletDealB);
+  // Credits written directly, rather than by completing twenty fixture deals.
+  //
+  // The balance is a SUM over amountCents and does not care how many rows
+  // produced it, so one row exercises exactly the arithmetic thirty would —
+  // and $40 is twenty completed deals, which is far too many fixtures to build
+  // for an assertion about addition. That $2 is what a real completed deal
+  // writes, and that it is written exactly once, is asserted separately below.
+  const creditDeal = await makeDeal(walletPromoter, karim, admin, "credentials_released");
+  await confirmClaimed(karim, creditDeal);
 
-  const payouts = await prisma.deal.findMany({
-    where: { id: { in: [walletDealA, walletDealB] } },
-    select: { sellerPayoutCents: true },
+  const expectedEarned = 12_000;
+
+  // Cleared first so the fixture is re-runnable against a database that
+  // already has a row for this pair.
+  await prisma.referralEarning.deleteMany({ where: { dealId: creditDeal } });
+
+  await prisma.referralEarning.create({
+    data: {
+      promoterId: walletPromoter.id,
+      traderId: karim.id,
+      dealId: creditDeal,
+      amountCents: expectedEarned,
+    },
   });
-  const expectedEarned = payouts.reduce((sum, d) => sum + d.sellerPayoutCents, 0);
 
-  const earnedBalance = await getBalance(walletSeller.id);
+  const earnedBalance = await getBalance(walletPromoter.id);
   assert.equal(earnedBalance.earnedCents, expectedEarned);
   assert.equal(earnedBalance.availableCents, expectedEarned);
-  ok("settled sales credit the balance, to the cent");
+  assert.equal(earnedBalance.meetsMinimum, true);
+  ok("referral credits land in the balance, to the cent");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: expectedEarned + 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
-  ok("a seller cannot withdraw more than they have");
+  assert.equal((await requestWithdrawal(walletPromoter, { amountCents: expectedEarned + 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
+  ok("a promoter cannot withdraw more than they have");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
-  ok("a withdrawal below the minimum is refused");
+  assert.equal((await requestWithdrawal(walletPromoter, { amountCents: MINIMUM_WITHDRAWAL_CENTS - 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
+  ok("a payout below the $40 minimum is refused even when the balance covers it");
 
-  const firstRequest = await requestWithdrawal(walletSeller, {
-    amountCents: 2_000,
+  const firstRequest = await requestWithdrawal(walletPromoter, {
+    amountCents: MINIMUM_WITHDRAWAL_CENTS,
     method: "crypto",
     destinationName: "Wallet Fixture",
     destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
@@ -685,30 +770,30 @@ async function main() {
   });
   assert.equal(firstRequest.ok, true);
 
-  const reserved = await getBalance(walletSeller.id);
-  assert.equal(reserved.availableCents, expectedEarned - 2_000);
+  const reserved = await getBalance(walletPromoter.id);
+  assert.equal(reserved.availableCents, expectedEarned - MINIMUM_WITHDRAWAL_CENTS);
   ok("an open request reserves the money immediately");
 
-  assert.equal((await requestWithdrawal(walletSeller, { amountCents: 1_000, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "x".repeat(34), destinationNetwork: "TRC-20" })).ok, false);
-  ok("only one withdrawal can be open at a time");
+  assert.equal((await requestWithdrawal(walletPromoter, { amountCents: MINIMUM_WITHDRAWAL_CENTS, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "x".repeat(34), destinationNetwork: "TRC-20" })).ok, false);
+  ok("only one payout can be open at a time");
 
   const withdrawalId = (firstRequest as { withdrawalId: string }).withdrawalId;
 
   assert.equal((await markWithdrawalSent(karim, withdrawalId, "0xnope")).ok, false);
-  assert.equal((await rejectWithdrawal(walletSeller, withdrawalId, "mine now")).ok, false);
-  ok("only an admin can send or refuse a withdrawal");
+  assert.equal((await rejectWithdrawal(walletPromoter, withdrawalId, "mine now")).ok, false);
+  ok("only an admin can send or refuse a payout");
 
   assert.equal((await markWithdrawalSent(admin, withdrawalId, "   ")).ok, false);
-  ok("marking a withdrawal sent requires a reference");
+  ok("marking a payout sent requires a reference");
 
   // Refusing hands the money straight back, with no compensating write.
   assert.equal((await rejectWithdrawal(admin, withdrawalId, "address missing the network")).ok, true);
-  const afterReject = await getBalance(walletSeller.id);
+  const afterReject = await getBalance(walletPromoter.id);
   assert.equal(afterReject.availableCents, expectedEarned);
-  ok("a refused withdrawal returns the money to the balance");
+  ok("a refused payout returns the money to the balance");
 
-  const second = await requestWithdrawal(walletSeller, {
-    amountCents: 2_000,
+  const second = await requestWithdrawal(walletPromoter, {
+    amountCents: MINIMUM_WITHDRAWAL_CENTS,
     method: "crypto",
     destinationName: "Wallet Fixture",
     destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
@@ -718,71 +803,162 @@ async function main() {
 
   assert.equal((await markWithdrawalSent(admin, secondId, "0xsent")).ok, true);
   assert.equal((await markWithdrawalSent(admin, secondId, "0xsent-again")).ok, false);
-  ok("a withdrawal cannot be marked sent twice");
+  ok("a payout cannot be marked sent twice");
 
-  const afterSent = await getBalance(walletSeller.id);
-  assert.equal(afterSent.availableCents, expectedEarned - 2_000);
-  ok("a sent withdrawal stays deducted");
+  const afterSent = await getBalance(walletPromoter.id);
+  assert.equal(afterSent.availableCents, expectedEarned - MINIMUM_WITHDRAWAL_CENTS);
+  ok("a sent payout stays deducted");
 
-  // Money the buyer has paid but not yet confirmed is visible and NOT
-  // withdrawable. This is the whole contract of the "held for you" figure: a
-  // seller can see the payment landed, but cannot take it until the buyer says
-  // they have the account. If these two ever merge, a seller could be paid for
-  // a deal that is still refundable.
-  const heldSeller = await prisma.user.create({
+  // -------------------------------------------------------------------------
+  // Referral crediting: this is the only money the service owes anyone
+  // -------------------------------------------------------------------------
+
+  const promoterA = await prisma.user.create({
     data: {
-      email: `wallet-held-${Date.now()}@example.com`,
-      displayName: "Held Fixture",
-      passwordHash: await hashPassword("held-fixture-pw"),
+      email: `promoter-a-${Date.now()}@example.com`,
+      displayName: "Promoter A",
+      passwordHash: await hashPassword("promoter-a-pw"),
+      referralCode: generateReferralCode(),
+    },
+    select: { id: true },
+  });
+  fixtureUserIds.push(promoterA.id);
+
+  const promoterB = await prisma.user.create({
+    data: {
+      email: `promoter-b-${Date.now()}@example.com`,
+      displayName: "Promoter B",
+      passwordHash: await hashPassword("promoter-b-pw"),
+      referralCode: generateReferralCode(),
+    },
+    select: { id: true },
+  });
+  fixtureUserIds.push(promoterB.id);
+
+  // Two traders, each introduced by a different promoter — the ordinary case,
+  // where one completed deal owes two people $2.
+  const traderA = await prisma.user.create({
+    data: {
+      email: `trader-a-${Date.now()}@example.com`,
+      displayName: "Trader A",
+      passwordHash: await hashPassword("trader-a-pw"),
+      referralCode: generateReferralCode(),
+      referredById: promoterA.id,
     },
     select: { id: true, email: true, displayName: true, role: true, createdAt: true },
   });
-  fixtureUserIds.push(heldSeller.id);
+  fixtureUserIds.push(traderA.id);
 
-  const heldDeal = await makeDeal(heldSeller, karim, admin, "credentials_released");
-  const held = await getBalance(heldSeller.id);
-
-  assert.ok(held.pendingCents > 0, "a confirmed payment on a live deal should show as pending");
-  assert.equal(held.availableCents, 0);
-  assert.equal(held.earnedCents, 0);
-  ok("money held on a running deal shows as pending, not as balance");
-
-  const beforeConfirm = await requestWithdrawal(heldSeller, {
-    amountCents: held.pendingCents,
-    method: "crypto",
-    destinationName: "Held Fixture",
-    destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
-    destinationNetwork: "TRC-20",
+  const traderB = await prisma.user.create({
+    data: {
+      email: `trader-b-${Date.now()}@example.com`,
+      displayName: "Trader B",
+      passwordHash: await hashPassword("trader-b-pw"),
+      referralCode: generateReferralCode(),
+      referredById: promoterB.id,
+    },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
   });
-  assert.equal(beforeConfirm.ok, false, "pending money must not be withdrawable");
-  ok("a seller cannot withdraw a payment the buyer has not confirmed");
+  fixtureUserIds.push(traderB.id);
 
-  // ...and the moment the buyer confirms, it moves across.
-  await confirmClaimed(karim, heldDeal);
-  const afterConfirm = await getBalance(heldSeller.id);
+  const referralDeal = await makeSwap(traderA, traderB, admin);
 
-  assert.equal(afterConfirm.pendingCents, 0);
-  assert.equal(afterConfirm.availableCents, held.pendingCents);
-  ok("confirming moves the held money into the withdrawable balance");
+  const beforeComplete = await getBalance(promoterA.id);
+  assert.equal(beforeComplete.earnedCents, 0);
+  ok("an unfinished deal owes its promoters nothing");
+
+  await confirmClaimed(traderB, referralDeal);
+  await confirmClaimed(traderA, referralDeal);
+
+  assert.equal((await getBalance(promoterA.id)).earnedCents, REFERRAL_REWARD_CENTS);
+  assert.equal((await getBalance(promoterB.id)).earnedCents, REFERRAL_REWARD_CENTS);
+  ok("a completed swap credits $2 to each side's promoter");
+
+  // The guard that stands between a retried completion and paying twice.
+  await creditReferralsForDeal(referralDeal);
+  await creditReferralsForDeal(referralDeal);
+  assert.equal((await getBalance(promoterA.id)).earnedCents, REFERRAL_REWARD_CENTS);
+  ok("crediting the same deal again pays nothing extra");
+
+  // Unwinding a completed deal takes the credits with it, or the service pays
+  // for a trade that did not happen.
+  assert.equal((await forceRefundCompleted(admin, referralDeal)).ok, true);
+  assert.equal((await getBalance(promoterA.id)).earnedCents, 0);
+  assert.equal((await getBalance(promoterB.id)).earnedCents, 0);
+  ok("force-refunding a completed deal removes the referral credits");
+
+  // A promoter must not earn from a deal they were personally in — otherwise
+  // introducing one friend and swapping with them repeatedly is free money.
+  const selfDealer = await prisma.user.create({
+    data: {
+      email: `self-dealer-${Date.now()}@example.com`,
+      displayName: "Self Dealer",
+      passwordHash: await hashPassword("self-dealer-pw"),
+      referralCode: generateReferralCode(),
+    },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+  });
+  fixtureUserIds.push(selfDealer.id);
+
+  const theirRecruit = await prisma.user.create({
+    data: {
+      email: `recruit-${Date.now()}@example.com`,
+      displayName: "Their Recruit",
+      passwordHash: await hashPassword("recruit-pw"),
+      referralCode: generateReferralCode(),
+      referredById: selfDealer.id,
+    },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+  });
+  fixtureUserIds.push(theirRecruit.id);
+
+  const selfDeal = await makeSwap(theirRecruit, selfDealer, admin);
+  await confirmClaimed(selfDealer, selfDeal);
+  await confirmClaimed(theirRecruit, selfDeal);
+
+  assert.equal((await getBalance(selfDealer.id)).earnedCents, 0);
+  ok("a promoter earns nothing from a deal they traded in themselves");
+
+  // An archived cash deal must never generate a credit. Those closed before the
+  // programme existed, and without this the reconcile pass would invent a debt
+  // for every one of them the first time it ran.
+  const archivedCash = await makeDeal(traderA, traderB, admin, "credentials_released");
+  await confirmClaimed(traderB, archivedCash);
+
+  assert.equal(await prisma.referralEarning.count({ where: { dealId: archivedCash } }), 0);
+  assert.equal((await creditReferralsForDeal(archivedCash)).credited, 0);
+  assert.equal((await reconcileReferralCredits()).credited, 0);
+  ok("a completed cash deal from the retired flow credits nobody, even on reconcile");
 
   // Racing requests must not both pass the balance check and over-commit it.
-  const raceSeller = await prisma.user.create({
+  const racePromoter = await prisma.user.create({
     data: {
       email: `wallet-race-${Date.now()}@example.com`,
       displayName: "Race Fixture",
       passwordHash: await hashPassword("race-fixture-pw"),
+      referralCode: generateReferralCode(),
     },
     select: { id: true, email: true, displayName: true, role: true, createdAt: true },
   });
-  fixtureUserIds.push(raceSeller.id);
+  fixtureUserIds.push(racePromoter.id);
 
-  const raceDeal = await makeDeal(raceSeller, karim, admin, "credentials_released");
+  const raceDeal = await makeDeal(racePromoter, karim, admin, "credentials_released");
   await confirmClaimed(karim, raceDeal);
-  const raceBalance = await getBalance(raceSeller.id);
+  // As above, so the fixture is re-runnable.
+  await prisma.referralEarning.deleteMany({ where: { dealId: raceDeal } });
+  await prisma.referralEarning.create({
+    data: {
+      promoterId: racePromoter.id,
+      traderId: karim.id,
+      dealId: raceDeal,
+      amountCents: 8_000,
+    },
+  });
+  const raceBalance = await getBalance(racePromoter.id);
 
   const attempts = await Promise.allSettled(
     Array.from({ length: 4 }, () =>
-      requestWithdrawal(raceSeller, {
+      requestWithdrawal(racePromoter, {
         amountCents: raceBalance.availableCents,
         method: "crypto",
         destinationName: "Race Fixture",
@@ -792,19 +968,19 @@ async function main() {
     ),
   );
   const granted = attempts.filter((a) => a.status === "fulfilled" && a.value.ok).length;
-  assert.ok(granted <= 1, `granted ${granted} concurrent withdrawals of the whole balance`);
+  assert.ok(granted <= 1, `granted ${granted} concurrent payouts of the whole balance`);
 
-  const raced = await getBalance(raceSeller.id);
+  const raced = await getBalance(racePromoter.id);
   assert.ok(raced.netCents >= 0, `balance went negative: ${raced.netCents}`);
   ok("concurrent requests cannot commit the same balance twice");
 
   // Each method stores only the fields it uses. A bank payout carrying a
   // network, or a crypto one carrying a BIC, means the wrong field was read
   // somewhere — and the admin sends money from these.
-  await prisma.withdrawal.deleteMany({ where: { sellerId: walletSeller.id, status: "requested" } });
+  await prisma.withdrawal.deleteMany({ where: { promoterId: walletPromoter.id, status: "requested" } });
 
-  const bank = await requestWithdrawal(walletSeller, {
-    amountCents: 1_000,
+  const bank = await requestWithdrawal(walletPromoter, {
+    amountCents: MINIMUM_WITHDRAWAL_CENTS,
     method: "bank_transfer",
     destinationName: "Wallet Fixture",
     destinationAccount: "AE070331234567890123456",
@@ -864,8 +1040,6 @@ async function main() {
     game: "eFootball",
     platform: null,
     level: null,
-    agreedPriceCents: 0,
-    tradeKind: "swap",
     counterAccountSummary: "   ",
   });
   assert.equal(noCounter.ok, false);
@@ -878,10 +1052,6 @@ async function main() {
     game: "eFootball",
     platform: null,
     level: null,
-    // Deliberately non-zero, to prove the domain layer forces it to nothing
-    // rather than trusting the caller.
-    agreedPriceCents: 25_000,
-    tradeKind: "swap",
     counterAccountSummary: "GUARD FIXTURE — swap buyer side, safe to delete.",
   });
 
@@ -897,7 +1067,7 @@ async function main() {
   assert.equal(swapRow.agreedPriceCents, 0);
   assert.equal(swapRow.feeCents, 0);
   assert.equal(swapRow.sellerPayoutCents, 0);
-  ok("a swap carries no price, no fee and no payout, whatever the caller asked for");
+  ok("a swap carries no price, no fee and no payout — there is no way to give it one");
 
   const swapJoin = await joinDealByCode(karim, swapCreated.inviteCode);
   assert.equal(swapJoin.ok, true);

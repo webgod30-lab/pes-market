@@ -8,30 +8,37 @@
 // What this is for. The other scripts each cover one slice: db:seed writes
 // finished rows straight into the database, test:guards drives the domain layer
 // with users that already exist, test:load measures query time at scale. None of
-// them start where a real person starts. This one registers a brand new seller
-// and a brand new buyer for every deal and then plays the whole thing out —
-// create, invite, join, deposit, pay, verify, release, the Konami code exchange,
-// claim, payout, and both reviews — checking the result of every step.
+// them start where a real person starts. This one registers a brand new pair of
+// traders for every swap and plays the whole thing out — register with a
+// promoter's code, create, invite, join, both deposits, verify, release, the
+// Konami code exchange, both confirmations and both reviews — checking the
+// result of every step.
 //
 // So it answers a question the others cannot: can two people who signed up a
 // minute ago actually complete a trade, using only the routes the UI offers?
+//
+// Every deal it creates is an account-for-account swap, because that is the
+// only kind the site offers. Nothing pays and nothing is paid out; the money
+// that moves is the $2 each completed swap owes the two traders' promoters.
 //
 // LOCAL ONLY. See the guard below.
 import "dotenv/config";
 
 import { prisma } from "../src/lib/prisma";
 import { hashPassword } from "../src/lib/passwords";
+import { mintReferralCode } from "../src/lib/referrals";
 import { registerSchema, createDealSchema } from "../src/lib/validation";
+// No payment functions here any more: a swap has nothing to pay, so
+// submitPayment, confirmPaymentReceived and markPayoutSent are unreachable
+// from a deal this bot can create. They still exist for the archived cash
+// deals — see scripts/check-deal-guards.ts, which still exercises them.
 import {
   approveDelivery,
   confirmClaimed,
-  confirmPaymentReceived,
   createDeal,
   depositCredentials,
   joinDealByCode,
-  markPayoutSent,
   revealDeliveredCredentials,
-  submitPayment,
 } from "../src/lib/deals";
 import { postMessage } from "../src/lib/messages";
 import { leaveReview } from "../src/lib/reviews";
@@ -39,7 +46,6 @@ import { openDispute } from "../src/lib/disputes";
 import { requestTransferCode, sendTransferCode } from "../src/lib/transfer-codes";
 import { ACCOUNTS, SELLER_REVIEWS, BUYER_REVIEWS } from "./bot-content";
 import type { CurrentUser } from "../src/lib/dal";
-import type { PaymentMethod } from "../src/generated/prisma/client";
 
 // ---------------------------------------------------------------------------
 // Production guard
@@ -234,6 +240,18 @@ function makeIdentity(): { displayName: string; email: string } {
  * functions below take a user object, not a session.
  */
 async function registerBotUser(): Promise<CurrentUser> {
+  // Nobody can register without a promoter's code, so the bot needs one too.
+  // The seeded admin is the root of the tree and always exists, which is also
+  // what a real first user has to rely on.
+  const promoter = await prisma.user.findFirst({
+    where: { role: "admin" },
+    select: { id: true, referralCode: true },
+  });
+
+  if (!promoter) {
+    throw new Error("No admin to refer bot accounts from — run `npm run db:seed` first.");
+  }
+
   // A previous run that was interrupted before its cleanup leaves accounts
   // behind, and the same seed then regenerates the same addresses. Registering
   // is the one step that must not abort a run over that, so a taken address is
@@ -241,7 +259,11 @@ async function registerBotUser(): Promise<CurrentUser> {
   for (let attempt = 0; attempt < 50; attempt++) {
     const identity = makeIdentity();
 
-    const parsed = registerSchema.safeParse({ ...identity, password: BOT_PASSWORD });
+    const parsed = registerSchema.safeParse({
+      ...identity,
+      password: BOT_PASSWORD,
+      referralCode: promoter.referralCode,
+    });
 
     if (!parsed.success) {
       throw new Error(`Bot identity failed the real register schema: ${parsed.error.message}`);
@@ -254,7 +276,13 @@ async function registerBotUser(): Promise<CurrentUser> {
     if (existing) continue;
 
     return prisma.user.create({
-      data: { displayName, email, passwordHash: await hashPassword(password) },
+      data: {
+        displayName,
+        email,
+        passwordHash: await hashPassword(password),
+        referralCode: await mintReferralCode(),
+        referredById: promoter.id,
+      },
       select: { id: true, email: true, displayName: true, role: true, createdAt: true },
     });
   }
@@ -288,19 +316,29 @@ function check(label: string, result: { ok: boolean; error?: string }): boolean 
 type Stage =
   | "awaiting_counterparty"
   | "awaiting_credentials"
-  | "awaiting_payment"
-  | "payment_submitted"
+  | "one_side_deposited"
   | "admin_verifying"
   | "credentials_released"
+  | "half_confirmed"
   | "disputed"
   | "settled";
 
+/**
+ * The two payment stages are gone — a swap has nothing to pay, so no deal can
+ * ever sit in them. Two stages that only a swap has took their share:
+ *
+ *   one_side_deposited — one account is in and the other is not. This is the
+ *     moment a swap is most exposed, and the one the timeline had to learn to
+ *     describe, so the bot should always leave some deals sitting in it.
+ *   half_confirmed — released, and one party has confirmed. A swap does not
+ *     close until both do, so this is where a stalled one waits.
+ */
 const STAGE_MIX: [Stage, number][] = [
   ["settled", 0.55],
-  ["payment_submitted", 0.1],
+  ["one_side_deposited", 0.1],
   ["admin_verifying", 0.07],
   ["credentials_released", 0.07],
-  ["awaiting_payment", 0.07],
+  ["half_confirmed", 0.07],
   ["awaiting_credentials", 0.05],
   ["awaiting_counterparty", 0.05],
   ["disputed", 0.04],
@@ -338,26 +376,26 @@ function stageFor(index: number): Stage {
 // One deal, start to finish
 // ---------------------------------------------------------------------------
 
-async function runOneDeal(index: number, admin: CurrentUser, paymentMethods: PaymentMethodChoice[]) {
+async function runOneDeal(index: number, admin: CurrentUser) {
   const stage = stageFor(index);
   const account = accountPool[index % accountPool.length];
 
   const seller = await registerBotUser();
   const buyer = await registerBotUser();
 
-  // Prices are invented, but tied to the account so the numbers are not absurd:
-  // a starter account and a 52-Epic collection should not cost the same.
-  const basePrice = account.statesACatch ? between(2_500, 18_000) : between(2_000, 48_000);
+  // What the other side puts up. Taken from further along the pool so the two
+  // descriptions on a swap are never the same account.
+  const counterAccount = accountPool[(index + 3) % accountPool.length];
 
   // Submitted as strings through the same schema the form uses, so a change to
   // validation breaks this run rather than silently passing.
   const parsed = createDealSchema.safeParse({
     side: "seller",
     accountSummary: account.summary,
+    counterAccountSummary: counterAccount.summary,
     game: account.game,
     platform: account.platform,
     level: String(between(8, 90)),
-    agreedPriceCents: (basePrice / 100).toFixed(2),
   });
 
   if (!parsed.success) {
@@ -375,12 +413,11 @@ async function runOneDeal(index: number, admin: CurrentUser, paymentMethods: Pay
   }
 
   const { dealId, reference, inviteCode } = created;
-  const price = parsed.data.agreedPriceCents;
 
   const line = (note: string) =>
     console.log(
-      `  [${String(index + 1).padStart(3)}] ${reference}  $${(price / 100).toFixed(2).padStart(7)}  ` +
-        `${seller.displayName} → ${buyer.displayName}  ${note}`,
+      `  [${String(index + 1).padStart(3)}] ${reference}  ` +
+        `${seller.displayName} ⇄ ${buyer.displayName}  ${note}`,
     );
 
   // --- the buyer joins -----------------------------------------------------
@@ -394,72 +431,55 @@ async function runOneDeal(index: number, admin: CurrentUser, paymentMethods: Pay
   await postMessage(buyer, dealId, "Joined. Ready when you are.");
 
   if (stage === "awaiting_credentials") {
-    line("waiting on the seller's account details");
+    line("waiting on both accounts");
     return;
   }
 
-  // --- the seller deposits the account -------------------------------------
+  // --- both sides deposit their account ------------------------------------
   // Obviously fake logins. Nothing here is, or resembles, a real credential.
-  if (
-    !check(
-      "depositCredentials",
-      await depositCredentials(seller, dealId, {
-        loginEmail: `bot-fixture-${index}@${BOT_EMAIL_DOMAIN}`,
-        loginPassword: `not-a-real-password-${index}`,
-        recoveryEmail: random() < 0.5 ? `bot-recovery-${index}@${BOT_EMAIL_DOMAIN}` : "",
-        recoveryEmailPassword: "",
-        notes: account.statesACatch
-          ? "Limitation stated in the description. Bot fixture."
-          : "Bot fixture — no real account behind this.",
-      }),
-    )
-  ) {
+  const deposit = (party: CurrentUser, who: "seller" | "buyer") =>
+    depositCredentials(party, dealId, {
+      loginEmail: `bot-fixture-${index}-${who}@${BOT_EMAIL_DOMAIN}`,
+      loginPassword: `not-a-real-password-${index}-${who}`,
+      recoveryEmail: random() < 0.5 ? `bot-recovery-${index}-${who}@${BOT_EMAIL_DOMAIN}` : "",
+      recoveryEmailPassword: "",
+      notes: account.statesACatch
+        ? "Limitation stated in the description. Bot fixture."
+        : "Bot fixture — no real account behind this.",
+    });
+
+  if (!check("depositCredentials (seller)", await deposit(seller, "seller"))) return;
+
+  await postMessage(seller, dealId, "My account is in. Put yours up when you can.");
+
+  // The state only a swap has: one account deposited, the other not. Nothing
+  // is released, and the person who went first is exposed to exactly nothing —
+  // which is the property worth being able to see on screen.
+  if (stage === "one_side_deposited") {
+    line("one account in, waiting on the other");
     return;
   }
 
-  await postMessage(seller, dealId, "Account details are in. Have a look when you get a chance.");
+  if (!check("depositCredentials (buyer)", await deposit(buyer, "buyer"))) return;
 
-  if (stage === "awaiting_payment") {
-    line("account deposited, waiting on payment");
-    return;
-  }
-
-  // --- the buyer pays ------------------------------------------------------
-  const method = pick(paymentMethods);
-
-  if (
-    !check(
-      "submitPayment",
-      await submitPayment(buyer, dealId, {
-        method: method.method,
-        txHash: method.method === "crypto" ? `0xbot${index.toString(16).padStart(8, "0")}` : null,
-        reference: method.method === "crypto" ? null : `BOT-REF-${index}`,
-        instructionsSnapshot: method.instructions,
-      }),
-    )
-  ) {
-    return;
-  }
-
-  if (stage === "payment_submitted") {
-    line(`paid by ${method.label}, waiting on the admin`);
-    return;
-  }
-
-  // --- the admin confirms the money and checks the account ------------------
-  if (!check("confirmPaymentReceived", await confirmPaymentReceived(admin, dealId))) return;
+  await postMessage(buyer, dealId, "Mine is in too. Over to the admin.");
 
   if (stage === "admin_verifying") {
-    line("payment confirmed, account being verified");
+    line("both accounts in, being verified");
     return;
   }
 
+  // --- the admin checks both, then releases them together -------------------
   if (!check("approveDelivery", await approveDelivery(admin, dealId))) return;
 
-  // --- the buyer reads the account -----------------------------------------
-  const revealed = await revealDeliveredCredentials(buyer, dealId);
+  // --- each side reads the account they received ---------------------------
+  if (!check("revealDeliveredCredentials (buyer)", await revealDeliveredCredentials(buyer, dealId))) {
+    return;
+  }
 
-  if (!check("revealDeliveredCredentials", revealed)) return;
+  if (!check("revealDeliveredCredentials (seller)", await revealDeliveredCredentials(seller, dealId))) {
+    return;
+  }
 
   // --- the Konami code step ------------------------------------------------
   // Roughly half of real transfers need one, and it is where claims stall.
@@ -475,7 +495,7 @@ async function runOneDeal(index: number, admin: CurrentUser, paymentMethods: Pay
   }
 
   if (stage === "credentials_released") {
-    line("account released, buyer is claiming it");
+    line("both accounts released, both claiming");
     return;
   }
 
@@ -487,16 +507,30 @@ async function runOneDeal(index: number, admin: CurrentUser, paymentMethods: Pay
         buyer,
         dealId,
         "Login is not being accepted",
-        "The account details were released but the login is rejected every time I try it. Asked the seller twice.",
+        "The account details were released but the login is rejected every time I try it. Asked the other side twice.",
       ),
     );
     line("disputed, waiting on the admin");
     return;
   }
 
-  // --- the buyer confirms and the seller is paid ---------------------------
-  if (!check("confirmClaimed", await confirmClaimed(buyer, dealId))) return;
-  if (!check("markPayoutSent", await markPayoutSent(admin, dealId, `bot-payout-${index}`))) return;
+  // --- both confirm; the deal closes only on the second ---------------------
+  if (!check("confirmClaimed (buyer)", await confirmClaimed(buyer, dealId))) return;
+
+  // Still open: one confirmation is not a completed swap. Worth leaving deals
+  // here, because it is the state where a promoter has earned nothing yet and
+  // someone is waiting on a person who has gone quiet.
+  if (stage === "half_confirmed") {
+    line("one side confirmed, waiting on the other");
+    return;
+  }
+
+  if (!check("confirmClaimed (seller)", await confirmClaimed(seller, dealId))) return;
+
+  // Nothing is paid out to either trader — a swap has no money in it. What the
+  // completion above did trigger is the $2 to each side's promoter, written by
+  // creditReferralsForDeal inside confirmClaimed.
+  const credited = await prisma.referralEarning.count({ where: { dealId } });
 
   // --- both sides review each other ----------------------------------------
   const aboutSeller = sellerReviewPool[index % sellerReviewPool.length];
@@ -505,27 +539,12 @@ async function runOneDeal(index: number, admin: CurrentUser, paymentMethods: Pay
   check("leaveReview (buyer → seller)", await leaveReview(buyer, dealId, aboutSeller.rating, aboutSeller.comment));
   check("leaveReview (seller → buyer)", await leaveReview(seller, dealId, aboutBuyer.rating, aboutBuyer.comment));
 
-  line(`completed · ${aboutSeller.rating}★ seller, ${aboutBuyer.rating}★ buyer`);
+  line(
+    `completed · ${aboutSeller.rating}★ / ${aboutBuyer.rating}★ · ${credited} promoter credit${credited === 1 ? "" : "s"}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
-
-type PaymentMethodChoice = { method: PaymentMethod; label: string; instructions: string };
-
-async function loadPaymentMethods(): Promise<PaymentMethodChoice[]> {
-  const configured = await prisma.paymentMethodConfig.findMany({
-    where: { isActive: true, isAutomatic: false },
-    select: { method: true, label: true, instructions: true },
-    orderBy: { sortOrder: "asc" },
-  });
-
-  if (configured.length > 0) return configured;
-
-  // The bot should still run on a database that has never been seeded.
-  return [
-    { method: "crypto", label: "USDT (TRC-20)", instructions: "Bot fixture — no method configured." },
-  ];
-}
 
 /** Host only — never the credentials. */
 function targetHost(): string {
@@ -553,14 +572,12 @@ async function main() {
     );
   }
 
-  const paymentMethods = await loadPaymentMethods();
-
-  console.log(`Admin: ${admin.displayName}. Payment methods: ${paymentMethods.map((m) => m.label).join(", ")}\n`);
+  console.log(`Admin: ${admin.displayName}. Every deal is an account-for-account swap.\n`);
 
   const started = performance.now();
 
   for (let index = 0; index < TOTAL; index++) {
-    await runOneDeal(index, admin, paymentMethods);
+    await runOneDeal(index, admin);
   }
 
   const seconds = (performance.now() - started) / 1000;
@@ -584,14 +601,37 @@ async function main() {
     console.log(`  ${String(row._count._all).padStart(4)}  ${row.status}`);
   }
 
-  // The money must reconcile on everything the bot created, same as test:load.
+  // A swap must carry no money at all, same check as test:load. This used to
+  // assert that fee + payout added back to the price; with every figure zero
+  // that passed no matter what, so it now asserts the figures really are zero.
   const [{ bad }] = await prisma.$queryRawUnsafe<{ bad: bigint }[]>(
-    `SELECT count(*) AS bad FROM "Deal" WHERE "feeCents" + "sellerPayoutCents" <> "agreedPriceCents"`,
+    `SELECT count(*) AS bad FROM "Deal"
+     WHERE "tradeKind" = 'swap'
+       AND ("agreedPriceCents" <> 0 OR "feeCents" <> 0 OR "sellerPayoutCents" <> 0)`,
   );
 
-  console.log(`\n${bad === BigInt(0) ? "PASS" : "FAIL"}  money reconciles on every deal (${bad} mismatches)`);
+  console.log(`\n${bad === BigInt(0) ? "PASS" : "FAIL"}  no swap carries money (${bad} with a non-zero amount)`);
 
   if (bad !== BigInt(0)) failures++;
+
+  // Every completed swap should owe its two promoters $2 each. Zero credits on
+  // a finished swap means crediting silently stopped working, which nobody
+  // would otherwise notice — the promoter has no way to know what they were owed.
+  //
+  // Swaps only. Archived cash deals closed before the programme existed and are
+  // deliberately never credited; counting them here would report a permanent
+  // failure that is actually correct behaviour.
+  const [{ uncredited }] = await prisma.$queryRawUnsafe<{ uncredited: bigint }[]>(
+    `SELECT count(*) AS uncredited FROM "Deal" d
+     WHERE d.status = 'completed' AND d."tradeKind" = 'swap'
+       AND NOT EXISTS (SELECT 1 FROM "ReferralEarning" r WHERE r."dealId" = d.id)`,
+  );
+
+  console.log(
+    `${uncredited === BigInt(0) ? "PASS" : "FAIL"}  every completed deal credited its promoters (${uncredited} missed)`,
+  );
+
+  if (uncredited !== BigInt(0)) failures++;
 
   if (failures > 0) {
     console.log(`\n${failures} step(s) failed. Reproduce this exact run with BOT_SEED=${SEED}.`);

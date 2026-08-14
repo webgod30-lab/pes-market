@@ -3,7 +3,6 @@ import Link from "next/link";
 import { requireUserOrProblem } from "@/lib/dal";
 import { getConsoleStats, listDealsForAdmin } from "@/lib/admin";
 import { listStalledCodeRequests } from "@/lib/transfer-codes";
-import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { adminSections } from "@/components/dashboard/dash-nav";
 import { adminDealColumns } from "@/components/dashboard/admin-deal-columns";
 import { Breakdown } from "@/components/dashboard/breakdown";
@@ -31,8 +30,6 @@ export default async function AdminPage() {
     listDealsForAdmin("needs_action", "", now),
     listStalledCodeRequests(),
   ]);
-
-  const feeBps = defaultFeeBps();
 
   // In-flight deals sitting in one of the admin's own queues. Used for the
   // rates below; the three are mutually exclusive statuses, so they add up
@@ -98,8 +95,8 @@ export default async function AdminPage() {
       title="Admin console"
       description={
         <>
-          Signed in as {admin.email}. No money and no credentials move without you. Fee:{" "}
-          {formatFeeBps(feeBps)}.
+          Signed in as {admin.email}. No credentials move without you. Swaps are free — the only
+          money leaving is $2 a deal to promoters, paid on the 1st.
         </>
       }
     >

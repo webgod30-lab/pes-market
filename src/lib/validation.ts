@@ -15,6 +15,10 @@ const emailField = z
  * Sign-up takes no role. Everyone registers as a plain user, and whether they
  * are the buyer or the seller is decided per deal. "admin" is never
  * self-assignable — admins come from the seed script or a database change.
+ *
+ * A promoter's code is required. Everyone on the site arrived through somebody,
+ * and there is no way in without one — which is also what makes the referral
+ * program worth anything to the people promoting it.
  */
 export const registerSchema = z.object({
   displayName: z
@@ -28,6 +32,16 @@ export const registerSchema = z.object({
     .min(8, "Password must be at least 8 characters.")
     // bcrypt silently ignores bytes past 72; reject instead of truncating.
     .max(72, "Password must be at most 72 characters."),
+  /**
+   * Only checked for shape here. Whether the code belongs to a real, unbanned
+   * promoter is a database question, so registerAction answers it — this just
+   * catches an empty box before anything is looked up.
+   */
+  referralCode: z
+    .string()
+    .trim()
+    .min(1, "You need a promoter's code to join. Ask the person who sent you here for theirs.")
+    .max(40, "That is longer than a referral code."),
 });
 
 export const loginSchema = z.object({
@@ -41,25 +55,6 @@ export type LoginInput = z.infer<typeof loginSchema>;
 // ---------------------------------------------------------------------------
 // Deals
 // ---------------------------------------------------------------------------
-
-/** Accepts "185", "185.50" or "185,50" and yields whole cents. */
-const priceField = z
-  .string()
-  .trim()
-  .min(1, "Enter the price you agreed.")
-  .transform((raw, ctx) => {
-    const cents = parsePriceToCents(raw);
-
-    if (cents === null) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Enter an amount like 185 or 185.50.",
-      });
-      return z.NEVER;
-    }
-
-    return cents;
-  });
 
 /** Empty input means "not specified", not zero. */
 const optionalLevelField = z
@@ -83,43 +78,37 @@ const optionalTextField = (max: number) =>
     .max(max, `Must be at most ${max} characters.`)
     .transform((value) => (value === "" ? null : value));
 
-export const createDealSchema = z
-  .object({
-    /** Which side the person opening the deal is on. */
-    side: z.enum(["seller", "buyer"], { message: "Choose whether you are buying or selling." }),
-    /** Money for an account, or an account for an account. */
-    tradeKind: z.enum(["cash", "swap"]).default("cash"),
-    accountSummary: z
-      .string()
-      .trim()
-      .min(20, "Describe the account in at least 20 characters, so both sides agree what is being sold.")
-      .max(2000, "Keep the description under 2000 characters."),
-    /** Swap only: the account offered in exchange. */
-    counterAccountSummary: z
-      .string()
-      .trim()
-      .max(2000, "Keep the description under 2000 characters.")
-      .optional(),
-    game: z.string().trim().min(1, "Which game is this account for?").max(60),
-    platform: optionalTextField(40),
-    level: optionalLevelField,
-    agreedPriceCents: priceField,
-  })
-  .superRefine((value, ctx) => {
-    if (value.tradeKind === "swap") {
-      const counter = value.counterAccountSummary?.trim() ?? "";
-
-      if (counter.length < 20) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["counterAccountSummary"],
-          message:
-            "Describe the account being offered in exchange, in at least 20 characters.",
-        });
-      }
-
-    }
-  });
+/**
+ * Opening a swap.
+ *
+ * There is no price and no trade kind to choose. Every deal is
+ * account-for-account, so both descriptions are required and neither side owes
+ * the other money — which is why nothing here parses an amount.
+ */
+export const createDealSchema = z.object({
+  /**
+   * Which side the person opening the deal is on.
+   *
+   * The two sides of a swap are symmetric, so this decides nothing about who
+   * pays — nobody does. It decides whose account is described in which box, and
+   * which side the invite leaves open.
+   */
+  side: z.enum(["seller", "buyer"], { message: "Choose which account is yours." }),
+  accountSummary: z
+    .string()
+    .trim()
+    .min(20, "Describe your account in at least 20 characters, so both sides agree what is being traded.")
+    .max(2000, "Keep the description under 2000 characters."),
+  /** The account expected in exchange. */
+  counterAccountSummary: z
+    .string()
+    .trim()
+    .min(20, "Describe the account you expect in exchange, in at least 20 characters.")
+    .max(2000, "Keep the description under 2000 characters."),
+  game: z.string().trim().min(1, "Which game is this account for?").max(60),
+  platform: optionalTextField(40),
+  level: optionalLevelField,
+});
 
 export const depositCredentialsSchema = z.object({
   loginEmail: z.string().trim().min(1, "The account login is required."),

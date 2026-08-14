@@ -18,7 +18,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/passwords";
 import { encryptCredentials } from "../src/lib/crypto";
-import { splitDealMoney, defaultFeeBps } from "../src/lib/fees";
 import { generateDealReference } from "../src/lib/ids";
 import { listDealsForAdmin, listUsersForAdmin, getConsoleStats } from "../src/lib/admin";
 import { listPublicReviews, getTrustStats, getReputation, getReputationsFor } from "../src/lib/reviews";
@@ -45,19 +44,23 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url 
 const TOTAL = Number(process.argv[2] ?? 1000);
 const TRADERS = Math.max(20, Math.round(TOTAL / 20));
 const PREFIX = "loadtest";
-const FEE_BPS = defaultFeeBps();
 
-/** Realistic spread, weighted toward finished deals as a live service would be. */
+/**
+ * Realistic spread, weighted toward finished deals as a live service would be.
+ *
+ * The two payment stages are gone: a swap has nothing to pay, so no deal can
+ * sit in awaiting_payment or payment_submitted. Their share went to the stages
+ * a swap actually waits at — both accounts in, and the admin checking them.
+ */
 const STATUS_MIX: [DealStatus, number][] = [
   ["completed", 0.55],
-  ["awaiting_payment", 0.1],
-  ["payment_submitted", 0.08],
-  ["admin_verifying", 0.07],
+  ["awaiting_credentials", 0.14],
+  ["admin_verifying", 0.11],
+  ["credentials_released", 0.05],
   ["claiming", 0.05],
   ["awaiting_counterparty", 0.05],
-  ["awaiting_credentials", 0.04],
   ["cancelled", 0.03],
-  ["refunded", 0.02],
+  ["refunded", 0.01],
   ["disputed", 0.01],
 ];
 
@@ -80,7 +83,7 @@ async function time<T>(label: string, fn: () => Promise<T>): Promise<[T, number]
 }
 
 async function main() {
-  console.log(`Load test: ${TOTAL} deals, ${TRADERS} traders, fee ${FEE_BPS}bp\n`);
+  console.log(`Load test: ${TOTAL} swaps, ${TRADERS} traders\n`);
 
   const t0 = performance.now();
 
@@ -95,6 +98,9 @@ async function main() {
       email: `${PREFIX}-${i}@loadtest.invalid`,
       displayName: `LoadTrader ${i}`,
       passwordHash,
+      // Deterministic rather than random: createMany is one statement, so a
+      // collision would fail the whole batch, and the index is already unique.
+      referralCode: `PES-LT${String(i).padStart(4, "0")}`,
     })),
     skipDuplicates: true,
   });
@@ -136,9 +142,6 @@ async function main() {
       const buyer = traders[(i + 7) % traders.length];
       if (seller.id === buyer.id) continue;
 
-      // Deliberately awkward prices, to catch rounding drift.
-      const price = 199 + ((i * 137) % 48_000);
-      const money = splitDealMoney(price, FEE_BPS);
       const status = pickStatus(i);
 
       let reference = generateDealReference();
@@ -158,17 +161,17 @@ async function main() {
         sellerId: seller.id,
         buyerId: status === "awaiting_counterparty" ? null : buyer.id,
         accountSummary: `Load test deal ${i}. eFootball account with a squad and some coins.`,
+        counterAccountSummary: `Load test deal ${i}, other side. eFootball account, comparable squad.`,
         game: "eFootball",
         platform: i % 2 === 0 ? "Mobile" : "PS5",
         level: 5 + (i % 70),
-        agreedPriceCents: money.agreedPriceCents,
-        feeBps: money.feeBps,
-        feeCents: money.feeCents,
-        sellerPayoutCents: money.sellerPayoutCents,
+        // No money on a swap. The four money columns keep their zero defaults.
+        tradeKind: "swap" as const,
         status,
         completedAt: done ? new Date() : null,
+        // A swap needs both confirmations to have closed.
         buyerConfirmedAt: done ? new Date() : null,
-        payoutAt: done && i % 3 !== 0 ? new Date() : null,
+        sellerConfirmedAt: done ? new Date() : null,
         createdAt: new Date(Date.now() - (i % 365) * 86_400_000),
       });
     }
@@ -226,10 +229,15 @@ async function main() {
   // --- integrity ---------------------------------------------------------
   console.log("Integrity checks:");
 
+  // Swaps must carry no money at all. This used to check that fee + payout
+  // added back to the price; there is no price now, so the property that
+  // matters is that nothing ever writes one.
   const [{ bad }] = await prisma.$queryRawUnsafe<{ bad: bigint }[]>(
-    `SELECT count(*) AS bad FROM "Deal" WHERE "feeCents" + "sellerPayoutCents" <> "agreedPriceCents"`,
+    `SELECT count(*) AS bad FROM "Deal"
+     WHERE "tradeKind" = 'swap'
+       AND ("agreedPriceCents" <> 0 OR "feeCents" <> 0 OR "sellerPayoutCents" <> 0)`,
   );
-  console.log(`  ${bad === BigInt(0) ? "PASS" : "FAIL"}  money reconciles on every deal (${bad} mismatches)`);
+  console.log(`  ${bad === BigInt(0) ? "PASS" : "FAIL"}  no swap carries money (${bad} with a non-zero amount)`);
 
   const [{ dupes }] = await prisma.$queryRawUnsafe<{ dupes: bigint }[]>(
     `SELECT count(*) AS dupes FROM (SELECT reference FROM "Deal" GROUP BY reference HAVING count(*) > 1) x`,
@@ -246,15 +254,21 @@ async function main() {
   );
   console.log(`  ${selfreview === BigInt(0) ? "PASS" : "FAIL"}  nobody reviewed themselves (${selfreview})`);
 
-  const totals = await prisma.deal.aggregate({
-    _sum: { agreedPriceCents: true, feeCents: true, sellerPayoutCents: true },
-  });
-  const gross = totals._sum.agreedPriceCents ?? 0;
-  const fees = totals._sum.feeCents ?? 0;
-  const payouts = totals._sum.sellerPayoutCents ?? 0;
-  console.log(
-    `  ${gross === fees + payouts ? "PASS" : "FAIL"}  totals reconcile: $${(gross / 100).toFixed(2)} = fees $${(fees / 100).toFixed(2)} + payouts $${(payouts / 100).toFixed(2)}\n`,
+  // A referral credit must never exist twice for the same trader on the same
+  // deal — that unique index is the only thing standing between a retried
+  // completion and paying a promoter twice.
+  const [{ dupeCredits }] = await prisma.$queryRawUnsafe<{ dupeCredits: bigint }[]>(
+    `SELECT count(*) AS "dupeCredits" FROM (
+       SELECT "dealId", "traderId" FROM "ReferralEarning"
+       GROUP BY "dealId", "traderId" HAVING count(*) > 1
+     ) x`,
   );
+  console.log(
+    `  ${dupeCredits === BigInt(0) ? "PASS" : "FAIL"}  no promoter credited twice for one deal (${dupeCredits})`,
+  );
+
+  const owed = await prisma.referralEarning.aggregate({ _sum: { amountCents: true } });
+  console.log(`  owed to promoters across every deal: $${((owed._sum?.amountCents ?? 0) / 100).toFixed(2)}\n`);
 
   // --- the queries the real pages run ------------------------------------
   const dealCount = await prisma.deal.count();

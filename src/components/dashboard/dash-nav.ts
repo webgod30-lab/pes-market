@@ -34,14 +34,20 @@ export function traderSections(counts: {
       items: [
         { key: "dashboard", href: "/dashboard", label: "Overview", icon: "grid", badge: counts.waiting },
         { key: "notifications", href: "/notifications", label: "Notifications", icon: "inbox" },
-        { key: "deals-new", href: "/deals/new", label: "Open a deal", icon: "plus" },
+        { key: "deals-new", href: "/deals/new", label: "Open a swap", icon: "plus" },
         { key: "deals-join", href: "/deals/join", label: "Join with a code", icon: "ticket" },
         { key: "deals", href: "/deals", label: "Trade history", icon: "folder" },
       ],
     },
     {
-      label: "Money",
-      items: [{ key: "wallet", href: "/wallet", label: "Your balance", icon: "wallet" }],
+      // Renamed from "Money" because a trader has none here: swaps are free and
+      // nobody is paid for one. The only money in this section is what someone
+      // earns for bringing other people in, so the section says that.
+      label: "Promote & earn",
+      items: [
+        { key: "referrals", href: "/referrals", label: "Your code", icon: "ticket" },
+        { key: "wallet", href: "/wallet", label: "Your balance", icon: "wallet" },
+      ],
     },
     {
       label: "Account",

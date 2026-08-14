@@ -3,8 +3,6 @@
 import { useActionState, useState } from "react";
 
 import { createDealAction } from "@/app/actions/deal-actions";
-import { splitDealMoney } from "@/lib/fees";
-import { formatCents, parsePriceToCents } from "@/lib/money";
 import { NavIcon, type NavIconName } from "@/components/nav/nav-icons";
 import { translator, type MessageKey, type Translate } from "@/lib/dictionary";
 import type { Locale } from "@/lib/locale";
@@ -32,21 +30,6 @@ const SIDES = [
   },
 ] as const satisfies readonly Choice[];
 
-const KINDS = [
-  {
-    value: "cash",
-    titleKey: "deal.kind.cash",
-    detailKey: "deal.kind.cashDetail",
-    icon: "wallet",
-  },
-  {
-    value: "swap",
-    titleKey: "deal.kind.swap",
-    detailKey: "deal.kind.swapDetail",
-    icon: "ticket",
-  },
-] as const satisfies readonly Choice[];
-
 type Choice = {
   value: string;
   titleKey: MessageKey;
@@ -55,44 +38,22 @@ type Choice = {
 };
 
 /**
- * Open a deal.
+ * Open a swap.
  *
- * The action, the field names and the money maths are untouched — the split
- * shown while typing is still a preview, and `createDealAction` recomputes it
- * on the server. Only the form's shape changed: the three loose optional
- * fields became one labelled group, the side choice became a proper pair of
- * cards, and the split panel now says plainly which of the two numbers is the
- * one *you* end up with.
+ * Every deal is account-for-account, so there is no kind to choose and no price
+ * to enter — both boxes are accounts, and the only question about money is that
+ * there isn't any. The side choice remains, because it decides which of the two
+ * descriptions is yours and therefore which side the invite leaves open.
  */
-export function CreateDealForm({ feeBps, locale }: { feeBps: number; locale: Locale }) {
+export function CreateDealForm({ locale }: { locale: Locale }) {
   const t = translator(locale);
   const [state, formAction, pending] = useActionState(createDealAction, undefined);
 
-  // Held in state purely to show the split as it is typed. The authoritative
-  // numbers are recomputed on the server — this is a preview, not an input.
   const [side, setSide] = useState<string>(state?.values?.side ?? "seller");
-  const [price, setPrice] = useState<string>(state?.values?.agreedPriceCents ?? "");
-  const [tradeKind, setTradeKind] = useState<string>(state?.values?.tradeKind ?? "cash");
-
-  const isSwap = tradeKind === "swap";
-  const cents = parsePriceToCents(price);
-  const split = cents === null ? null : splitDealMoney(cents, feeBps);
 
   return (
     <form action={formAction} className="space-y-6">
       <FormError message={state?.message} />
-
-      {/* First, because it changes what every field below it means: a swap has
-          no price, and the person on the other side owes an account rather
-          than money. */}
-      <ChoiceCards
-        legend={t("deal.kind.legend")}
-        name="tradeKind"
-        options={KINDS}
-        selected={tradeKind}
-        onSelect={setTradeKind}
-        t={t}
-      />
 
       <ChoiceCards
         legend={t("deal.side.legend")}
@@ -105,7 +66,7 @@ export function CreateDealForm({ feeBps, locale }: { feeBps: number; locale: Loc
       />
 
       <Field
-        label={t(isSwap ? "deal.summary.swapLabel" : "deal.summary.label")}
+        label={t("deal.summary.swapLabel")}
         name="accountSummary"
         error={state?.fieldErrors?.accountSummary}
         hint={t("deal.summary.hint")}
@@ -182,113 +143,39 @@ export function CreateDealForm({ feeBps, locale }: { feeBps: number; locale: Loc
         </div>
       </fieldset>
 
-      {isSwap ? (
-        <Field
-          label={t("deal.counter.label")}
+      <Field
+        label={t("deal.counter.label")}
+        name="counterAccountSummary"
+        error={state?.fieldErrors?.counterAccountSummary}
+        hint={t("deal.counter.hint")}
+      >
+        <textarea
+          id="counterAccountSummary"
           name="counterAccountSummary"
-          error={state?.fieldErrors?.counterAccountSummary}
-          hint={t("deal.counter.hint")}
-        >
-          <textarea
-            id="counterAccountSummary"
-            name="counterAccountSummary"
-            required
-            rows={4}
-            defaultValue={state?.values?.counterAccountSummary ?? ""}
-            aria-invalid={Boolean(state?.fieldErrors?.counterAccountSummary) || undefined}
-            aria-describedby={fieldDescribedBy("counterAccountSummary", {
-              hint: t("deal.counter.hint"),
-              error: state?.fieldErrors?.counterAccountSummary,
-            })}
-            className={inputClassName}
-            placeholder="eFootball 2026 mobile account. 3 Legends (Zidane, Pirlo, Nedved), squad rating 3050, original email included, no bans."
-          />
-        </Field>
-      ) : (
-        <Field
-          label={t("deal.price.label")}
-          name="agreedPriceCents"
-          error={state?.fieldErrors?.agreedPriceCents}
-          hint={t("deal.price.hint")}
-        >
-          <div className="relative">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)]"
-          >
-            $
-          </span>
-          <input
-            id="agreedPriceCents"
-            name="agreedPriceCents"
-            inputMode="decimal"
-            required
-            value={price}
-            onChange={(event) => setPrice(event.target.value)}
-            aria-invalid={Boolean(state?.fieldErrors?.agreedPriceCents) || undefined}
-            aria-describedby={fieldDescribedBy("agreedPriceCents", {
-              hint: t("deal.price.hint"),
-              error: state?.fieldErrors?.agreedPriceCents,
-            })}
-              className={cn(inputClassName, "ps-7 tabular-nums")}
-              placeholder="185.00"
-            />
-          </div>
-        </Field>
-      )}
+          required
+          rows={4}
+          defaultValue={state?.values?.counterAccountSummary ?? ""}
+          aria-invalid={Boolean(state?.fieldErrors?.counterAccountSummary) || undefined}
+          aria-describedby={fieldDescribedBy("counterAccountSummary", {
+            hint: t("deal.counter.hint"),
+            error: state?.fieldErrors?.counterAccountSummary,
+          })}
+          className={inputClassName}
+          placeholder="eFootball 2026 mobile account. 3 Legends (Zidane, Pirlo, Nedved), squad rating 3050, original email included, no bans."
+        />
+      </Field>
 
-      {isSwap ? (
-        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
-          <p className="text-overline uppercase text-[var(--muted)]">{t("swap.protection.title")}</p>
+      <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
+        <p className="text-overline uppercase text-[var(--muted)]">{t("swap.protection.title")}</p>
 
-          <p className="mt-2.5 text-sm leading-relaxed text-[var(--muted)]">
-            {t("swap.protection.body")}
-          </p>
+        <p className="mt-2.5 text-sm leading-relaxed text-[var(--muted)]">
+          {t("swap.protection.body")}
+        </p>
 
-          <p className="mt-3 border-t border-[var(--border)] pt-2.5 text-xs text-[var(--muted)]">
-            {t("swap.protection.fee")}
-          </p>
-        </div>
-      ) : null}
-
-      {!isSwap && split ? (
-        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
-          <p className="text-overline uppercase text-[var(--muted)]">{t("deal.split.title")}</p>
-
-          <dl className="mt-2.5 space-y-1.5 text-sm">
-            <Split label={t("deal.split.buyerPays")} value={formatCents(split.agreedPriceCents)} />
-            <Split label={t("deal.split.fee")} value={`−${formatCents(split.feeCents)}`} />
-            <div className="flex justify-between border-t border-[var(--border)] pt-1.5">
-              <dt className="text-[var(--muted)]">{t("deal.split.sellerGets")}</dt>
-              <dd className="font-semibold tabular-nums text-[var(--accent)]">
-                {formatCents(split.sellerPayoutCents)}
-              </dd>
-            </div>
-          </dl>
-
-          {/* Which of those numbers is yours. The split is symmetrical; your
-              position in it is not. */}
-          <p className="mt-3 border-t border-[var(--border)] pt-2.5 text-xs text-[var(--muted)]">
-            {side === "seller" ? (
-              <>
-                You receive{" "}
-                <strong className="text-[var(--foreground)]">
-                  {formatCents(split.sellerPayoutCents)}
-                </strong>{" "}
-                once the buyer confirms.
-              </>
-            ) : (
-              <>
-                You pay{" "}
-                <strong className="text-[var(--foreground)]">
-                  {formatCents(split.agreedPriceCents)}
-                </strong>{" "}
-                — never more. The fee comes out of the seller&apos;s side.
-              </>
-            )}
-          </p>
-        </div>
-      ) : null}
+        <p className="mt-3 border-t border-[var(--border)] pt-2.5 text-xs text-[var(--muted)]">
+          {t("swap.protection.fee")}
+        </p>
+      </div>
 
       <div>
         <Button type="submit" loading={pending} disabled={pending} block>
@@ -402,15 +289,6 @@ function ChoiceCards({
         </p>
       ) : null}
     </fieldset>
-  );
-}
-
-function Split({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <dt className="text-[var(--muted)]">{label}</dt>
-      <dd className="tabular-nums">{value}</dd>
-    </div>
   );
 }
 

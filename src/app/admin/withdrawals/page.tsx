@@ -19,7 +19,7 @@ const STATUS_LABEL: Record<WithdrawalStatus, string> = {
   requested: "Waiting on you",
   sent: "Sent",
   rejected: "Refused",
-  cancelled: "Cancelled by seller",
+  cancelled: "Cancelled by promoter",
 };
 
 const METHOD_LABEL: Record<PaymentMethod, string> = {
@@ -55,7 +55,7 @@ export default async function AdminWithdrawalsPage({
     <DashShell
       groups={adminSections({ withdrawals: onlyOpen ? withdrawals.length : undefined })}
       title="Withdrawals"
-      description="Sellers taking their balance off the site. You send the money by hand, then record it here."
+      description="Promoters taking their referral earnings off the site. Payouts go out in one batch on the 1st of each month — you send the money by hand, then record it here."
     >
       <FilterChips
         options={[
@@ -66,14 +66,14 @@ export default async function AdminWithdrawalsPage({
 
       {withdrawals.length === 0 ? (
         onlyOpen ? (
-          <EmptyPanel icon="payout" title="No withdrawals waiting" tone="positive">
+          <EmptyPanel icon="payout" title="No payouts waiting" tone="positive">
             Nobody is owed a transfer right now. Requested money stays reserved against the
-            seller&apos;s balance until you send or refuse it, so an empty list means nothing is
+            promoter&apos;s balance until you send or refuse it, so an empty list means nothing is
             held up.
           </EmptyPanel>
         ) : (
-          <EmptyPanel icon="payout" title="No withdrawals requested yet">
-            Sellers can request one as soon as a deal completes and their balance clears.
+          <EmptyPanel icon="payout" title="No payouts requested yet">
+            A promoter can request one once their referral earnings reach $40.
           </EmptyPanel>
         )
       ) : (
@@ -88,12 +88,12 @@ export default async function AdminWithdrawalsPage({
                     </p>
                     <p className="mt-1 text-sm">
                       <Link
-                        href={`/u/${withdrawal.seller.id}`}
+                        href={`/u/${withdrawal.promoter.id}`}
                         className="text-[var(--accent)] hover:underline"
                       >
-                        {withdrawal.seller.displayName}
+                        {withdrawal.promoter.displayName}
                       </Link>{" "}
-                      <span className="text-[var(--muted)]">· {withdrawal.seller.email}</span>
+                      <span className="text-[var(--muted)]">· {withdrawal.promoter.email}</span>
                     </p>
                   </div>
 
@@ -107,15 +107,27 @@ export default async function AdminWithdrawalsPage({
                   </div>
                 </div>
 
-                {/* The seller's position after this request. Negative means a
-                    settled deal was reversed after they had taken the money
+                {/* The promoter's position after this request. Negative means a
+                    completed deal was reversed after they had taken the money
                     out, and paying this would hand over money they no longer
                     have a claim to. */}
-                {withdrawal.sellerNetCents < 0 ? (
+                {withdrawal.promoterNetCents < 0 ? (
                   <Alert tone="danger" className="mt-3">
-                    This seller&apos;s balance is{" "}
-                    {formatCents(withdrawal.sellerNetCents, withdrawal.currency)} — a deal of theirs
-                    was reversed after they withdrew. Do not send this without checking why.
+                    This promoter&apos;s balance is{" "}
+                    {formatCents(withdrawal.promoterNetCents, withdrawal.currency)} — a deal they
+                    earned from was reversed after they withdrew. Do not send this without checking
+                    why.
+                  </Alert>
+                ) : null}
+
+                {/* Not a rule, and nothing is blocked on it. The programme pays
+                    $2 a deal and takes no commission to fund it, so one account
+                    generating a promoter's whole balance is worth a look before
+                    the transfer goes out. 60% is a prompt, not a threshold. */}
+                {withdrawal.topTraderShare >= 0.6 && withdrawal.status === "requested" ? (
+                  <Alert tone="warning" className="mt-3">
+                    {Math.round(withdrawal.topTraderShare * 100)}% of this promoter&apos;s earnings
+                    came from a single person. Worth checking those deals were real before sending.
                   </Alert>
                 ) : null}
 
@@ -147,7 +159,7 @@ export default async function AdminWithdrawalsPage({
                   <WithdrawalDecision
                     withdrawalId={withdrawal.id}
                     amountLabel={formatCents(withdrawal.amountCents, withdrawal.currency)}
-                    sellerName={withdrawal.seller.displayName}
+                    promoterName={withdrawal.promoter.displayName}
                   />
                 ) : null}
               </Card>

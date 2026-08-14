@@ -1,6 +1,5 @@
 import { requireUserOrProblem } from "@/lib/dal";
 import { getLocale } from "@/lib/locale-server";
-import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { CreateDealForm } from "@/components/create-deal-form";
 import { traderSections } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
@@ -14,18 +13,17 @@ export default async function NewDealPage() {
 
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
-  const feeBps = defaultFeeBps();
   const locale = await getLocale();
 
   return (
     <DashShell
       groups={traderSections({})}
-      title="Open a deal"
-      description="Record what you already agreed. The other person joins with a code, and nothing moves until the admin has checked the account."
+      title="Open a swap"
+      description="Record the trade you already agreed. The other person joins with a code, and neither account moves until the admin has checked both."
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
         <Card>
-          <CreateDealForm feeBps={feeBps} locale={locale} />
+          <CreateDealForm locale={locale} />
         </Card>
 
         {/* What happens after the form. Someone opening their first deal is
@@ -55,10 +53,9 @@ export default async function NewDealPage() {
             </ol>
 
             <p className="mt-4 border-t border-[var(--border)] pt-3 text-xs leading-relaxed text-[var(--muted)]">
-              The escrow fee is{" "}
-              <strong className="text-[var(--foreground)]">{formatFeeBps(feeBps)}</strong>, taken
-              from the seller&apos;s payout and locked to this deal when you create it. Changing the
-              rate later cannot alter a deal already open.
+              <strong className="text-[var(--foreground)]">This costs nothing.</strong> There is no
+              fee on a swap and no money in it — you each hand over an account, and the admin holds
+              both until they have checked them.
             </p>
           </div>
         </aside>

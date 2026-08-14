@@ -6,6 +6,7 @@
 // ciphertext snapshot, the verification note, the chat — so the admin is
 // arbitrating from evidence rather than from whoever shouts loudest.
 import { prisma } from "@/lib/prisma";
+import { creditReferralsForDeal } from "@/lib/referrals";
 import type { CurrentUser } from "@/lib/dal";
 import type { DealStatus, DisputeStatus } from "@/generated/prisma/client";
 
@@ -168,6 +169,15 @@ export async function resolveDispute(
           : { status: "completed", completedAt: now, preDisputeStatus: null },
     }),
   ]);
+
+  // A dispute decided for the seller finishes the deal, so it owes the two
+  // promoters exactly what an ordinary confirmation would. Outside the
+  // transaction on purpose: the ruling is the thing that must not be lost, and
+  // a credit that fails to write here is picked up by reconcileReferralCredits
+  // rather than rolling back an admin's decision.
+  if (outcome === "seller") {
+    await creditReferralsForDeal(dealId);
+  }
 
   return { ok: true };
 }

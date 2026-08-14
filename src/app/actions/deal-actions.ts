@@ -24,20 +24,13 @@ export async function createDealAction(
 ): Promise<FormState> {
   const user = await requireUser("/deals/new");
 
-  const tradeKind = formData.get("tradeKind") === "swap" ? "swap" : "cash";
-
   const raw = {
     side: String(formData.get("side") ?? ""),
-    tradeKind,
     accountSummary: String(formData.get("accountSummary") ?? ""),
     counterAccountSummary: String(formData.get("counterAccountSummary") ?? ""),
     game: String(formData.get("game") ?? ""),
     platform: String(formData.get("platform") ?? ""),
     level: String(formData.get("level") ?? ""),
-    // A swap has no price box. It sends a literal zero so the shared field
-    // still parses; createDeal forces a swap to zero regardless.
-    agreedPriceCents:
-      tradeKind === "swap" ? "0" : String(formData.get("agreedPriceCents") ?? ""),
   };
 
   const echo = { ...raw };
@@ -58,9 +51,7 @@ export async function createDealAction(
       game: parsed.data.game,
       platform: parsed.data.platform,
       level: parsed.data.level,
-      agreedPriceCents: parsed.data.agreedPriceCents,
-      tradeKind: parsed.data.tradeKind,
-      counterAccountSummary: parsed.data.counterAccountSummary ?? null,
+      counterAccountSummary: parsed.data.counterAccountSummary,
     });
 
     if (!result.ok) return { message: result.error, values: echo };

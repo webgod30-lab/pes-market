@@ -162,10 +162,22 @@ function historyColumns(sideOf: (deal: DealRow) => "seller" | "buyer"): Column<D
       },
     },
     {
-      key: "amount",
-      header: "Amount",
+      // Same change as the dashboard table: a swap has no amount, so the
+      // column says what the trade was and only quotes money for the archived
+      // cash deals that actually involved some.
+      key: "trade",
+      header: "Trade",
       align: "end",
       cell: (deal) => {
+        if (deal.tradeKind === "swap") {
+          return (
+            <span className="whitespace-nowrap">
+              <span className="font-semibold">Swap</span>
+              <span className="block text-xs text-[var(--muted)]">account for account</span>
+            </span>
+          );
+        }
+
         const isSeller = sideOf(deal) === "seller";
 
         return (

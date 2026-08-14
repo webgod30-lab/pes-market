@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/escrow-flow";
-import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { FAQ_AR, FAQ_GROUPS_AR } from "@/lib/faq-ar";
 import type { Locale } from "@/lib/locale";
 
@@ -10,13 +9,12 @@ import type { Locale } from "@/lib/locale";
  *
  * The landing page shows a handful and /faq shows all of them. Keeping two
  * lists would mean the short one slowly stops matching the long one, and the
- * answers here are about money and disputes — the two subjects where saying
+ * answers here are about payouts and disputes — the two subjects where saying
  * two different things is worst.
  *
- * Answers are JSX because several of them link out, and the fee answer changes
- * shape entirely depending on whether a fee is configured. `featured` marks the
- * ones that earn a place on the landing page: the objections someone raises
- * before they trust the service, not the ones they look up afterwards.
+ * Answers are JSX because several of them link out. `featured` marks the ones
+ * that earn a place on the landing page: the objections someone raises before
+ * they trust the service, not the ones they look up afterwards.
  */
 export type Faq = {
   q: string;
@@ -28,10 +26,6 @@ export type Faq = {
 export type FaqGroup = { group: string; items: Faq[] };
 
 export function faqGroups(): FaqGroup[] {
-  const feeBps = defaultFeeBps();
-  const feeLabel = formatFeeBps(feeBps);
-  const feeOn = feeBps > 0;
-
   return [
     {
       group: "The basics",
@@ -41,23 +35,30 @@ export function faqGroups(): FaqGroup[] {
           featured: true,
           a: (
             <>
-              No. There is nothing to browse here. You and the other person agree a deal somewhere
-              else, and this service holds both halves of it until the trade is proven — the account
-              on one side, the money on the other.
+              No. There is nothing to browse here. You and the other person agree a swap somewhere
+              else, and this service holds both accounts until each one has been checked.
             </>
           ),
         },
         {
           q: "What does it cost?",
           featured: true,
-          a: feeOn ? (
+          a: (
             <>
-              {feeLabel} of the deal, taken out of the seller&apos;s payout. The buyer pays exactly the
-              agreed price. You see the exact split on the deal before committing, and it is locked in
-              when the deal is opened.
+              Nothing. You trade an account for an account — there is no price, so there is nothing
+              to take a percentage of, and we never ask either side for money.
             </>
-          ) : (
-            <>Nothing at the moment — the seller receives exactly what the buyer paid.</>
+          ),
+        },
+        {
+          q: "Can I sell an account for money instead?",
+          featured: true,
+          a: (
+            <>
+              Not here, not any more. Every deal on this site is account-for-account. Deals closed
+              under the old cash flow are still in your history, but nothing new can be opened that
+              way.
+            </>
           ),
         },
         {
@@ -65,52 +66,108 @@ export function faqGroups(): FaqGroup[] {
           featured: true,
           a: (
             <>
-              The seller deposits the account first, but into escrow — the buyer cannot see it. Then
-              the buyer pays, also into escrow. Neither side is ever exposed to the other.
+              Neither of you, in the way that matters. You both deposit into escrow, where the other
+              person cannot see anything, and both logins are released together only after the admin
+              has checked both accounts.
+            </>
+          ),
+        },
+        {
+          q: "Why do I need a code to sign up?",
+          featured: true,
+          a: (
+            <>
+              Because everyone here arrived through somebody, and that is what the promoter programme
+              pays for. Ask whoever invited you for their code — it looks like{" "}
+              <span className="font-mono">PES-7F3K9Q</span> — and paste it into the sign-up form. You
+              get a code of your own the moment you register.
             </>
           ),
         },
       ],
     },
     {
-      group: "Money",
+      group: "Promoting and getting paid",
       items: [
         {
-          q: "When does the seller actually get paid?",
+          q: "How much do I earn?",
           featured: true,
           a: (
             <>
-              After the buyer confirms they have claimed the account. Not when payment arrives, not
-              when the credentials are released — only after the buyer has the account and says so.
+              $2 every time someone who signed up with your code completes a swap. Both people in a
+              swap earn for their own promoter, so if you introduced both of them, that one deal pays
+              you twice.
             </>
           ),
         },
         {
-          q: "What if the buyer just never confirms?",
+          q: "When do I get the money?",
+          featured: true,
+          a: (
+            <>
+              Payouts go out in one batch on the 1st of each month, once your balance is at least
+              $40. You can request one on any day — it does not have to be the 1st — and it is sent
+              on the next one.
+            </>
+          ),
+        },
+        {
+          q: "Why $40 and not less?",
+          a: (
+            <>
+              Every payout is a transfer sent by hand, and it costs a fee. At $2 a time the fee would
+              eat most of what you earned. $40 is twenty completed deals.
+            </>
+          ),
+        },
+        {
+          q: "Where do I find my code?",
+          a: (
+            <>
+              On{" "}
+              <Link href="/referrals" className="text-[var(--accent)] hover:underline">
+                your promoter page
+              </Link>
+              , with a link you can paste straight into a chat. Anyone opening that link gets the
+              code filled in for them.
+            </>
+          ),
+        },
+        {
+          q: "Can I just swap accounts with a friend over and over to farm it?",
+          a: (
+            <>
+              No. A promoter earns nothing from a deal they were in themselves, earnings that all
+              come from one person are flagged before any payout is sent, and deals opened only to
+              generate credits are grounds for having them reversed and the account suspended.
+            </>
+          ),
+        },
+        {
+          q: "What if the deal I earned from gets reversed?",
+          a: (
+            <>
+              The credit goes with it. If you had already been paid, the balance goes negative and
+              later credits clear it before anything else is paid out.
+            </>
+          ),
+        },
+        {
+          q: "What if the other person never confirms?",
           a: (
             <>
               They have {CONFIRMATION_WINDOW_HOURS} hours. After that the deal is flagged and the
-              admin chases them. If they stay silent, the admin decides it from the record rather than
-              leaving the seller unpaid forever.
+              admin chases them. If they stay silent, the admin decides it from the record rather
+              than leaving the deal open forever.
             </>
           ),
         },
         {
-          q: "I paid the wrong amount.",
+          q: "Can I cancel a swap?",
           a: (
             <>
-              An underpayment is never settled automatically — it is held and flagged for the admin.
-              Message on the deal and it gets sorted out there.
-            </>
-          ),
-        },
-        {
-          q: "Can I get a refund?",
-          a: (
-            <>
-              Before you pay, either side can cancel and nothing has happened. After you pay, it is a
-              dispute: the admin refunds the buyer or pays the seller, depending on what the record
-              shows.
+              Before either account is deposited, yes — either side can cancel and nothing has
+              happened. After that it is a dispute, and the admin decides from the record.
             </>
           ),
         },
@@ -120,13 +177,13 @@ export function faqGroups(): FaqGroup[] {
       group: "Safety",
       items: [
         {
-          q: "The seller took the account back after I claimed it.",
+          q: "The other person took their account back after I claimed it.",
           featured: true,
           a: (
             <>
               This is exactly what the confirmation window is for. Open a dispute from the deal page —
-              it freezes everything, including the payout, and the admin decides. Change the email and
-              password the moment you get the account, and keep screenshots.
+              it freezes everything and the admin decides. Change the email and password the moment
+              you get the account, and keep screenshots.
             </>
           ),
         },
@@ -135,30 +192,30 @@ export function faqGroups(): FaqGroup[] {
           featured: true,
           a: (
             <>
-              It went to the seller. Changing the email sends the code to the address still on the
-              account, which is theirs until the transfer completes. Ask for it on the deal page —
-              there is a button for it during the claim — and it appears there once they paste it in.
-              Your money stays held the whole time.
+              It went to the other person. Changing the email sends the code to the address still on
+              the account, which is theirs until the transfer completes. Ask for it on the deal page
+              — there is a button for it during the claim — and it appears there once they paste it
+              in. Nothing else moves in the meantime.
             </>
           ),
         },
         {
-          q: "I am the seller. Why am I still getting emails from Konami?",
+          q: "Why am I still getting emails from Konami about the account I deposited?",
           a: (
             <>
-              Because the account is still registered to you until the buyer finishes the transfer.
-              You need to pass those codes on through the deal page. You are not paid until the buyer
-              confirms, and they cannot confirm without them — so going quiet here only delays your
-              own payout.
+              Because it is still registered to you until the other side finishes the transfer. You
+              need to pass those codes on through the deal page. The swap does not close until both
+              of you confirm, and they cannot confirm without them — so going quiet only delays your
+              own account arriving.
             </>
           ),
         },
         {
-          q: "The seller has gone silent and I am stuck on a code.",
+          q: "The other side has gone silent and I am stuck on a code.",
           a: (
             <>
               Open a dispute. It freezes everything, and the admin can see exactly when you asked and
-              that nobody answered. Your money has not gone anywhere.
+              that nobody answered. Your own account has not gone anywhere.
             </>
           ),
         },
@@ -174,11 +231,13 @@ export function faqGroups(): FaqGroup[] {
           ),
         },
         {
-          q: "Can I trade outside the site to save the fee?",
+          q: "Why bother using the site at all if it is free?",
           a: (
             <>
-              You can, and people get robbed doing it every day. If it did not happen on a deal here,
-              there is no record, no held funds and nothing the admin can do for you.
+              Because swapping directly means one of you hands over an account first, and that person
+              can be robbed. Here neither login is visible to the other side until the admin has
+              checked both. Trade outside it and there is no record and nothing the admin can do for
+              you.
             </>
           ),
         },
@@ -190,7 +249,8 @@ export function faqGroups(): FaqGroup[] {
               <Link href="/reviews" className="text-[var(--accent)] hover:underline">
                 every review is public
               </Link>
-              . Both sides review each other, so a buyer who never pays is as visible as a bad seller.
+              . Both sides review each other, so someone who hands over a dead account is visible
+              either way.
               &ldquo;No reviews yet&rdquo; is not a red flag on its own, but it does mean there is
               nothing to go on.
             </>

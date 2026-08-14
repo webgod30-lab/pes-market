@@ -18,16 +18,16 @@ import { Button, Field, FormError, inputClassName } from "@/components/ui";
 export function WithdrawalDecision({
   withdrawalId,
   amountLabel,
-  sellerName,
+  promoterName,
 }: {
   withdrawalId: string;
   amountLabel: string;
-  sellerName: string;
+  promoterName: string;
 }) {
   const [mode, setMode] = useState<"idle" | "send" | "refuse">("idle");
 
   if (mode === "send") {
-    return <SendForm withdrawalId={withdrawalId} amountLabel={amountLabel} sellerName={sellerName} onCancel={() => setMode("idle")} />;
+    return <SendForm withdrawalId={withdrawalId} amountLabel={amountLabel} promoterName={promoterName} onCancel={() => setMode("idle")} />;
   }
 
   if (mode === "refuse") {
@@ -54,12 +54,12 @@ export function WithdrawalDecision({
 function SendForm({
   withdrawalId,
   amountLabel,
-  sellerName,
+  promoterName,
   onCancel,
 }: {
   withdrawalId: string;
   amountLabel: string;
-  sellerName: string;
+  promoterName: string;
   onCancel: () => void;
 }) {
   const [state, action, pending] = useActionState(markWithdrawalSentAction, undefined);
@@ -70,7 +70,7 @@ function SendForm({
       <input type="hidden" name="withdrawalId" value={withdrawalId} />
 
       <p className="text-xs text-[var(--muted)]">
-        Send {amountLabel} to {sellerName} using the details above, then record the reference here.
+        Send {amountLabel} to {promoterName} using the details above, then record the reference here.
         Marking it sent does not move any money — it records that you did.
       </p>
 

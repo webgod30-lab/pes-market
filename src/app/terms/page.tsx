@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { SITE, legalDetailsAreConfigured } from "@/lib/site";
-import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/deals";
 import { LastUpdated, Notice, Points, Prose, Section } from "@/components/prose";
 import { PageHeading } from "@/components/ui";
@@ -12,7 +11,6 @@ export const metadata = {
 };
 
 export default function TermsPage() {
-  const feeBps = defaultFeeBps();
   const configured = legalDetailsAreConfigured();
 
   return (
@@ -25,7 +23,7 @@ export default function TermsPage() {
           <Notice>
             <strong>This is a template, not legal advice.</strong> It is written to describe how this
             service actually behaves, which is the useful half — but it still needs a lawyer who knows
-            your jurisdiction to review it before you take real money. Fill in the operator details in{" "}
+            your jurisdiction to review it before you run this with real users. Fill in the operator details in{" "}
             <code className="font-mono text-xs">src/lib/site.ts</code> first; they are referenced
             throughout this page.
           </Notice>
@@ -34,9 +32,9 @@ export default function TermsPage() {
 
       <Section title="1. What this service is">
         <p>
-          {SITE.name} is an escrow service operated by {SITE.operator}. It holds one side of a trade
-          while the other is proven, acting as a neutral third party between a buyer and a seller who
-          have already agreed a deal elsewhere.
+          {SITE.name} is an escrow service operated by {SITE.operator}. It holds both accounts in a
+          swap until each has been checked, acting as a neutral third party between two people who
+          have already agreed to trade elsewhere.
         </p>
         <p>
           We do not sell, list, advertise or broker game accounts. We are not party to your agreement
@@ -76,43 +74,48 @@ export default function TermsPage() {
 
       <Section title="4. Fees">
         <p>
-          {feeBps > 0 ? (
-            <>
-              We charge {formatFeeBps(feeBps)} of the agreed price, deducted from the seller&apos;s
-              payout. The buyer pays the agreed price and no more. The exact amounts are shown on the
-              deal before either party commits, and are fixed at the moment the deal is created —
-              a later change to our rate does not affect a deal already open.
-            </>
-          ) : (
-            <>No fee is currently charged. If that changes, it will apply only to deals created after
-              the change.</>
-          )}
+          We charge nothing. Trades on this service are account-for-account, so there is no price to
+          take a percentage of, and we never ask either party for payment. If that ever changes, it
+          will apply only to deals created after the change.
         </p>
       </Section>
 
-      <Section title="5. How money is held and released">
+      <Section title="5. Accounts held and released">
         <Points
           items={[
-            "Funds sent for a deal are held by us and are not the seller's property until released.",
-            "We release funds to the seller after the buyer confirms they have taken control of the account, or after a dispute is decided in the seller's favour.",
-            `Buyers have ${CONFIRMATION_WINDOW_HOURS} hours from the release of credentials to confirm or raise a dispute.`,
-            "We are not a bank, we do not pay interest on held funds, and held funds are not insured or protected by any deposit scheme.",
-            "Payments made outside a deal on this service are not held by us and are not covered by anything on this page.",
+            "Both parties deposit their account credentials, which we hold encrypted and release only after we have checked both accounts.",
+            "We release each side's credentials to the other after both have been verified, or after a dispute is decided.",
+            `Each party has ${CONFIRMATION_WINDOW_HOURS} hours from the release of credentials to confirm or raise a dispute.`,
+            "No money passes between the parties on this service, and we hold no funds on anyone's behalf.",
+            "Anything agreed or exchanged outside a deal on this service is not covered by anything on this page.",
+          ]}
+        />
+      </Section>
+
+      <Section title="5a. Referral programme">
+        <Points
+          items={[
+            "An account can only be created using a valid promoter code issued by an existing account.",
+            "Every account receives a promoter code of its own on registration.",
+            "We credit a promoter $2 each time a person who registered with their code completes a deal. Both parties to a completed deal credit their own promoter separately.",
+            "A promoter earns nothing from a deal they were themselves a party to.",
+            "Credits are payable once a promoter's balance reaches $40. Requests may be made on any day and are paid in one batch on the 1st of each month.",
+            "Credits for a deal are withdrawn if that deal is later reversed. If the promoter has already been paid, the amount is recovered from later credits before any further payout.",
+            "We may refuse or reverse credits we believe were generated by deals arranged solely to obtain them, and may suspend an account that does so.",
           ]}
         />
       </Section>
 
       <Section title="6. Disputes">
         <p>
-          Either party may open a dispute on a deal that has money in it. This freezes the deal
-          entirely. We decide from the record available to us: the account description agreed at the
-          start, the payment details captured at the time, our own verification of the account, and
-          the messages on the deal.
+          Either party may open a dispute on a deal once accounts have been deposited. This freezes
+          the deal entirely. We decide from the record available to us: the two account descriptions
+          agreed at the start, our own verification of both accounts, and the messages on the deal.
         </p>
         <p>
-          Our decision on how to release or refund the funds we hold is final as regards those funds.
-          It is not a legal judgment and does not affect any other rights you may have against the
-          other party.
+          Our decision on whether to release or return the credentials we hold is final as regards
+          those credentials. It is not a legal judgment and does not affect any other rights you may
+          have against the other party.
         </p>
       </Section>
 
@@ -121,23 +124,26 @@ export default function TermsPage() {
           items={[
             "Trading accounts you do not own, or that were obtained by fraud, phishing or account theft.",
             "Recovering, reclaiming or interfering with an account after depositing it for a deal.",
-            "Moving a deal off this service to avoid fees, then asking us to intervene.",
-            "Using the service to launder funds, or for any transaction that is illegal where you are.",
+            "Opening deals whose purpose is to generate referral credits rather than to trade an account.",
+            "Creating additional accounts to obtain or multiply referral credits.",
+            "Using the service for any transaction that is illegal where you are.",
             "Abuse, threats or harassment of the other party or of us.",
           ]}
         />
         <p>
           We may suspend or ban an account for any of the above. Where a banned user has deals in
-          progress, we will still resolve those deals fairly rather than keeping the funds.
+          progress, we will still resolve those deals fairly rather than keeping either account.
         </p>
       </Section>
 
       <Section title="8. Limits of our responsibility">
         <p>
-          We provide this service carefully but without warranty. To the extent the law allows, our
-          total liability to you for any deal is limited to the amount we hold for that deal. We are
-          not responsible for publisher action against an account, for losses on deals conducted
-          outside this service, or for indirect losses.
+          We provide this service carefully but without warranty. We hold no money for you, so there
+          is no sum we can return: to the extent the law allows, our responsibility for a deal is
+          limited to handling the credentials you place with us according to the process described
+          here. We are not responsible for publisher action against an account, for the condition or
+          value of an account traded through us, for losses on deals conducted outside this service,
+          or for indirect losses.
         </p>
         <p>Nothing here limits liability that cannot lawfully be limited, including for fraud.</p>
       </Section>

@@ -9,6 +9,7 @@ import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/passwords";
+import { findPromoterByCode, mintReferralCode } from "@/lib/referrals";
 import { registerSchema, loginSchema } from "@/lib/validation";
 import { fieldErrorsFrom, type FormState } from "@/lib/form-state";
 import { databaseProblemMessage } from "@/lib/db-errors";
@@ -34,12 +35,16 @@ export async function registerAction(
     displayName: String(formData.get("displayName") ?? ""),
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
+    referralCode: String(formData.get("referralCode") ?? ""),
   };
 
-  // Echo everything back on failure except the password.
+  // Echo everything back on failure except the password. The referral code
+  // especially: it was copied from somewhere else, and making someone go and
+  // find it again because their password was too short loses the sign-up.
   const echo = {
     displayName: rawValues.displayName,
     email: rawValues.email,
+    referralCode: rawValues.referralCode,
   };
 
   const parsed = registerSchema.safeParse(rawValues);
@@ -48,7 +53,7 @@ export async function registerAction(
     return { fieldErrors: fieldErrorsFrom(parsed.error), values: echo };
   }
 
-  const { displayName, email, password } = parsed.data;
+  const { displayName, email, password, referralCode } = parsed.data;
 
   // Registration is limited by address alone — there is no account to key on
   // yet. Checked after validation so a malformed submission does not spend
@@ -88,12 +93,45 @@ export async function registerAction(
     throw error;
   }
 
+  // The code has to resolve to a real, unbanned promoter before an account is
+  // created. Checked after the email check so someone retyping a taken address
+  // is told that, rather than being sent to hunt for a problem with a code that
+  // is fine.
+  let promoter: Awaited<ReturnType<typeof findPromoterByCode>>;
+
+  try {
+    promoter = await findPromoterByCode(referralCode);
+  } catch (error) {
+    const dbProblem = databaseProblemMessage(error);
+    if (dbProblem) return { message: dbProblem, values: echo };
+    throw error;
+  }
+
+  if (!promoter) {
+    return {
+      fieldErrors: {
+        referralCode: "No promoter has that code. Check it with whoever sent you here.",
+      },
+      values: echo,
+    };
+  }
+
   const passwordHash = await hashPassword(password);
 
   try {
     // role defaults to "user"; nobody can register themselves as an admin.
+    // Every account is also a promoter from the moment it exists, so it gets a
+    // code of its own here rather than on first visit to the referrals page —
+    // a code that only appears once you go looking for it is one most people
+    // never find.
     await prisma.user.create({
-      data: { displayName, email, passwordHash },
+      data: {
+        displayName,
+        email,
+        passwordHash,
+        referredById: promoter.id,
+        referralCode: await mintReferralCode(),
+      },
     });
   } catch (error) {
     const dbProblem = databaseProblemMessage(error);

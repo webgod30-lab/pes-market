@@ -20,6 +20,7 @@ import {
 } from "../src/lib/totp";
 import { hitRateLimit, clearRateLimit, pruneRateLimits } from "../src/lib/rate-limit";
 import { hashPassword } from "../src/lib/passwords";
+import { generateReferralCode } from "../src/lib/ids";
 
 let passed = 0;
 const ok = (l: string) => { passed++; console.log("  PASS ", l); };
@@ -27,7 +28,12 @@ const ok = (l: string) => { passed++; console.log("  PASS ", l); };
 async function main() {
   const email = `sec-fixture-${Date.now()}@example.com`;
   const user = await prisma.user.create({
-    data: { email, displayName: "Sec Fixture", passwordHash: await hashPassword("correct-horse-pw") },
+    data: {
+      email,
+      displayName: "Sec Fixture",
+      passwordHash: await hashPassword("correct-horse-pw"),
+      referralCode: generateReferralCode(),
+    },
     select: { id: true, email: true },
   });
 

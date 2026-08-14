@@ -52,36 +52,39 @@ export function DashboardPreview() {
           <span className="ml-2 font-mono text-xs text-[var(--muted)]">ESC-7F3K9Q</span>
           <span className="ms-auto inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--tone-success)]">
             <span className="size-1.5 rounded-full bg-current" />
-            Funds held
+            Both accounts held
           </span>
         </div>
 
         <div className="grid gap-px bg-[var(--border)] sm:grid-cols-[1.4fr_1fr]">
           {/* Left: the deal */}
           <div className="bg-[var(--surface)] p-5">
-            <p className="text-overline uppercase text-[var(--muted)]">What the seller promised</p>
+            <p className="text-overline uppercase text-[var(--muted)]">What each side put up</p>
             <p className="mt-2 text-sm leading-relaxed">
               eFootball 2026 mobile — 6 Epics, Team Strength 3341, original email included.
             </p>
 
             <div className="mt-5 space-y-2.5">
-              <Step done label="Account deposited" note="encrypted on arrival" />
-              <Step done label="Payment held" note="confirmed by admin" />
-              <Step active label="Account verified" note="checked against the description" />
-              <Step label="Released to buyer" />
-              <Step label="Seller paid" />
+              <Step done label="Both accounts deposited" note="encrypted on arrival" />
+              <Step active label="Both accounts verified" note="checked against the descriptions" />
+              <Step label="Released to each other" />
+              <Step label="Both confirm" />
             </div>
           </div>
 
-          {/* Right: the money */}
+          {/* Right: what a swap trades. There is no money panel any more —
+              showing a price and a 5% cut on the landing page of a service that
+              charges nothing was the most visible thing left saying otherwise. */}
           <div className="bg-[var(--surface)] p-5">
-            <p className="text-overline uppercase text-[var(--muted)]">Held in escrow</p>
-            <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">$240.00</p>
+            <p className="text-overline uppercase text-[var(--muted)]">Traded for</p>
+            <p className="mt-1.5 text-sm leading-relaxed">
+              eFootball 2026 mobile — 4 Epics, Team Strength 3298, original email included.
+            </p>
 
             <dl className="mt-4 space-y-2 border-t border-[var(--border)] pt-3 text-xs">
-              <Row label="Buyer pays" value="$240.00" />
-              <Row label="Escrow fee" value="−$12.00" />
-              <Row label="Seller receives" value="$228.00" strong />
+              <Row label="Price" value="—" />
+              <Row label="Our fee" value="$0.00" />
+              <Row label="You pay" value="Nothing" strong />
             </dl>
 
             <div className="mt-5 flex items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
@@ -90,7 +93,7 @@ export function DashboardPreview() {
                 <path d="M8 10.5V7a4 4 0 018 0v3.5" strokeLinecap="round" />
               </svg>
               <p className="text-xs leading-snug text-[var(--muted)]">
-                Neither side can reach the other&apos;s half.
+                Neither side can reach the other&apos;s account.
               </p>
             </div>
           </div>
@@ -98,7 +101,7 @@ export function DashboardPreview() {
       </div>
 
       <p className="mt-3 text-center text-xs text-[var(--faint)]">
-        Illustration of a deal in progress. Figures are examples.
+        Illustration of a swap in progress. Accounts are examples.
       </p>
     </motion.div>
   );

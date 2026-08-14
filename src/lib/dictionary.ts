@@ -32,6 +32,7 @@ const en = {
   "nav.tradeHistory": "Trade history",
   "nav.notifications": "Notifications",
   "nav.balance": "Your balance",
+  "nav.referrals": "Promote & earn",
   "nav.security": "Security",
   "nav.overview": "Overview",
   "nav.learn": "Learn",
@@ -64,22 +65,16 @@ const en = {
   "menu.site": "Site menu",
 
   // --- opening a deal ---
-  // The first thing a swap needs is a way to say it is a swap, so the create
-  // form and the swap panels are translated even though the rest of the deal
-  // flow is still English.
-  "deal.kind.legend": "What kind of trade is this",
-  "deal.kind.cash": "Account for money",
-  "deal.kind.cashDetail": "The buyer pays. We hold the money until the account is confirmed working.",
-  "deal.kind.swap": "Account for account",
-  "deal.kind.swapDetail": "No money. Both of you deposit an account, and both are released together.",
+  // Every deal is a swap, so there is no longer a kind to choose. What remains
+  // is which of the two accounts is yours, which is what the side cards ask.
+  "deal.side.legend": "Which account is yours",
+  "deal.side.seller": "The one I am putting up",
+  "deal.side.sellerDetail":
+    "You describe your account first. The other person joins to put theirs up against it.",
+  "deal.side.buyer": "The one coming back",
+  "deal.side.buyerDetail":
+    "The account you want is described first, and yours is the one you offer for it.",
 
-  "deal.side.legend": "Your side of this deal",
-  "deal.side.seller": "I am selling",
-  "deal.side.sellerDetail": "You hand over the account. You get paid once the buyer confirms.",
-  "deal.side.buyer": "I am buying",
-  "deal.side.buyerDetail": "You pay into escrow. Your money is held until the account works.",
-
-  "deal.summary.label": "What is being sold",
   "deal.summary.swapLabel": "The account you are putting up",
   "deal.summary.hint":
     "Be specific. This is what the admin checks the account against before releasing it.",
@@ -93,15 +88,8 @@ const en = {
   "deal.account.level": "Level",
   "deal.account.optional": "Optional",
 
-  "deal.price.label": "Agreed price (USD)",
-  "deal.price.hint": "The price you already agreed between yourselves.",
-  "deal.split.title": "How the money splits",
-  "deal.split.buyerPays": "Buyer pays",
-  "deal.split.fee": "Escrow fee",
-  "deal.split.sellerGets": "Seller receives",
-
-  "deal.submit": "Create deal and get invite code",
-  "deal.submitting": "Creating deal…",
+  "deal.submit": "Create swap and get invite code",
+  "deal.submitting": "Creating swap…",
   "deal.submitNote": "Nothing is shared yet. You will get a code to send to the other person.",
 
   // --- swaps, on the deal page ---
@@ -158,6 +146,7 @@ const ar: Record<MessageKey, string> = {
   "nav.tradeHistory": "سجل الصفقات",
   "nav.notifications": "الإشعارات",
   "nav.balance": "رصيدك",
+  "nav.referrals": "ادعُ واربح",
   "nav.security": "الأمان",
   "nav.overview": "نظرة عامة",
   "nav.learn": "تعرّف على الخدمة",
@@ -185,19 +174,12 @@ const ar: Record<MessageKey, string> = {
   "menu.close": "أغلق القائمة",
   "menu.site": "قائمة الموقع",
 
-  "deal.kind.legend": "ما نوع هذه الصفقة",
-  "deal.kind.cash": "حساب مقابل مال",
-  "deal.kind.cashDetail": "المشتري يدفع. نحتفظ بالمال إلى أن يتأكد أن الحساب يعمل.",
-  "deal.kind.swap": "حساب مقابل حساب",
-  "deal.kind.swapDetail": "بدون مال. كلاكما يودع حسابًا، ويُسلَّم الحسابان معًا في نفس اللحظة.",
+  "deal.side.legend": "أي الحسابين حسابك",
+  "deal.side.seller": "الحساب الذي أقدّمه",
+  "deal.side.sellerDetail": "تصف حسابك أولًا، وينضم الطرف الآخر ليضع حسابه مقابله.",
+  "deal.side.buyer": "الحساب الذي سأستلمه",
+  "deal.side.buyerDetail": "يُوصف الحساب الذي تريده أولًا، وحسابك هو ما تقدّمه مقابله.",
 
-  "deal.side.legend": "دورك في هذه الصفقة",
-  "deal.side.seller": "أنا البائع",
-  "deal.side.sellerDetail": "أنت تسلّم الحساب، وتستلم المال بعد أن يؤكد المشتري.",
-  "deal.side.buyer": "أنا المشتري",
-  "deal.side.buyerDetail": "تدفع إلى الضمان. يبقى مالك محفوظًا إلى أن يعمل الحساب.",
-
-  "deal.summary.label": "ما الذي يُباع",
   "deal.summary.swapLabel": "الحساب الذي تقدّمه أنت",
   "deal.summary.hint": "كن دقيقًا. هذا ما يقارن به المشرف الحساب قبل تسليمه.",
   "deal.counter.label": "الحساب الذي ستستلمه",
@@ -209,15 +191,8 @@ const ar: Record<MessageKey, string> = {
   "deal.account.level": "المستوى",
   "deal.account.optional": "اختياري",
 
-  "deal.price.label": "السعر المتفق عليه (دولار)",
-  "deal.price.hint": "السعر الذي اتفقتما عليه بينكما.",
-  "deal.split.title": "كيف يُقسَّم المال",
-  "deal.split.buyerPays": "يدفع المشتري",
-  "deal.split.fee": "رسوم الضمان",
-  "deal.split.sellerGets": "يستلم البائع",
-
-  "deal.submit": "أنشئ الصفقة واحصل على رمز الدعوة",
-  "deal.submitting": "جارٍ إنشاء الصفقة…",
+  "deal.submit": "أنشئ المبادلة واحصل على رمز الدعوة",
+  "deal.submitting": "جارٍ إنشاء المبادلة…",
   "deal.submitNote": "لم تتم مشاركة أي شيء بعد. ستحصل على رمز ترسله إلى الطرف الآخر.",
 
   "swap.protection.title": "كيف تُحمى المبادلة",

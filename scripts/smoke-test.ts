@@ -15,8 +15,13 @@ import {
 import { hashPassword, verifyPassword } from "../src/lib/passwords";
 import { formatCents, parsePriceToCents } from "../src/lib/money";
 import { registerSchema } from "../src/lib/validation";
-import { splitDealMoney, formatFeeBps } from "../src/lib/fees";
-import { generateDealReference, generateInviteCode } from "../src/lib/ids";
+import {
+  generateDealReference,
+  generateInviteCode,
+  generateReferralCode,
+  normaliseReferralCode,
+} from "../src/lib/ids";
+import { MINIMUM_PAYOUT_CENTS, nextPayoutDate, REFERRAL_REWARD_CENTS } from "../src/lib/referrals";
 import { databaseProblemMessage, describeDatabaseProblemDeep } from "../src/lib/db-errors";
 
 let passed = 0;
@@ -95,11 +100,25 @@ async function main() {
       displayName: "  Trader  ",
       email: "  UPPER@Example.COM ",
       password: "longenough",
+      referralCode: "PES-7F3K9Q",
       role: "seller",
     }).email,
     "upper@example.com",
   );
   ok("registerSchema trims and lowercases the email");
+
+  // Nobody gets in without a promoter's code, and the schema is where that
+  // starts. A blank one has to fail here rather than reaching the database.
+  assert.equal(
+    registerSchema.safeParse({
+      displayName: "Trader",
+      email: "someone@example.com",
+      password: "longenough",
+      referralCode: "   ",
+    }).success,
+    false,
+  );
+  ok("registerSchema refuses a sign-up with no referral code");
 
   // Sign-up takes no role at all, so "admin" cannot be smuggled in through the
   // form — an extra key is simply ignored and the DB default ("user") applies.
@@ -107,50 +126,74 @@ async function main() {
     displayName: "Trader",
     email: "someone@example.com",
     password: "longenough",
+    referralCode: "PES-7F3K9Q",
     role: "admin",
   });
   assert.equal("role" in smuggled, false);
   ok("registerSchema strips any role sent by the client");
 
+  // The code is supplied here so this fails on the password and nothing else —
+  // otherwise the assertion would pass for the wrong reason.
   assert.equal(
     registerSchema.safeParse({
       displayName: "Trader",
       email: "someone@example.com",
       password: "short",
+      referralCode: "PES-7F3K9Q",
     }).success,
     false,
   );
   ok("registerSchema refuses a short password");
 
-  // --- fee split ------------------------------------------------------------
-  const split = splitDealMoney(18_500, 500);
-  assert.equal(split.feeCents, 925);
-  assert.equal(split.sellerPayoutCents, 17_575);
-  // The money must always add up exactly — no cent lost to rounding.
-  assert.equal(split.feeCents + split.sellerPayoutCents, split.agreedPriceCents);
-  ok("splitDealMoney takes 5% and the parts add back to the price");
+  // --- referral codes -------------------------------------------------------
+  //
+  // What used to be here was the fee split. There is no fee: a swap has no
+  // price to take a percentage of. The money that replaced it flows the other
+  // way, and its entry point is the code somebody types at sign-up — so that
+  // is what is asserted instead.
+  assert.match(generateReferralCode(), /^PES-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);
+  ok("referral codes use the unambiguous alphabet");
 
-  const zero = splitDealMoney(4_200, 0);
-  assert.equal(zero.feeCents, 0);
-  assert.equal(zero.sellerPayoutCents, 4_200);
-  ok("splitDealMoney with a 0 bp fee pays the seller in full");
+  assert.notEqual(generateReferralCode(), generateReferralCode());
+  ok("two generated codes differ");
 
-  // Odd amounts are where a naive implementation loses a cent.
-  for (const price of [1, 3, 7, 99, 333, 1_667, 99_999]) {
-    const s = splitDealMoney(price, 500);
-    assert.equal(s.feeCents + s.sellerPayoutCents, price, `price ${price} must reconcile`);
+  // Every way a code arrives from a chat message has to find the promoter, or
+  // a real sign-up is turned away over whitespace.
+  for (const typed of ["PES-7F3K9Q", "pes-7f3k9q", "  PES-7F3K9Q  ", "7F3K9Q", "7f3k9q"]) {
+    assert.equal(normaliseReferralCode(typed), "PES-7F3K9Q", `"${typed}" must normalise`);
   }
-  ok("splitDealMoney reconciles for awkward amounts");
+  ok("pasted codes normalise to one stored form, whatever the case or spacing");
 
-  assert.throws(() => splitDealMoney(0, 500), /positive whole number/);
-  assert.throws(() => splitDealMoney(1_000, 10_001), /between 0 and 10000/);
-  assert.throws(() => splitDealMoney(19.99, 500), /positive whole number/);
-  ok("splitDealMoney rejects bad input instead of guessing");
+  assert.equal(normaliseReferralCode(""), "");
+  assert.equal(normaliseReferralCode("   "), "");
+  ok("an empty code stays empty rather than becoming a bare prefix");
 
-  assert.equal(formatFeeBps(500), "5%");
-  assert.equal(formatFeeBps(250), "2.5%");
-  assert.equal(formatFeeBps(0), "0%");
-  ok("formatFeeBps renders the rate");
+  assert.equal(REFERRAL_REWARD_CENTS, 200);
+  assert.equal(MINIMUM_PAYOUT_CENTS, 4_000);
+  // The stated rule is "twenty completed deals", and the two constants have to
+  // keep saying that to each other.
+  assert.equal(MINIMUM_PAYOUT_CENTS / REFERRAL_REWARD_CENTS, 20);
+  ok("$2 a deal and a $40 minimum — twenty deals, as the pages promise");
+
+  // --- payout timing --------------------------------------------------------
+  //
+  // Requests are allowed on any day; the batch goes out on the 1st. Both edges
+  // of a month are checked, since "the next 1st" is where an off-by-one lands.
+  assert.equal(
+    nextPayoutDate(new Date("2026-08-14T12:00:00Z")).toISOString(),
+    "2026-09-01T00:00:00.000Z",
+  );
+  assert.equal(
+    nextPayoutDate(new Date("2026-12-31T23:59:59Z")).toISOString(),
+    "2027-01-01T00:00:00.000Z",
+  );
+  // On payout day itself the answer is the NEXT one, not today: today's batch
+  // is already going out.
+  assert.equal(
+    nextPayoutDate(new Date("2026-08-01T00:00:00Z")).toISOString(),
+    "2026-09-01T00:00:00.000Z",
+  );
+  ok("the next payout date is always the coming 1st, and rolls over the year");
 
   // --- references and invite codes ------------------------------------------
   assert.match(generateDealReference(), /^ESC-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);

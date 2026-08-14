@@ -8,7 +8,6 @@ import type { Locale } from "@/lib/locale";
 import { loadDealForViewer, type DealView, type DealViewerRole } from "@/lib/deals";
 import { listActivePaymentMethods, type PaymentMethodView } from "@/lib/payment-methods";
 import { formatCents } from "@/lib/money";
-import { formatFeeBps } from "@/lib/fees";
 import { DEAL_STATUS_LABEL, PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
 import { DealTimeline } from "@/components/trade/timeline";
 import { TradeHistory } from "@/components/trade/history";
@@ -198,27 +197,32 @@ export default async function DealPage({
             <p className="mt-3 text-xs text-[var(--muted)]">{t("swap.noMoney")}</p>
           </Card>
         ) : (
+        // A deal from the retired cash flow. Kept readable exactly as it was
+        // settled — this is the record of what these two people agreed to, and
+        // rewriting it under today's rules would misreport their trade.
         <Card>
           <h2 className="text-sm font-semibold">The money</h2>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            An older deal, from when accounts were traded for money. Swaps are free.
+          </p>
           <dl className="mt-3 space-y-1.5 text-sm">
             <div className="flex justify-between">
-              <dt className="text-[var(--muted)]">Buyer pays</dt>
+              <dt className="text-[var(--muted)]">Buyer paid</dt>
               <dd className="font-medium">{formatCents(deal.agreedPriceCents, deal.currency)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-[var(--muted)]">Escrow fee ({formatFeeBps(deal.feeBps)})</dt>
+              <dt className="text-[var(--muted)]">
+                Escrow fee ({(deal.feeBps / 100).toFixed(1)}%)
+              </dt>
               <dd>−{formatCents(deal.feeCents, deal.currency)}</dd>
             </div>
             <div className="flex justify-between border-t border-[var(--border)] pt-1.5">
-              <dt className="text-[var(--muted)]">Seller receives</dt>
+              <dt className="text-[var(--muted)]">Seller received</dt>
               <dd className="font-semibold text-[var(--accent)]">
                 {formatCents(deal.sellerPayoutCents, deal.currency)}
               </dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-[var(--muted)]">
-            Locked when the deal was opened. Changing the fee later does not affect it.
-          </p>
         </Card>
         )}
       </div>

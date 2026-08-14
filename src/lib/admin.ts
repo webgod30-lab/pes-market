@@ -334,6 +334,14 @@ export async function forceRefundCompleted(
     };
   }
 
+  // The deal is being unwound, so it never really completed and the promoters
+  // are no longer owed for it. Deleting the credits is how that is expressed:
+  // the balance is derived from these rows, so removing them takes the money
+  // back with no compensating entry to get wrong. If the promoter has already
+  // withdrawn it their balance goes negative, which is exactly what the wallet
+  // means by a shortfall — future earnings pay it back first.
+  await prisma.referralEarning.deleteMany({ where: { dealId } });
+
   return { ok: true };
 }
 

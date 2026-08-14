@@ -31,3 +31,40 @@ export function generateDealReference(): string {
 export function generateInviteCode(): string {
   return randomBytes(24).toString("base64url");
 }
+
+/**
+ * A promoter's referral code: "PES-7F3K9Q".
+ *
+ * Same readable alphabet as a deal reference, and for a stronger reason — this
+ * one gets said out loud in a Discord voice channel and typed into a sign-up
+ * form by someone who has never seen it written down. A code containing both O
+ * and 0 would cost real sign-ups.
+ *
+ * Not a secret: it identifies a promoter and grants nothing. Uniqueness is
+ * enforced by the database, so callers retry on a unique-constraint violation.
+ */
+export function generateReferralCode(): string {
+  let suffix = "";
+
+  for (let i = 0; i < 6; i++) {
+    suffix += READABLE_ALPHABET[randomInt(READABLE_ALPHABET.length)];
+  }
+
+  return `PES-${suffix}`;
+}
+
+/**
+ * Puts a typed code into the one form stored in the database.
+ *
+ * People paste these with a trailing space from a chat message, in lower case,
+ * and often without the "PES-" because they only copied the interesting half.
+ * All three should find the promoter rather than reporting an invalid code, so
+ * the prefix is re-added rather than demanded.
+ */
+export function normaliseReferralCode(raw: string): string {
+  const trimmed = raw.trim().toUpperCase().replace(/\s+/g, "");
+
+  if (trimmed === "") return "";
+
+  return trimmed.startsWith("PES-") ? trimmed : `PES-${trimmed.replace(/^PES/, "")}`;
+}

@@ -1,11 +1,16 @@
-// The seller's balance and withdrawals. SERVER ONLY.
+// A promoter's balance and payouts. SERVER ONLY.
 //
 // Money here is integer cents throughout, same as everywhere else — a float
 // that is a hundredth of a cent out is a reconciliation nobody can finish.
 //
+// This used to be a seller's wallet, funded by the commission on cash deals.
+// There are no cash deals and no commission any more, so a seller is owed
+// nothing: they receive an account, not money. The only balance the site can
+// owe is a promoter's, and it is made entirely of $2 referral credits.
+//
 // The balance is DERIVED, never stored:
 //
-//   earned    = every completed deal where this user was the seller
+//   earned    = every ReferralEarning row credited to this promoter
 //   committed = every withdrawal that is requested or already sent
 //   available = earned - committed
 //
@@ -13,197 +18,78 @@
 // cancelled request simply stops being counted and the money is available
 // again, with no compensating entry to forget.
 import { prisma } from "@/lib/prisma";
+import { MINIMUM_PAYOUT_CENTS, nextPayoutDate } from "@/lib/referrals";
 import type { CurrentUser } from "@/lib/dal";
-import type { DealStatus, PaymentMethod, WithdrawalStatus } from "@/generated/prisma/client";
+import type { PaymentMethod, WithdrawalStatus } from "@/generated/prisma/client";
 
 export type WalletResult<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
 /** Requests that still have a claim on the balance. */
 const COMMITTED: WithdrawalStatus[] = ["requested", "sent"];
 
-/** Nothing smaller is worth a manual transfer and its fee. */
-export const MINIMUM_WITHDRAWAL_CENTS = 500;
+/**
+ * Nothing below this is paid out.
+ *
+ * Re-exported from lib/referrals rather than defined twice. The number is a
+ * property of the referral program, and a copy of it here would be one edit
+ * away from the form and the page promising different thresholds.
+ */
+export const MINIMUM_WITHDRAWAL_CENTS = MINIMUM_PAYOUT_CENTS;
 
 export type Balance = {
-  /** Everything ever earned from settled deals. */
+  /** Every referral credit ever earned. */
   earnedCents: number;
   /** Reserved by an open request, or already paid out. */
   committedCents: number;
   /**
    * What can be withdrawn right now.
    *
-   * Floored at zero. It can genuinely go negative: a deal force-refunded after
-   * the seller has already withdrawn stops counting as earned, and the money
-   * has gone. The true figure is kept in `netCents` for the admin, and future
-   * earnings pay the shortfall back before anything is withdrawable again.
+   * Floored at zero. It can genuinely go negative: a completed deal that an
+   * admin later force-refunds has its credits deleted, and the promoter may
+   * already have been paid. The true figure is kept in `netCents` for the
+   * admin, and future earnings pay the shortfall back before anything is
+   * withdrawable again.
    */
   availableCents: number;
   /** The signed truth, including a shortfall. */
   netCents: number;
-  /**
-   * Money the admin is already holding on deals that have not finished.
-   *
-   * Deliberately NOT part of availableCents, and nothing below reads it when
-   * deciding what may be withdrawn — it exists so a seller can see that the
-   * buyer's payment has landed, which is the whole reassurance escrow is meant
-   * to provide. They previously saw a zero balance from the moment they handed
-   * over the account until the buyer confirmed, which reads exactly like the
-   * money not existing.
-   */
-  pendingCents: number;
-  /**
-   * Held, but frozen by a dispute. Kept apart from pendingCents because it may
-   * yet be refunded to the buyer — calling it "pending" would promise it.
-   */
-  frozenCents: number;
+  /** Whether the balance has reached the payout minimum. */
+  meetsMinimum: boolean;
+  /** The next 1st of the month — when requests are actually sent. */
+  nextPayoutAt: Date;
   currency: string;
 };
 
-/**
- * Deals where the buyer's money is confirmed and held, and the deal is still
- * running. `paymentConfirmedAt` is the gate rather than the status alone: a
- * buyer clicking "I have paid" is not the admin confirming it arrived.
- */
-const HELD_IN_FLIGHT: DealStatus[] = ["admin_verifying", "credentials_released", "claiming"];
-
 export async function getBalance(userId: string): Promise<Balance> {
-  const [earned, committed, pending, frozen] = await Promise.all([
-    // payoutAt marks a deal settled the old way, paid per-deal before wallets
-    // existed. Counting those would credit money the seller already has.
-    prisma.deal.aggregate({
-      where: { sellerId: userId, status: "completed", payoutAt: null },
-      _sum: { sellerPayoutCents: true },
-    }),
-    prisma.withdrawal.aggregate({
-      where: { sellerId: userId, status: { in: COMMITTED } },
+  const [earned, committed] = await Promise.all([
+    prisma.referralEarning.aggregate({
+      where: { promoterId: userId },
       _sum: { amountCents: true },
     }),
-    prisma.deal.aggregate({
-      where: {
-        sellerId: userId,
-        status: { in: HELD_IN_FLIGHT },
-        paymentConfirmedAt: { not: null },
-      },
-      _sum: { sellerPayoutCents: true },
-    }),
-    prisma.deal.aggregate({
-      where: { sellerId: userId, status: "disputed", paymentConfirmedAt: { not: null } },
-      _sum: { sellerPayoutCents: true },
+    prisma.withdrawal.aggregate({
+      where: { promoterId: userId, status: { in: COMMITTED } },
+      _sum: { amountCents: true },
     }),
   ]);
 
-  const earnedCents = earned._sum.sellerPayoutCents ?? 0;
-  const committedCents = committed._sum.amountCents ?? 0;
+  const earnedCents = earned._sum?.amountCents ?? 0;
+  const committedCents = committed._sum?.amountCents ?? 0;
   const netCents = earnedCents - committedCents;
+  const availableCents = Math.max(0, netCents);
 
   return {
     earnedCents,
     committedCents,
     // Unchanged, and it must stay that way: this is the only figure
     // requestWithdrawal checks against.
-    availableCents: Math.max(0, netCents),
+    availableCents,
     netCents,
-    pendingCents: pending._sum.sellerPayoutCents ?? 0,
-    frozenCents: frozen._sum.sellerPayoutCents ?? 0,
+    meetsMinimum: availableCents >= MINIMUM_WITHDRAWAL_CENTS,
+    nextPayoutAt: nextPayoutDate(),
     currency: "USD",
   };
 }
 
-export type PendingRow = {
-  dealId: string;
-  reference: string;
-  accountSummary: string;
-  amountCents: number;
-  currency: string;
-  status: DealStatus;
-  /** What the seller is waiting on before this becomes withdrawable. */
-  waitingOn: string;
-};
-
-const WAITING_ON: Partial<Record<DealStatus, string>> = {
-  admin_verifying: "Admin is checking the account",
-  credentials_released: "Buyer is claiming the account",
-  claiming: "Buyer has it — waiting for them to confirm",
-  disputed: "Frozen by a dispute",
-};
-
-/**
- * The deals behind pendingCents, itemised.
- *
- * Same reasoning as listEarnings: a figure a seller cannot break down into the
- * deals that produced it is a figure they have to take on trust, and this is a
- * service whose entire pitch is not having to.
- */
-export async function listPending(userId: string): Promise<PendingRow[]> {
-  const deals = await prisma.deal.findMany({
-    where: {
-      sellerId: userId,
-      status: { in: [...HELD_IN_FLIGHT, "disputed"] },
-      paymentConfirmedAt: { not: null },
-    },
-    orderBy: { paymentConfirmedAt: "desc" },
-    take: 100,
-    select: {
-      id: true,
-      reference: true,
-      accountSummary: true,
-      sellerPayoutCents: true,
-      currency: true,
-      status: true,
-    },
-  });
-
-  return deals.map((deal) => ({
-    dealId: deal.id,
-    reference: deal.reference,
-    accountSummary: deal.accountSummary,
-    amountCents: deal.sellerPayoutCents,
-    currency: deal.currency,
-    status: deal.status,
-    waitingOn: WAITING_ON[deal.status] ?? "In progress",
-  }));
-}
-
-export type EarningRow = {
-  dealId: string;
-  reference: string;
-  accountSummary: string;
-  amountCents: number;
-  currency: string;
-  completedAt: Date | null;
-};
-
-/** What each settled deal contributed, so the balance can be checked by hand. */
-export async function listEarnings(userId: string): Promise<EarningRow[]> {
-  const deals = await prisma.deal.findMany({
-    where: { sellerId: userId, status: "completed", payoutAt: null },
-    orderBy: { completedAt: "desc" },
-    take: 100,
-    select: {
-      id: true,
-      reference: true,
-      accountSummary: true,
-      sellerPayoutCents: true,
-      currency: true,
-      completedAt: true,
-    },
-  });
-
-  return deals.map((deal) => ({
-    dealId: deal.id,
-    reference: deal.reference,
-    accountSummary: deal.accountSummary,
-    amountCents: deal.sellerPayoutCents,
-    currency: deal.currency,
-    completedAt: deal.completedAt,
-  }));
-}
-
-/**
- * A payout destination, discriminated the same way the form and the validation
- * schema are — so a bank transfer cannot be built without a bank, and a crypto
- * payout cannot be built without a network.
- */
 export type WithdrawalRequest = { amountCents: number; destinationName: string; destinationAccount: string } & (
   | { method: "crypto"; destinationNetwork: string }
   | { method: "bank_transfer"; destinationBank: string; destinationBic?: string }
@@ -229,7 +115,7 @@ export type WithdrawalView = {
 
 export function listWithdrawals(userId: string): Promise<WithdrawalView[]> {
   return prisma.withdrawal.findMany({
-    where: { sellerId: userId },
+    where: { promoterId: userId },
     orderBy: { requestedAt: "desc" },
     take: 50,
     select: {
@@ -252,14 +138,19 @@ export function listWithdrawals(userId: string): Promise<WithdrawalView[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Seller actions
+// Promoter actions
 // ---------------------------------------------------------------------------
 
 /**
  * Asks to be paid out.
  *
+ * A request can be made on any day. It is *sent* on the 1st of the month, in
+ * one batch — which is why nothing here checks the date. Blocking the button
+ * for 30 days out of 31 would mean a promoter who happened to be busy on the
+ * 1st waits another whole month for money they had already earned.
+ *
  * One open request at a time. Two open requests could each pass the balance
- * check on their own and together exceed it — and the seller cannot usefully
+ * check on their own and together exceed it — and a promoter cannot usefully
  * tell two pending payouts apart anyway.
  */
 export async function requestWithdrawal(
@@ -278,25 +169,28 @@ export async function requestWithdrawal(
   }
 
   const open = await prisma.withdrawal.findFirst({
-    where: { sellerId: user.id, status: "requested" },
+    where: { promoterId: user.id, status: "requested" },
     select: { id: true },
   });
 
   if (open) {
     return {
       ok: false,
-      error: "You already have a withdrawal waiting. It has to be sent or cancelled first.",
+      error: "You already have a payout waiting. It has to be sent or cancelled first.",
     };
   }
 
   const balance = await getBalance(user.id);
 
   if (balance.availableCents < MINIMUM_WITHDRAWAL_CENTS) {
-    return { ok: false, error: "There is not enough in your balance to withdraw yet." };
+    return {
+      ok: false,
+      error: "You need $40 in referral earnings before you can request a payout.",
+    };
   }
 
   if (input.amountCents < MINIMUM_WITHDRAWAL_CENTS) {
-    return { ok: false, error: "That is below the minimum withdrawal." };
+    return { ok: false, error: "The smallest payout is $40." };
   }
 
   if (input.amountCents > balance.availableCents) {
@@ -305,7 +199,7 @@ export async function requestWithdrawal(
 
   const created = await prisma.withdrawal.create({
     data: {
-      sellerId: user.id,
+      promoterId: user.id,
       amountCents: input.amountCents,
       method: input.method,
       destinationName,
@@ -341,12 +235,12 @@ export async function cancelWithdrawal(
   withdrawalId: string,
 ): Promise<WalletResult> {
   const result = await prisma.withdrawal.updateMany({
-    where: { id: withdrawalId, sellerId: user.id, status: "requested" },
+    where: { id: withdrawalId, promoterId: user.id, status: "requested" },
     data: { status: "cancelled", decidedAt: new Date() },
   });
 
   if (result.count !== 1) {
-    return { ok: false, error: "That withdrawal can no longer be cancelled." };
+    return { ok: false, error: "That payout can no longer be cancelled." };
   }
 
   return { ok: true };
@@ -357,9 +251,20 @@ export async function cancelWithdrawal(
 // ---------------------------------------------------------------------------
 
 export type AdminWithdrawalRow = WithdrawalView & {
-  seller: { id: string; displayName: string; email: string };
-  /** The seller's position at the time of viewing, to spot a shortfall. */
-  sellerNetCents: number;
+  promoter: { id: string; displayName: string; email: string };
+  /** The promoter's position at the time of viewing, to spot a shortfall. */
+  promoterNetCents: number;
+  /**
+   * How much of this promoter's lifetime earnings came from the single person
+   * who earned them the most.
+   *
+   * Not a rule, and nothing is blocked on it — it is a number for the admin to
+   * look at before sending money. The program pays $2 per completed deal and
+   * takes no commission to fund it, so a promoter whose entire balance came
+   * from one account swapping repeatedly is the shape farming takes, and the
+   * only place to notice it is here, before the transfer goes out.
+   */
+  topTraderShare: number;
 };
 
 export async function listWithdrawalsForAdmin(
@@ -384,18 +289,37 @@ export async function listWithdrawalsForAdmin(
       requestedAt: true,
       decidedAt: true,
       note: true,
-      seller: { select: { id: true, displayName: true, email: true } },
+      promoter: { select: { id: true, displayName: true, email: true } },
     },
   });
 
-  // One balance lookup per distinct seller rather than per row.
-  const balances = new Map<string, number>();
+  // One lookup per distinct promoter rather than per row.
+  const stats = new Map<string, { net: number; share: number }>();
 
-  for (const sellerId of new Set(rows.map((r) => r.seller.id))) {
-    balances.set(sellerId, (await getBalance(sellerId)).netCents);
+  for (const promoterId of new Set(rows.map((row) => row.promoter.id))) {
+    const [balance, byTrader] = await Promise.all([
+      getBalance(promoterId),
+      prisma.referralEarning.groupBy({
+        by: ["traderId"],
+        where: { promoterId },
+        _sum: { amountCents: true },
+      }),
+    ]);
+
+    const total = byTrader.reduce((sum, row) => sum + (row._sum?.amountCents ?? 0), 0);
+    const top = byTrader.reduce((max, row) => Math.max(max, row._sum?.amountCents ?? 0), 0);
+
+    stats.set(promoterId, {
+      net: balance.netCents,
+      share: total === 0 ? 0 : top / total,
+    });
   }
 
-  return rows.map((row) => ({ ...row, sellerNetCents: balances.get(row.seller.id) ?? 0 }));
+  return rows.map((row) => ({
+    ...row,
+    promoterNetCents: stats.get(row.promoter.id)?.net ?? 0,
+    topTraderShare: stats.get(row.promoter.id)?.share ?? 0,
+  }));
 }
 
 export function countPendingWithdrawals(): Promise<number> {
@@ -423,7 +347,7 @@ export async function markWithdrawalSent(
     data: { status: "sent", decidedAt: new Date(), decidedById: admin.id, note: trimmed },
   });
 
-  if (result.count !== 1) return { ok: false, error: "That withdrawal is no longer open." };
+  if (result.count !== 1) return { ok: false, error: "That payout is no longer open." };
 
   return { ok: true };
 }
@@ -439,7 +363,7 @@ export async function rejectWithdrawal(
   const trimmed = reason.trim();
 
   if (!trimmed) {
-    return { ok: false, error: "Give a reason — the seller is shown it." };
+    return { ok: false, error: "Give a reason — the promoter is shown it." };
   }
 
   const result = await prisma.withdrawal.updateMany({
@@ -447,7 +371,7 @@ export async function rejectWithdrawal(
     data: { status: "rejected", decidedAt: new Date(), decidedById: admin.id, note: trimmed },
   });
 
-  if (result.count !== 1) return { ok: false, error: "That withdrawal is no longer open." };
+  if (result.count !== 1) return { ok: false, error: "That payout is no longer open." };
 
   return { ok: true };
 }
@@ -467,7 +391,7 @@ export type DestinationField = {
  * A destination broken into labelled lines, in the order someone filling in a
  * transfer form needs them.
  *
- * Kept here rather than in either page so the seller checking their request
+ * Kept here rather than in either page so the promoter checking their request
  * and the admin sending the money are looking at the same thing, labelled the
  * same way. A mismatch between those two views is how money goes astray.
  */
@@ -509,13 +433,13 @@ export function destinationFields(withdrawal: {
 }
 
 /**
- * How each withdrawal state should look.
+ * How each payout state should look.
  *
  * The tone lives here rather than in the two pages that render it, because it
  * was written out identically in both and the pair would drift. The *labels*
- * deliberately stay in the pages: the seller sees "Waiting to be sent" and the
- * admin sees "Waiting on you", which is the same state described from the side
- * that has to act on it.
+ * deliberately stay in the pages: the promoter sees "Waiting to be sent" and
+ * the admin sees "Waiting on you", which is the same state described from the
+ * side that has to act on it.
  */
 export const WITHDRAWAL_TONE: Record<WithdrawalStatus, "neutral" | "success" | "warning" | "danger"> = {
   requested: "warning",

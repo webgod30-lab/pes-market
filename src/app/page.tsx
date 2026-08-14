@@ -3,7 +3,6 @@ import { getLocale } from "@/lib/locale-server";
 import type { Locale } from "@/lib/locale";
 
 import { getCurrentUserQuietly } from "@/lib/dal";
-import { defaultFeeBps, formatFeeBps } from "@/lib/fees";
 import { getTrustStats, listPublicReviews } from "@/lib/reviews";
 import { getMonthlyVisits, looksAutomated, recordVisit } from "@/lib/visits";
 import { featuredFaqsFor } from "@/components/faq-content";
@@ -30,7 +29,6 @@ import { FinalCta } from "@/components/landing/final-cta";
  */
 export default async function HomePage() {
   const user = await getCurrentUserQuietly();
-  const feeBps = defaultFeeBps();
   const locale = await getLocale();
 
   const [stats, reviews] = await Promise.all([
@@ -74,32 +72,28 @@ export default async function HomePage() {
         primaryLabel={
           locale === "ar"
             ? signedIn
-              ? "افتح صفقة"
-              : "ابدأ صفقة"
+              ? "افتح مبادلة"
+              : "ابدأ مبادلة"
             : signedIn
-              ? "Open a deal"
-              : "Start a deal"
+              ? "Open a swap"
+              : "Start a swap"
         }
-        feeLine={feeLine(locale, feeBps)}
+        feeLine={feeLine(locale)}
       />
     </div>
   );
 }
 
 /**
- * The fee sentence under the closing call to action.
+ * The line under the closing call to action.
  *
- * Not in content.ts because it interpolates the configured rate, which is read
- * from the environment at request time rather than being copy.
+ * It used to quote the configured commission. There is no commission: a swap
+ * trades one account for another, so there is no amount to take a percentage
+ * of. What replaced it as the thing worth saying last is that joining needs a
+ * promoter's code — better learned here than at the sign-up form.
  */
-function feeLine(locale: Locale, feeBps: number): string {
-  if (feeBps <= 0) {
-    return locale === "ar"
-      ? "لا توجد رسوم حاليًا — يستلم البائع بالضبط ما دفعه المشتري."
-      : "No fee at the moment — the seller receives exactly what the buyer paid.";
-  }
-
+function feeLine(locale: Locale): string {
   return locale === "ar"
-    ? `${formatFeeBps(feeBps)} من قيمة الصفقة، تُخصم من مستحقات البائع. ويدفع المشتري السعر المتفق عليه بالضبط.`
-    : `${formatFeeBps(feeBps)} of the deal, taken from the seller's payout. The buyer pays exactly the agreed price.`;
+    ? "لا رسوم ولا مال — حساب مقابل حساب. تحتاج إلى رمز داعٍ للانضمام."
+    : "No fee, no money — one account for another. You need a promoter's code to join.";
 }

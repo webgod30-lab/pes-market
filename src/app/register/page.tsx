@@ -8,20 +8,28 @@ import { getCurrentUserQuietly } from "@/lib/dal";
 export const metadata = {
   title: "Create an account",
   description:
-    "Create a free PESescrow.com account to open an escrowed eFootball account trade, or to join one you were invited to. One account covers both buying and selling.",
+    "Create a free PESescrow.com account to swap eFootball accounts safely. You need a promoter's code to join — and you get one of your own, worth $2 for every deal the people you bring in complete.",
 };
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
   // Quietly: the form must render even with a broken database, so that
   // submitting it can report the actual reason.
   const user = await getCurrentUserQuietly();
 
   if (user) redirect(user.role === "admin" ? "/admin" : "/dashboard");
 
+  // Not validated here. A wrong code has to be reported by the form, next to
+  // the field, and looking it up now would only mean checking it twice.
+  const { ref } = await searchParams;
+
   return (
     <AuthShell
       title="Create your account"
-      subtitle="You need one to open a deal, or to join one you were invited to."
+      subtitle="Everyone here arrived through somebody. Paste their code to join."
       footer={
         <>
           Already registered?{" "}
@@ -44,7 +52,7 @@ export default async function RegisterPage() {
         </>
       }
     >
-      <RegisterForm />
+      <RegisterForm initialReferralCode={ref ?? ""} />
     </AuthShell>
   );
 }

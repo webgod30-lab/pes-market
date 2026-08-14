@@ -12,7 +12,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/passwords";
 import { encryptCredentials } from "../src/lib/crypto";
-import { splitDealMoney, defaultFeeBps } from "../src/lib/fees";
+import { generateReferralCode } from "../src/lib/ids";
+import { creditReferralsForDeal, REFERRAL_REWARD_CENTS } from "../src/lib/referrals";
 import { formatCents } from "../src/lib/money";
 
 const connectionString = process.env.DATABASE_URL;
@@ -76,7 +77,26 @@ assertSafeToSeed(connectionString);
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
-const FEE_BPS = defaultFeeBps();
+/**
+ * The commission the retired cash flow charged, used only to give the archived
+ * fixtures below realistic figures.
+ *
+ * Not read from config, and not shared with anything the app runs: nothing
+ * charges a fee any more. It is a property of the historical data, so it lives
+ * with the historical data.
+ */
+const ARCHIVED_FEE_BPS = 500;
+
+function archivedSplit(agreedPriceCents: number) {
+  const feeCents = Math.round((agreedPriceCents * ARCHIVED_FEE_BPS) / 10_000);
+
+  return {
+    agreedPriceCents,
+    feeBps: ARCHIVED_FEE_BPS,
+    feeCents,
+    sellerPayoutCents: agreedPriceCents - feeCents,
+  };
+}
 
 /** Test accounts. Passwords are intentionally simple — local fixtures only. */
 const PEOPLE = [
@@ -463,7 +483,7 @@ const BUYER_REVIEWS: { rating: number; comment: string }[] = [
 ];
 
 async function main() {
-  console.log(`Seeding database… (middleman fee: ${FEE_BPS} bp)\n`);
+  console.log("Seeding database… (swaps are free; promoters earn $2 a deal)\n");
 
   // --- payment methods -----------------------------------------------------
   for (const pm of PAYMENT_METHODS) {
@@ -480,23 +500,38 @@ async function main() {
   // --- users ---------------------------------------------------------------
   const usersByKey = new Map<string, { id: string; email: string; role: string }>();
 
+  // The admin is seeded first and has no promoter above them — somebody has to
+  // be the root of the tree, or the site could never be bootstrapped at all.
+  // Everyone else is hung off them, so every seeded account has a code and a
+  // referrer exactly as a real one would.
+  let rootPromoterId: string | null = null;
+
   for (const person of PEOPLE) {
     const passwordHash = await hashPassword(person.password);
+    const referredById: string | null = rootPromoterId;
 
-    const user = await prisma.user.upsert({
+    // Annotated rather than inferred. The result feeds back into
+    // rootPromoterId, which is read again as this call's own argument on the
+    // next iteration, and TypeScript reports that round trip as a circular
+    // inference unless the type is pinned here.
+    const user: { id: string; email: string; role: string } = await prisma.user.upsert({
       where: { email: person.email },
       // Re-running resets the password back to the documented fixture but
-      // leaves the id alone, so seeded deals keep their parties.
+      // leaves the id and the referral code alone, so seeded deals keep their
+      // parties and a code someone has already shared keeps working.
       update: { displayName: person.displayName, role: person.role, passwordHash },
       create: {
         email: person.email,
         displayName: person.displayName,
         role: person.role,
         passwordHash,
+        referralCode: generateReferralCode(),
+        referredById,
       },
       select: { id: true, email: true, role: true },
     });
 
+    rootPromoterId ??= user.id;
     usersByKey.set(person.key, user);
   }
 
@@ -506,8 +541,12 @@ async function main() {
   const admin = usersByKey.get("admin")!;
   const now = new Date();
 
+  // These fixtures are deliberately left as CASH deals. Nothing can create one
+  // any more, but the schema still carries them and the admin console still has
+  // to render them — so the seed keeps a set around to exercise that path. The
+  // current flow is seeded further down, as swaps.
   for (const deal of DEALS) {
-    const money = splitDealMoney(deal.agreedPriceCents, FEE_BPS);
+    const money = archivedSplit(deal.agreedPriceCents);
 
     // Timestamps are filled in only for stages the deal has actually passed.
     const paymentSubmitted = [
@@ -537,6 +576,9 @@ async function main() {
       game: deal.game,
       platform: deal.platform,
       level: deal.level,
+      // Explicit, because the column now defaults to "swap" — without this the
+      // archived fixtures would be written as swaps carrying a price.
+      tradeKind: "cash" as const,
       agreedPriceCents: money.agreedPriceCents,
       feeBps: money.feeBps,
       feeCents: money.feeCents,
@@ -590,11 +632,24 @@ async function main() {
   const demoUsers = new Map<string, string>();
   const demoPasswordHash = await hashPassword("Demo123!pes");
 
-  for (const trader of DEMO_TRADERS) {
+  // Spread the demo traders across the real fixture accounts as their
+  // promoters, round-robin. Without this every referral page in the seed is
+  // empty and there is no way to look at the programme without first building
+  // a referral tree by hand.
+  const promoterPool = PEOPLE.filter((person) => person.role !== "admin")
+    .map((person) => usersByKey.get(person.key)!.id);
+
+  for (const [index, trader] of DEMO_TRADERS.entries()) {
     const user = await prisma.user.upsert({
       where: { email: trader.email },
       update: { displayName: trader.name },
-      create: { email: trader.email, displayName: trader.name, passwordHash: demoPasswordHash },
+      create: {
+        email: trader.email,
+        displayName: trader.name,
+        passwordHash: demoPasswordHash,
+        referralCode: generateReferralCode(),
+        referredById: promoterPool[index % promoterPool.length] ?? null,
+      },
       select: { id: true },
     });
     demoUsers.set(trader.key, user.id);
@@ -618,8 +673,10 @@ async function main() {
     const sellerId = demoUsers.get(DEMO_TRADERS[i % DEMO_TRADERS.length].key)!;
     const buyerId = demoUsers.get(DEMO_TRADERS[(i + 5) % DEMO_TRADERS.length].key)!;
 
-    const money = splitDealMoney(account.price, FEE_BPS);
     const dealId = `demo-deal-${i}`;
+    // What the other side put up. Taken from further along the same pool so
+    // the two descriptions on a swap are never identical.
+    const counterAccount = DEMO_ACCOUNTS[(i + 3) % DEMO_ACCOUNTS.length];
 
     // Spread the history back over several months so the wall does not look
     // like everything happened in one afternoon.
@@ -635,27 +692,37 @@ async function main() {
       inviteCode: null,
       inviteAcceptedAt: at,
       accountSummary: account.summary,
+      counterAccountSummary: counterAccount.summary,
       game: account.game,
       platform: account.platform,
       level: account.level,
-      agreedPriceCents: money.agreedPriceCents,
-      feeBps: money.feeBps,
-      feeCents: money.feeCents,
-      sellerPayoutCents: money.sellerPayoutCents,
+      // Swaps carry no money at all. Written explicitly rather than left to
+      // the column defaults, because this is an upsert: a database seeded
+      // before the cash flow was retired already has figures in these columns,
+      // and a default only applies on insert. Without them a re-seed would
+      // leave a swap quoting a price.
+      tradeKind: "swap" as const,
+      agreedPriceCents: 0,
+      feeBps: 0,
+      feeCents: 0,
+      sellerPayoutCents: 0,
+      paymentMethod: null,
+      paymentSubmittedAt: null,
+      paymentConfirmedAt: null,
+      paymentConfirmedById: null,
+      payoutAt: null,
+      payoutReference: null,
       status: "completed" as const,
-      paymentMethod: (i % 3 === 0 ? "bank_transfer" : "crypto") as "bank_transfer" | "crypto",
-      paymentSubmittedAt: at,
-      paymentConfirmedAt: at,
-      paymentConfirmedById: admin.id,
       verificationStartedAt: at,
       deliveryApprovedAt: at,
       deliveryApprovedById: admin.id,
       credentialsReleasedAt: at,
       deliveredCiphertext: demoCredentials,
+      deliveredCounterCiphertext: demoCredentials,
+      // A swap needs both confirmations to close, so both are stamped.
       buyerConfirmedAt: at,
+      sellerConfirmedAt: at,
       completedAt: at,
-      payoutAt: at,
-      payoutReference: `demo-payout-${i}`,
       createdAt: at,
     };
 
@@ -665,11 +732,20 @@ async function main() {
       create: { id: dealId, ...dealData },
     });
 
-    await prisma.credential.upsert({
-      where: { dealId_side: { dealId, side: "seller" } },
-      update: { ciphertext: demoCredentials },
-      create: { dealId, ciphertext: demoCredentials },
-    });
+    // One credential row per side, which is what a swap has.
+    for (const side of ["seller", "buyer"] as const) {
+      await prisma.credential.upsert({
+        where: { dealId_side: { dealId, side } },
+        update: { ciphertext: demoCredentials },
+        create: { dealId, side, ciphertext: demoCredentials },
+      });
+    }
+
+    // The $2 each side owes its promoter. Written through the same path the
+    // app uses, so the seed cannot drift from the real crediting rules — it
+    // skips a promoter who traded in the deal, and it is idempotent on
+    // re-seed.
+    await creditReferralsForDeal(dealId);
 
     // The buyer reviews the seller...
     const sellerReview = SELLER_REVIEWS[i];
@@ -735,12 +811,19 @@ async function main() {
     console.log(`  ${person.role.padEnd(5)} | ${person.email.padEnd(26)} | ${person.password}`);
   }
 
-  const example = splitDealMoney(18_500, FEE_BPS);
+  console.log("\nReferral codes (paste one into the sign-up form):\n");
+  for (const person of PEOPLE) {
+    const code = await prisma.user.findUnique({
+      where: { email: person.email },
+      select: { referralCode: true },
+    });
+
+    console.log(`  ${person.email.padEnd(26)} | ${code?.referralCode ?? "—"}`);
+  }
+
   console.log(
-    `\nFee example: buyer pays ${formatCents(example.agreedPriceCents)} → ` +
-      `you keep ${formatCents(example.feeCents)}, seller receives ${formatCents(
-        example.sellerPayoutCents,
-      )}.\n`,
+    `\nSwaps are free. The only money that moves is ${formatCents(REFERRAL_REWARD_CENTS)} ` +
+      `per completed deal to the trader's promoter, paid on the 1st of the month.\n`,
   );
 }
 
