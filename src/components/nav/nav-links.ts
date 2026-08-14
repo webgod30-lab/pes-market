@@ -78,7 +78,7 @@ export const RESOURCES: NavGroup = {
     {
       href: "/faq",
       labelKey: "nav.faq",
-      description: "Fees, disputes, and the awkward questions",
+      description: "Payouts, disputes, and the awkward questions",
       icon: "help",
     },
     {

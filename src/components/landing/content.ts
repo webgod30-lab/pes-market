@@ -38,7 +38,15 @@ export const USE_LIVE_STATS = false;
 
 export const DISPLAY_STATS = {
   monthlyVisitors: "50K+",
-  protectedTransactions: "$268K+",
+  /**
+   * Was "$268K+ protected transactions". That figure could not stay: it is a
+   * money claim on a service that no longer touches money, and it contradicted
+   * the terms outright ("No money passes between the parties on this service,
+   * and we hold no funds on anyone's behalf").
+   *
+   * Like the other two, this is a placeholder until USE_LIVE_STATS is on.
+   */
+  accountsSwapped: "1,200+",
   reviews: "5,000+",
 } as const;
 
@@ -55,20 +63,19 @@ export type HeadlineStat = {
 const compact = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}K+` : String(Math.round(n));
 
-const money = (cents: number) => {
-  const dollars = cents / 100;
-  return dollars >= 1000 ? `$${(dollars / 1000).toFixed(0)}K+` : `$${Math.round(dollars)}`;
-};
+// The money formatter that used to render "$268K+" is gone with the stat it
+// served. Nothing on this page reports an amount any more, because the service
+// no longer moves any.
 
 const STAT_TEXT: Record<Locale, { label: string; caption: string }[]> = {
   en: [
     { label: "Monthly visitors", caption: "people weighing up a trade" },
-    { label: "Protected transactions", caption: "held in escrow and released safely" },
+    { label: "Accounts swapped", caption: "both sides got what they agreed" },
     { label: "Reviews", caption: "both sides rate each other" },
   ],
   ar: [
     { label: "زوار شهريًا", caption: "أشخاص يفكرون في إتمام صفقة" },
-    { label: "معاملات محمية", caption: "محتجزة في الضمان ثم سُلِّمت بأمان" },
+    { label: "حسابات تمت مبادلتها", caption: "حصل كل طرف على ما اتفقا عليه" },
     { label: "تقييمات", caption: "كل طرف يقيّم الآخر" },
   ],
 };
@@ -83,9 +90,13 @@ export function headlineStats(
   return [
     { display: DISPLAY_STATS.monthlyVisitors, value: monthlyVisits, format: compact, ...text[0] },
     {
-      display: DISPLAY_STATS.protectedTransactions,
-      value: stats?.protectedCents ?? 0,
-      format: money,
+      display: DISPLAY_STATS.accountsSwapped,
+      // Two accounts change hands on every completed swap, which is what the
+      // label counts. protectedCents is deliberately no longer read here: it
+      // sums agreedPriceCents, so it is frozen at whatever the retired cash
+      // flow left behind and can never grow again.
+      value: (stats?.completedDeals ?? 0) * 2,
+      format: compact,
       ...text[1],
     },
     { display: DISPLAY_STATS.reviews, value: stats?.reviews ?? 0, format: compact, ...text[2] },
