@@ -12,7 +12,7 @@ import {
 import { getBalance } from "@/lib/wallet";
 import { formatCents } from "@/lib/money";
 import { ReferralShare } from "@/components/referral-share";
-import { traderSections } from "@/components/dashboard/dash-nav";
+import { sectionsFor } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
@@ -56,7 +56,7 @@ export default async function ReferralsPage() {
 
   return (
     <DashShell
-      groups={traderSections({})}
+      groups={sectionsFor(user.role, {})}
       title="Promote & earn"
       description={`Share your code. You earn ${formatCents(REFERRAL_REWARD_CENTS)} every time someone who signed up with it completes a swap.`}
     >

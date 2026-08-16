@@ -60,9 +60,24 @@ export type CreateDealInput = {
   counterAccountSummary: string;
 };
 
+/**
+ * The one thing a promoter account cannot do.
+ *
+ * Promoters are let in through /promote without anybody's code, on the strength
+ * of an audience rather than a trade. They share a code and collect earnings;
+ * they do not trade. Enforced here rather than by hiding buttons, because a
+ * server action is a public endpoint and hiding a form is not a control.
+ */
+const PROMOTERS_CANNOT_TRADE =
+  "A promoter account cannot open or join a swap. Ask someone for their code and register a normal account if you want to trade.";
+
 export async function createDeal(
   input: CreateDealInput,
 ): Promise<DealResult<{ dealId: string; reference: string; inviteCode: string }>> {
+  if (input.creator.role === "promoter") {
+    return { ok: false, error: PROMOTERS_CANNOT_TRADE };
+  }
+
   const counter = input.counterAccountSummary.trim();
 
   if (!counter) {
@@ -191,6 +206,12 @@ export async function joinDealByCode(
   user: CurrentUser,
   code: string,
 ): Promise<DealResult<{ dealId: string; reference: string; joinedAs: DealSide }>> {
+  // Checked before the code is looked up, so a promoter holding a leaked invite
+  // learns nothing about whether it was valid.
+  if (user.role === "promoter") {
+    return { ok: false, error: PROMOTERS_CANNOT_TRADE };
+  }
+
   const invite = await findInvite(code);
 
   if (!invite) {

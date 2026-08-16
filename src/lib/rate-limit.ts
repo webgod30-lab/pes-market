@@ -45,6 +45,16 @@ export const REGISTER_BY_IP: RateLimitRule = { limit: 5, windowSeconds: 60 * 60 
 /** Two-factor codes, which are six digits and therefore guessable at volume. */
 export const TOTP_BY_ACCOUNT: RateLimitRule = { limit: 8, windowSeconds: 10 * 60 };
 
+/**
+ * Applying to become a promoter. Per-IP, like registration, and tighter.
+ *
+ * An application is the one public form that creates work for a person: every
+ * submission lands in a queue an admin has to read. Three an hour is more than
+ * anybody applying honestly needs, and it stops the queue being usable as a
+ * denial-of-service against the admin's attention.
+ */
+export const PROMOTER_APPLICATION_BY_IP: RateLimitRule = { limit: 3, windowSeconds: 60 * 60 };
+
 function windowStartFor(rule: RateLimitRule, now: Date): Date {
   const ms = rule.windowSeconds * 1000;
 

@@ -36,6 +36,10 @@ export default async function DashboardPage() {
   // The admin has a purpose-built console.
   if (user.role === "admin") redirect("/admin");
 
+  // A promoter has no deals and no way to make one, so this page can only ever
+  // be an empty list with two buttons that refuse.
+  if (user.role === "promoter") redirect("/referrals");
+
   // Every deal where this person is either side.
   const [deals, unread, reputation] = await Promise.all([
     listDealsForUser(user.id),

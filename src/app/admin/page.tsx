@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireUserOrProblem } from "@/lib/dal";
 import { getConsoleStats, listDealsForAdmin } from "@/lib/admin";
 import { listStalledCodeRequests } from "@/lib/transfer-codes";
+import { countPendingApplications } from "@/lib/promoters";
 import { adminSections } from "@/components/dashboard/dash-nav";
 import { adminDealColumns } from "@/components/dashboard/admin-deal-columns";
 import { Breakdown } from "@/components/dashboard/breakdown";
@@ -25,10 +26,11 @@ export default async function AdminPage() {
   const admin = auth.user;
   const now = new Date();
 
-  const [stats, queue, stalledCodes] = await Promise.all([
+  const [stats, queue, stalledCodes, pendingApplications] = await Promise.all([
     getConsoleStats(now),
     listDealsForAdmin("needs_action", "", now),
     listStalledCodeRequests(),
+    countPendingApplications(),
   ]);
 
   // In-flight deals sitting in one of the admin's own queues. Used for the
@@ -45,6 +47,13 @@ export default async function AdminPage() {
       href: "/admin/disputes",
       icon: "scales" as const,
       caption: "frozen until you decide",
+    },
+    {
+      label: "Promoter applications",
+      value: pendingApplications,
+      href: "/admin/promoters",
+      icon: "inbox" as const,
+      caption: "waiting to be let in",
     },
     {
       label: "Payments to confirm",
@@ -91,6 +100,7 @@ export default async function AdminPage() {
         deals: queue.length,
         withdrawals: stats.withdrawalsToSend,
         disputes: stats.openDisputes,
+        promoters: pendingApplications,
       })}
       title="Admin console"
       description={

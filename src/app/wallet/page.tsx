@@ -11,7 +11,7 @@ import {
 import { listReferralEarnings, REFERRAL_REWARD_CENTS } from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
 import { WithdrawForm, CancelWithdrawalButton } from "@/components/withdraw-form";
-import { traderSections } from "@/components/dashboard/dash-nav";
+import { sectionsFor } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { Alert, Badge, Card, DetailList, Overline, SetupProblem } from "@/components/ui";
@@ -51,7 +51,7 @@ export default async function WalletPage() {
 
   return (
     <DashShell
-      groups={traderSections({})}
+      groups={sectionsFor(user.role, {})}
       title="Your balance"
       description="What you have earned from the people you brought to the site, and what you have taken out."
     >

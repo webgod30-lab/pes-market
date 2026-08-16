@@ -82,6 +82,12 @@ export const RESOURCES: NavGroup = {
       icon: "help",
     },
     {
+      href: "/promote",
+      labelKey: "nav.promote",
+      description: "Earn $2 a swap — the way in if you know nobody here",
+      icon: "payout",
+    },
+    {
       href: "/contact",
       labelKey: "nav.contact",
       description: "Ask before you send anything",
@@ -97,9 +103,17 @@ export const PUBLIC_LINKS: NavItem[] = [PRIMARY_LINK, ...RESOURCES.items];
 // Signed in
 // ---------------------------------------------------------------------------
 
-/** Where "your deals" lives, which differs for an admin. */
+/**
+ * Where "home" lives, which differs by role.
+ *
+ * A promoter has no deals and cannot make one, so /dashboard would be an empty
+ * list they can never fill. Their code is the page they actually came for.
+ */
 export function homeHref(role: Role): string {
-  return role === "admin" ? "/admin" : "/dashboard";
+  if (role === "admin") return "/admin";
+  if (role === "promoter") return "/referrals";
+
+  return "/dashboard";
 }
 
 /**
@@ -116,6 +130,28 @@ export function homeHref(role: Role): string {
  * to it while redesigning the nav is not the way to raise it.
  */
 export function dealsGroup(role: Role): NavGroup {
+  // A promoter can neither open nor join one, so the whole dropdown would be
+  // links to refusals. They get the two things they can do instead.
+  if (role === "promoter") {
+    return {
+      labelKey: "nav.referrals",
+      items: [
+        {
+          href: "/referrals",
+          labelKey: "nav.referrals",
+          description: "Your code, and what it has earned",
+          icon: "ticket",
+        },
+        {
+          href: "/wallet",
+          labelKey: "nav.balance",
+          description: "Take your earnings out",
+          icon: "wallet",
+        },
+      ],
+    };
+  }
+
   if (role === "admin") {
     return {
       labelKey: "nav.console",
@@ -175,7 +211,8 @@ export function accountLinks(role: Role): NavItem[] {
     icon: role === "admin" ? "gauge" : "grid",
   };
 
-  // Promote before balance, and both only for traders.
+  // Promote before balance, and both for anyone who is not an admin —
+  // including promoters, for whom these two rows are the entire site.
   //
   // The referrals page was reachable only from the dashboard sidebar, which
   // does not exist on the marketing pages — so a signed-in user browsing the

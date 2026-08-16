@@ -49,6 +49,35 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Enter your password."),
 });
 
+/**
+ * Applying to become a promoter, at /promote.
+ *
+ * The one public form that does not need a code — it is the way in for someone
+ * who has nobody to get a code from. The password is taken up front so that
+ * approving is one click rather than a second round of emails.
+ */
+export const promoterApplicationSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .min(2, "Display name must be at least 2 characters.")
+    .max(40, "Display name must be at most 40 characters."),
+  email: emailField,
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters.")
+    .max(72, "Password must be at most 72 characters."),
+  /**
+   * The only thing an admin really decides on, so it asks for enough to decide
+   * with. A one-word answer is not a case.
+   */
+  channel: z
+    .string()
+    .trim()
+    .min(20, "Say where you would promote it, and roughly how many people you reach.")
+    .max(1000, "Keep it under 1000 characters."),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 

@@ -23,6 +23,29 @@ export type DashSection = {
 export type DashGroup = { label: string; items: DashSection[] };
 
 /** The trader's own area. */
+/**
+ * A promoter's sidebar.
+ *
+ * They cannot open or join a deal, so every trading row would be a dead end.
+ * What is left is the two things they can actually do — share their code and
+ * take the money — plus their own account settings.
+ */
+export function promoterSections(): DashGroup[] {
+  return [
+    {
+      label: "Promote & earn",
+      items: [
+        { key: "referrals", href: "/referrals", label: "Your code", icon: "ticket" },
+        { key: "wallet", href: "/wallet", label: "Your balance", icon: "wallet" },
+      ],
+    },
+    {
+      label: "Account",
+      items: [{ key: "security", href: "/settings/security", label: "Security", icon: "shield" }],
+    },
+  ];
+}
+
 export function traderSections(counts: {
   open?: number;
   waiting?: number;
@@ -67,6 +90,7 @@ export function adminSections(counts: {
   deals?: number;
   withdrawals?: number;
   disputes?: number;
+  promoters?: number;
 }): DashGroup[] {
   return [
     {
@@ -93,6 +117,13 @@ export function adminSections(counts: {
           icon: "scales",
           badge: counts.disputes,
         },
+        {
+          key: "promoters",
+          href: "/admin/promoters",
+          label: "Promoter applications",
+          icon: "inbox",
+          badge: counts.promoters,
+        },
       ],
     },
     {
@@ -109,5 +140,8 @@ export function sectionsFor(
   role: Role,
   counts: { deals?: number; withdrawals?: number; disputes?: number; waiting?: number },
 ): DashGroup[] {
-  return role === "admin" ? adminSections(counts) : traderSections(counts);
+  if (role === "admin") return adminSections(counts);
+  if (role === "promoter") return promoterSections();
+
+  return traderSections(counts);
 }

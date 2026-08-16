@@ -21,6 +21,7 @@ const COLUMNS: Col[] = [
     headingKey: "footer.help",
     links: [
       { href: "/faq", labelKey: "nav.faq" },
+      { href: "/promote", labelKey: "nav.promote" },
       { href: "/contact", labelKey: "nav.contact" },
       { href: "/login", labelKey: "account.signIn" },
       { href: "/register", labelKey: "footer.createAccount" },

@@ -919,6 +919,65 @@ async function main() {
   assert.equal((await getBalance(selfDealer.id)).earnedCents, 0);
   ok("a promoter earns nothing from a deal they traded in themselves");
 
+  // -------------------------------------------------------------------------
+  // Promoters: let in to advertise, not to trade
+  // -------------------------------------------------------------------------
+  //
+  // A promoter account is created by approving an application at /promote,
+  // without anybody's code. Hiding the deal buttons from them is not a control
+  // — a server action is a public endpoint — so the refusal has to live in the
+  // domain layer, and that is what these two assert.
+  const promoterAccount = await prisma.user.create({
+    data: {
+      email: `promoter-role-${Date.now()}@example.com`,
+      displayName: "Promoter Role Fixture",
+      passwordHash: await hashPassword("promoter-role-pw"),
+      role: "promoter",
+      referralCode: generateReferralCode(),
+    },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+  });
+  fixtureUserIds.push(promoterAccount.id);
+
+  const promoterCreate = await createDeal({
+    creator: promoterAccount,
+    side: "seller",
+    accountSummary: "GUARD FIXTURE — a promoter should not get this far.",
+    counterAccountSummary: "GUARD FIXTURE — a promoter should not get this far either.",
+    game: "eFootball",
+    platform: null,
+    level: null,
+  });
+
+  assert.equal(promoterCreate.ok, false);
+  assert.match((promoterCreate as { error: string }).error, /cannot open or join/i);
+  ok("a promoter account cannot open a swap");
+
+  // A real, live invite — so this proves the role is refused rather than the
+  // code merely being invalid.
+  const openInvite = await createDeal({
+    creator: sami,
+    side: "seller",
+    accountSummary: "GUARD FIXTURE — invite a promoter must not be able to take.",
+    counterAccountSummary: "GUARD FIXTURE — the other side of it.",
+    game: "eFootball",
+    platform: null,
+    level: null,
+  });
+
+  if (!openInvite.ok) throw new Error("promoter-join fixture failed");
+  fixtureIds.push(openInvite.dealId);
+
+  const promoterJoin = await joinDealByCode(promoterAccount, openInvite.inviteCode);
+  assert.equal(promoterJoin.ok, false);
+  assert.match((promoterJoin as { error: string }).error, /cannot open or join/i);
+  ok("a promoter account cannot join a swap, even holding a valid invite");
+
+  // ...and the invite is still good for a real trader afterwards, so a refused
+  // promoter has not burned it.
+  assert.equal((await joinDealByCode(karim, openInvite.inviteCode)).ok, true);
+  ok("a promoter's refused join leaves the invite usable");
+
   // An archived cash deal must never generate a credit. Those closed before the
   // programme existed, and without this the reconcile pass would invent a debt
   // for every one of them the first time it ran.
