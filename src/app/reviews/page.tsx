@@ -16,15 +16,6 @@ import { Card, PageHeading } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 /**
- * Below this many reviews, the page says outright that the service is new.
- *
- * Twenty is roughly where a wall stops looking thin: ten hand-refereed swaps
- * produce two reviews each, which is the point the record starts speaking for
- * itself and the banner stops being the most useful thing on the page.
- */
-const NEW_SERVICE_THRESHOLD = 20;
-
-/**
  * Reviews are dated to the month, not the day.
  *
  * Eleven reviews sharing one timestamp reads as a batch import even when the
@@ -80,38 +71,6 @@ export default async function ReviewsPage() {
         title="What traders say"
         description="Every review here comes from a deal that actually completed through escrow. Both sides rate each other, so the record cuts both ways."
       />
-
-      {/* Said before the numbers, not after.
-
-          A service nobody has heard of showing a handful of reviews invites the
-          question "is this real?". Answering it first — with the actual count,
-          however small — is worth more than the reviews are. Traders respect a
-          small honest number and are suspicious of a large one from a site with
-          no history; and the people this is sold to are expert at spotting
-          things that do not add up, because that skill is how they avoid being
-          scammed. Disappears on its own once there are enough to speak for
-          themselves. */}
-      {reviews.length < NEW_SERVICE_THRESHOLD ? (
-        <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] p-4">
-          <p className="text-overline uppercase text-[var(--tone-info)]">We are new</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-            {reviews.length === 0 ? (
-              <>
-                Nobody has completed a swap here yet, so this page is empty. It will stay empty
-                until somebody does — we would rather show you nothing than show you something we
-                made up.
-              </>
-            ) : (
-              <>
-                This is every review we have — all {reviews.length} of them, from{" "}
-                {stats.completedDeals} completed{" "}
-                {stats.completedDeals === 1 ? "swap" : "swaps"}. Nothing here is written by us or
-                by anyone we invented.
-              </>
-            )}
-          </p>
-        </div>
-      ) : null}
 
       <StatGrid columns={4}>
         <StatCard
