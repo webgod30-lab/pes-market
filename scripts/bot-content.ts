@@ -705,7 +705,7 @@ export const SELLER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 5,
-    "comment": "Explained exactly which platforms the Konami ID covered before I paid, so there was nothing to argue about after.",
+    "comment": "Explained exactly which platforms the Konami ID covered before we started, so there was nothing to argue about after.",
     "subjectSide": "seller"
   },
   {
@@ -830,12 +830,12 @@ export const SELLER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 3,
-    "comment": "Got what I paid for once the admin stepped in. Would not choose to deal with him again.",
+    "comment": "Got the account I was promised once the admin stepped in. Would not choose to deal with him again.",
     "subjectSide": "seller"
   },
   {
     "rating": 2,
-    "comment": "Stopped answering the moment my payment was confirmed. The admin had to chase him for the code.",
+    "comment": "Stopped answering the moment both accounts were verified. The admin had to chase him for the code.",
     "subjectSide": "seller"
   },
   {
@@ -855,7 +855,7 @@ export const SELLER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 1,
-    "comment": "Tried to raise the price after I had already joined the deal on the agreed terms.",
+    "comment": "Tried to swap in a weaker account after I had already joined the deal on the agreed terms.",
     "subjectSide": "seller"
   },
   {
@@ -894,7 +894,7 @@ export const SELLER_REVIEWS: BotReview[] = [
 export const BUYER_REVIEWS: BotReview[] = [
   {
     "rating": 5,
-    "comment": "Paid within twenty minutes of joining the deal, and confirmed the same day he got the account.",
+    "comment": "Deposited within twenty minutes of joining the deal, and confirmed the same day he got the account.",
     "subjectSide": "buyer"
   },
   {
@@ -914,7 +914,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 5,
-    "comment": "Paid fast and did not ask for anything that was not part of the deal.",
+    "comment": "Deposited fast and did not ask for anything that was not part of the deal.",
     "subjectSide": "buyer"
   },
   {
@@ -924,7 +924,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 5,
-    "comment": "Second sale to him. Paid immediately both times.",
+    "comment": "Second swap with him. Deposited immediately both times.",
     "subjectSide": "buyer"
   },
   {
@@ -944,7 +944,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 5,
-    "comment": "Paid the exact amount, first time, with the reference filled in properly.",
+    "comment": "Deposited straight away, first time, with the recovery address filled in properly.",
     "subjectSide": "buyer"
   },
   {
@@ -959,7 +959,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 5,
-    "comment": "Straightforward start to finish. Paid, claimed, confirmed.",
+    "comment": "Straightforward start to finish. Deposited, claimed, confirmed.",
     "subjectSide": "buyer"
   },
   {
@@ -974,7 +974,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 5,
-    "comment": "Knew what he wanted, paid for it, took it. No reopening the price once it was agreed.",
+    "comment": "Knew what he wanted, deposited, took it. No reopening the terms once they were agreed.",
     "subjectSide": "buyer"
   },
   {
@@ -984,7 +984,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 4,
-    "comment": "Paid promptly and confirmed in the end. Took most of the window to get around to it.",
+    "comment": "Deposited promptly and confirmed in the end. Took most of the window to get around to it.",
     "subjectSide": "buyer"
   },
   {
@@ -999,12 +999,12 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 4,
-    "comment": "Paid on time. Confirmed on the last day of the window, which is his right but was a long wait.",
+    "comment": "Deposited on time. Confirmed on the last day of the window, which is his right but was a long wait.",
     "subjectSide": "buyer"
   },
   {
     "rating": 4,
-    "comment": "Fine trade. Paid the right amount but left the reference blank, so the admin had to match it by hand.",
+    "comment": "Fine trade. Deposited the right account but left the recovery address blank, so the admin had to chase it.",
     "subjectSide": "buyer"
   },
   {
@@ -1019,7 +1019,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 4,
-    "comment": "Paid quickly. Needed three codes in the end because he kept letting them expire before typing them in.",
+    "comment": "Deposited quickly. Needed three codes in the end because he kept letting them expire before typing them in.",
     "subjectSide": "buyer"
   },
   {
@@ -1029,7 +1029,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 4,
-    "comment": "Straightforward, apart from asking about a discount after the price was already locked in.",
+    "comment": "Straightforward, apart from asking to change the account after the terms were already locked in.",
     "subjectSide": "buyer"
   },
   {
@@ -1044,7 +1044,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 3,
-    "comment": "Paid, then took the full window plus two reminders from the admin to confirm.",
+    "comment": "Deposited, then took the full window plus two reminders from the admin to confirm.",
     "subjectSide": "buyer"
   },
   {
@@ -1059,12 +1059,12 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 3,
-    "comment": "Paid late, claimed late, confirmed late. Nothing went wrong, it just took two weeks.",
+    "comment": "Deposited late, claimed late, confirmed late. Nothing went wrong, it just took two weeks.",
     "subjectSide": "buyer"
   },
   {
     "rating": 3,
-    "comment": "Kept pushing for a lower price after the deal was already open. Went through at the agreed figure.",
+    "comment": "Kept pushing to downgrade his side after the deal was already open. Went through on the agreed terms.",
     "subjectSide": "buyer"
   },
   {
@@ -1079,7 +1079,7 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 2,
-    "comment": "Paid, claimed the account, then went silent for the whole confirmation window.",
+    "comment": "Deposited, claimed the account, then went silent for the whole confirmation window.",
     "subjectSide": "buyer"
   },
   {
@@ -1089,17 +1089,17 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 1,
-    "comment": "Tried to get me to send the login directly, outside the escrow, before he had paid anything.",
+    "comment": "Tried to get me to send the login directly, outside the escrow, before he had deposited anything.",
     "subjectSide": "buyer"
   },
   {
     "rating": 1,
-    "comment": "Never paid. Left the deal open for four days and stopped replying.",
+    "comment": "Never deposited. Left the deal open for four days and stopped replying.",
     "subjectSide": "buyer"
   },
   {
     "rating": 1,
-    "comment": "Confirmed, then tried to reverse his payment. The admin sorted it but it took three weeks.",
+    "comment": "Confirmed, then tried to recover the account he had handed over. The admin sorted it but it took three weeks.",
     "subjectSide": "buyer"
   },
   {
@@ -1109,12 +1109,12 @@ export const BUYER_REVIEWS: BotReview[] = [
   },
   {
     "rating": 2,
-    "comment": "Claimed the account, then asked for a partial refund because he had changed his mind.",
+    "comment": "Claimed the account, then asked to undo the whole swap because he had changed his mind.",
     "subjectSide": "buyer"
   },
   {
     "rating": 1,
-    "comment": "Paid, then disputed immediately without ever trying the login I had deposited.",
+    "comment": "Deposited, then disputed immediately without ever trying the login I had handed over.",
     "subjectSide": "buyer"
   },
   {

@@ -16,6 +16,7 @@ import {
 } from "@/lib/deals";
 import { setPaymentMethodActive, upsertPaymentMethod } from "@/lib/payment-methods";
 import { banUser, forceCancel, forceRefundCompleted, unbanUser } from "@/lib/admin";
+import { purgeDemoData } from "@/lib/demo-data";
 import {
   banUserSchema,
   paymentMethodSchema,
@@ -317,4 +318,46 @@ export async function togglePaymentMethodAction(
   revalidatePath("/admin/payment-methods");
 
   return { message: undefined };
+}
+
+/**
+ * Deletes every seeded and bot-generated account, and everything they produced.
+ *
+ * Lives in the console rather than only in a terminal because the person who
+ * needs it most is whoever discovered that the demo data reached the live site,
+ * and the live database is usually not reachable from a laptop.
+ *
+ * The typed phrase is checked here as well as in the form. The form's copy of
+ * the check is a convenience; this one is the control.
+ */
+export async function purgeDemoDataAction(
+  _previousState: FormState | undefined,
+  formData: FormData,
+): Promise<FormState> {
+  const admin = await requireAdmin();
+
+  if (String(formData.get("confirm") ?? "") !== "DELETE DEMO DATA") {
+    return { message: "Type the phrase exactly to confirm." };
+  }
+
+  try {
+    const result = await purgeDemoData(admin);
+
+    if (!result.ok) return { message: result.error };
+
+    revalidatePath("/admin/demo-data");
+    revalidatePath("/reviews");
+    revalidatePath("/");
+
+    return {
+      success:
+        result.accounts === 0
+          ? "There was no demo data left to remove."
+          : `Deleted ${result.accounts} invented account(s) and the ${result.deals} deal(s) they produced.`,
+    };
+  } catch (error) {
+    const dbProblem = databaseProblemMessage(error);
+    if (dbProblem) return { message: dbProblem };
+    throw error;
+  }
 }

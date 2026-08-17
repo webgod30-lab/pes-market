@@ -167,6 +167,15 @@ model User {
   promoterApplication  PromoterApplication?  @relation("ApplicationAccount")
   applicationsReviewed PromoterApplication[] @relation("ApplicationReviewer")
 
+  /// While this is in the future, this promoter earns the founding rate rather
+  /// than the standard one.
+  ///
+  /// A date rather than a flag, because the offer is "the higher rate for 90
+  /// days" and a boolean cannot expire on its own — somebody would have to
+  /// remember to turn it off, and nobody ever does. Set when an application is
+  /// approved, and only for the first few; null on everyone else.
+  foundingRateUntil DateTime?
+
   // Moderation (phase 5)
   isBanned  Boolean   @default(false)
   bannedAt  DateTime?
@@ -210,6 +219,8 @@ model User {
   @@index([role])
   /// Listing the people one promoter brought in.
   @@index([referredById])
+  /// Counting how many founding places are left, without scanning every user.
+  @@index([foundingRateUntil])
 }
 
 // ---------------------------------------------------------------------------

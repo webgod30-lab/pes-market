@@ -13,7 +13,7 @@
 // a public endpoint.
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/passwords";
-import { mintReferralCode } from "@/lib/referrals";
+import { claimFoundingPlace, mintReferralCode } from "@/lib/referrals";
 import type { CurrentUser } from "@/lib/dal";
 import type { PromoterApplicationStatus } from "@/generated/prisma/client";
 
@@ -175,6 +175,11 @@ export async function approveApplication(
     return { ok: false, error: "Somebody has since registered with that address." };
   }
 
+  // Claimed at approval rather than reserved when they applied, so an
+  // application sitting in the queue for a week does not hold a founding place
+  // that somebody else could have used. Null once the places are gone.
+  const foundingRateUntil = await claimFoundingPlace();
+
   const created = await prisma.user.create({
     data: {
       email: application.email,
@@ -182,6 +187,7 @@ export async function approveApplication(
       passwordHash: application.passwordHash,
       role: "promoter",
       referralCode: await mintReferralCode(),
+      foundingRateUntil,
     },
     select: { id: true },
   });

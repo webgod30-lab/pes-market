@@ -5,7 +5,6 @@ import {
   destinationFields,
   getBalance,
   listWithdrawals,
-  MINIMUM_WITHDRAWAL_CENTS,
   WITHDRAWAL_TONE,
 } from "@/lib/wallet";
 import { listReferralEarnings, REFERRAL_REWARD_CENTS } from "@/lib/referrals";
@@ -46,7 +45,7 @@ export default async function WalletPage() {
 
   // How far off the minimum they are. Shown as a number of deals rather than
   // only as money, because that is the thing a promoter can actually act on.
-  const shortfallCents = Math.max(0, MINIMUM_WITHDRAWAL_CENTS - balance.availableCents);
+  const shortfallCents = Math.max(0, balance.thresholdCents - balance.availableCents);
   const dealsToGo = Math.ceil(shortfallCents / REFERRAL_REWARD_CENTS);
 
   return (
@@ -82,7 +81,7 @@ export default async function WalletPage() {
             <>
               <p className="text-overline uppercase text-[var(--tone-info)]">Ready to request</p>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-                You are over the {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)} minimum.
+                You are over the {formatCents(balance.thresholdCents, balance.currency)} minimum.
                 Request a payout whenever you like — payouts are sent in one batch on the 1st of
                 each month, so the next one goes out on{" "}
                 <strong className="text-[var(--foreground)]">
@@ -102,7 +101,7 @@ export default async function WalletPage() {
                 {formatCents(shortfallCents, balance.currency)} to go
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-                The smallest payout is {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)}.
+                The smallest payout is {formatCents(balance.thresholdCents, balance.currency)}.
                 That is{" "}
                 <strong className="text-[var(--foreground)]">
                   {dealsToGo} more completed {dealsToGo === 1 ? "deal" : "deals"}
@@ -144,7 +143,7 @@ export default async function WalletPage() {
           <div className="mt-3">
             <WithdrawForm
               availableCents={balance.availableCents}
-              minimumCents={MINIMUM_WITHDRAWAL_CENTS}
+              minimumCents={balance.thresholdCents}
               currency={balance.currency}
             />
           </div>
@@ -159,7 +158,7 @@ export default async function WalletPage() {
           <div className="mt-3">
             <EmptyPanel icon="payout" title="Nothing withdrawn yet">
               Once your referral earnings reach{" "}
-              {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)}, you can request a payout
+              {formatCents(balance.thresholdCents, balance.currency)}, you can request a payout
               here.
             </EmptyPanel>
           </div>

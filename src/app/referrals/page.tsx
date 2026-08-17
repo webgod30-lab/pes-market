@@ -5,6 +5,8 @@ import {
   getReferralSummary,
   listReferralEarnings,
   listReferredUsers,
+  FIRST_PAYOUT_CENTS,
+  FOUNDING_REWARD_CENTS,
   MINIMUM_PAYOUT_CENTS,
   nextPayoutDate,
   REFERRAL_REWARD_CENTS,
@@ -45,7 +47,7 @@ export default async function ReferralsPage() {
     getBalance(user.id),
   ]);
 
-  const shortfallCents = Math.max(0, MINIMUM_PAYOUT_CENTS - balance.availableCents);
+  const shortfallCents = Math.max(0, balance.thresholdCents - balance.availableCents);
   const dealsToGo = Math.ceil(shortfallCents / REFERRAL_REWARD_CENTS);
 
   const payoutDay = nextPayoutDate().toLocaleDateString("en-GB", {
@@ -63,7 +65,40 @@ export default async function ReferralsPage() {
       <div className="max-w-3xl space-y-3">
         <Card elevation="raised">
           <ReferralShare code={summary.referralCode} />
+
+          <p className="mt-4 border-t border-[var(--border)] pt-3 text-xs leading-relaxed text-[var(--muted)]">
+            Do not write the pitch yourself —{" "}
+            <Link href="/explainer" className="text-[var(--accent)] hover:underline">
+              the 60-second explainer
+            </Link>{" "}
+            has a paste-anywhere version and a video script with your code already in them.
+          </p>
         </Card>
+
+        {/* Only while it applies, and it says when it stops. A rate that
+            quietly reverts is how a promoter finds out they were never told. */}
+        {summary.foundingRateUntil ? (
+          <div className="rounded-[var(--radius-card)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-4">
+            <p className="text-overline uppercase text-[var(--tone-success)]">Founding promoter</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
+              You earn{" "}
+              <strong className="text-[var(--foreground)]">
+                {formatCents(FOUNDING_REWARD_CENTS)} per completed swap
+              </strong>{" "}
+              instead of {formatCents(REFERRAL_REWARD_CENTS)}, until{" "}
+              <strong className="text-[var(--foreground)]">
+                {summary.foundingRateUntil.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "UTC",
+                })}
+              </strong>
+              . After that it returns to the standard rate — anything you earned before then keeps
+              its value.
+            </p>
+          </div>
+        ) : null}
 
         <StatGrid columns={3}>
           <StatCard
@@ -107,10 +142,18 @@ export default async function ReferralsPage() {
             </li>
             <li>
               <strong className="text-[var(--foreground)]">
-                {formatCents(MINIMUM_PAYOUT_CENTS)} minimum
-              </strong>{" "}
-              before you can request a payout — twenty completed deals. Every payout is a transfer
-              sent by hand, and smaller ones would go entirely on the fee.
+                {formatCents(FIRST_PAYOUT_CENTS)} for your first payout
+              </strong>
+              , then {formatCents(MINIMUM_PAYOUT_CENTS)} for each one after. The first is
+              deliberately cheap — you should not have to take it on faith that the money is real.
+              {balance.isFirstPayout ? (
+                <>
+                  {" "}
+                  <strong className="text-[var(--foreground)]">
+                    You are on the {formatCents(FIRST_PAYOUT_CENTS)} threshold.
+                  </strong>
+                </>
+              ) : null}
             </li>
             <li>
               <strong className="text-[var(--foreground)]">Paid on the 1st of the month.</strong>{" "}

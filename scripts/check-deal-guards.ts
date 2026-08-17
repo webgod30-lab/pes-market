@@ -50,6 +50,7 @@ import { hashPassword } from "../src/lib/passwords";
 import { generateDealReference, generateInviteCode, generateReferralCode } from "../src/lib/ids";
 import {
   creditReferralsForDeal,
+  FIRST_PAYOUT_CENTS,
   reconcileReferralCredits,
   REFERRAL_REWARD_CENTS,
 } from "../src/lib/referrals";
@@ -755,11 +756,18 @@ async function main() {
   assert.equal(earnedBalance.meetsMinimum, true);
   ok("referral credits land in the balance, to the cent");
 
+  // Never been paid, so they are on the cheap first threshold. That is the
+  // whole point of it: somebody who has never seen the money arrive should not
+  // have to wait for twenty completed deals to find out whether it is real.
+  assert.equal(earnedBalance.thresholdCents, FIRST_PAYOUT_CENTS);
+  assert.equal(earnedBalance.isFirstPayout, true);
+  ok("a promoter who has never been paid is on the $10 threshold");
+
   assert.equal((await requestWithdrawal(walletPromoter, { amountCents: expectedEarned + 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
   ok("a promoter cannot withdraw more than they have");
 
-  assert.equal((await requestWithdrawal(walletPromoter, { amountCents: MINIMUM_WITHDRAWAL_CENTS - 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
-  ok("a payout below the $40 minimum is refused even when the balance covers it");
+  assert.equal((await requestWithdrawal(walletPromoter, { amountCents: FIRST_PAYOUT_CENTS - 1, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok, false);
+  ok("a payout below the first threshold is refused even when the balance covers it");
 
   const firstRequest = await requestWithdrawal(walletPromoter, {
     amountCents: MINIMUM_WITHDRAWAL_CENTS,
@@ -808,6 +816,19 @@ async function main() {
   const afterSent = await getBalance(walletPromoter.id);
   assert.equal(afterSent.availableCents, expectedEarned - MINIMUM_WITHDRAWAL_CENTS);
   ok("a sent payout stays deducted");
+
+  // Having actually been paid once, they move onto the standard threshold. The
+  // cheap first payout exists to prove the money is real; once it has, batching
+  // is fine and every transfer costs a fee.
+  assert.equal(afterSent.thresholdCents, MINIMUM_WITHDRAWAL_CENTS);
+  assert.equal(afterSent.isFirstPayout, false);
+  ok("once paid once, the threshold rises to $40");
+
+  assert.equal(
+    (await requestWithdrawal(walletPromoter, { amountCents: FIRST_PAYOUT_CENTS, method: "crypto", destinationName: "Wallet Fixture", destinationAccount: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE", destinationNetwork: "TRC-20" })).ok,
+    false,
+  );
+  ok("a $10 payout is refused once they are past their first");
 
   // -------------------------------------------------------------------------
   // Referral crediting: this is the only money the service owes anyone

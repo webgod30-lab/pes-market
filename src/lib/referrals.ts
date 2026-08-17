@@ -24,11 +24,36 @@ import { generateReferralCode, normaliseReferralCode } from "@/lib/ids";
 export const REFERRAL_REWARD_CENTS = 200;
 
 /**
- * The balance a promoter has to reach before they can ask to be paid.
+ * What a founding promoter earns instead, while their window is open.
  *
- * Twenty completed deals. It is high on purpose: every payout is a manual
- * transfer that costs a fee and somebody's time, and $2 at a time would be
- * spent entirely on sending it.
+ * The point is not the extra $3. It is that a code issued early is worth more
+ * than one issued later, which gives the first promoters a reason to actually
+ * use theirs — and gives you a reason to follow up with the ones who have gone
+ * quiet.
+ */
+export const FOUNDING_REWARD_CENTS = 500;
+
+/** How long a founding promoter keeps the higher rate. */
+export const FOUNDING_RATE_DAYS = 90;
+
+/** How many promoters get it at all. Scarcity is the mechanism. */
+export const FOUNDING_PLACES = 20;
+
+/**
+ * The balance a promoter has to reach before their FIRST payout.
+ *
+ * Deliberately low. At $2 a swap, a $40 threshold means twenty completed deals
+ * before anybody sees a penny — and most promoters earn four dollars and quit
+ * having never been paid, which teaches them the money was never real. One
+ * cheap payout early is worth more than the fee it costs.
+ */
+export const FIRST_PAYOUT_CENTS = 1_000;
+
+/**
+ * The threshold for every payout after the first.
+ *
+ * Every payout is a manual transfer that costs a fee and somebody's time. Once
+ * a promoter has been paid once and knows the money arrives, batching is fine.
  */
 export const MINIMUM_PAYOUT_CENTS = 4_000;
 
@@ -115,8 +140,15 @@ export async function creditReferralsForDeal(dealId: string): Promise<{ credited
       tradeKind: true,
       sellerId: true,
       buyerId: true,
-      seller: { select: { id: true, referredById: true } },
-      buyer: { select: { id: true, referredById: true } },
+      // referredBy, not just referredById: the rate depends on whether that
+      // promoter's founding window is still open at the moment the deal
+      // completes.
+      seller: {
+        select: { id: true, referredById: true, referredBy: { select: { foundingRateUntil: true } } },
+      },
+      buyer: {
+        select: { id: true, referredById: true, referredBy: { select: { foundingRateUntil: true } } },
+      },
     },
   });
 
@@ -143,12 +175,18 @@ export async function creditReferralsForDeal(dealId: string): Promise<{ credited
 
     if (promoterIsTrading) return [];
 
+    // Resolved now, and stored. A founding window that closes tomorrow must not
+    // retroactively devalue what was earned today, and the snapshot on the row
+    // is what guarantees that — nothing ever recomputes an amount.
+    const founding = trader.referredBy?.foundingRateUntil;
+    const isFounding = founding !== null && founding !== undefined && founding > new Date();
+
     return [
       {
         promoterId: trader.referredById,
         traderId: trader.id,
         dealId: deal.id,
-        amountCents: REFERRAL_REWARD_CENTS,
+        amountCents: isFounding ? FOUNDING_REWARD_CENTS : REFERRAL_REWARD_CENTS,
       },
     ];
   });
@@ -209,6 +247,32 @@ export function isPayoutDay(now: Date = new Date()): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Founding promoters
+// ---------------------------------------------------------------------------
+
+/** How many founding places are still open. Zero once they are gone. */
+export async function foundingPlacesLeft(): Promise<number> {
+  const taken = await prisma.user.count({ where: { foundingRateUntil: { not: null } } });
+
+  return Math.max(0, FOUNDING_PLACES - taken);
+}
+
+/**
+ * The founding expiry for a promoter being approved right now, or null if the
+ * places are gone.
+ *
+ * Counted at approval rather than reserved in advance, so an application that
+ * sits in the queue for a week does not hold a place somebody else could have
+ * used. Racing approvals can in principle both see the last place; the cost of
+ * that is one extra founding promoter, which is not worth a lock.
+ */
+export async function claimFoundingPlace(now: Date = new Date()): Promise<Date | null> {
+  if ((await foundingPlacesLeft()) <= 0) return null;
+
+  return new Date(now.getTime() + FOUNDING_RATE_DAYS * 24 * 60 * 60 * 1000);
+}
+
+// ---------------------------------------------------------------------------
 // Reading
 // ---------------------------------------------------------------------------
 
@@ -224,6 +288,8 @@ export type ReferralSummary = {
   thisMonthCents: number;
   /** The promoter this user signed up under, if any. */
   promoter: { displayName: string; referralCode: string } | null;
+  /** Set while this promoter is still on the founding rate. */
+  foundingRateUntil: Date | null;
   currency: string;
 };
 
@@ -237,6 +303,7 @@ export async function getReferralSummary(userId: string): Promise<ReferralSummar
       where: { id: userId },
       select: {
         referralCode: true,
+        foundingRateUntil: true,
         referredBy: { select: { displayName: true, referralCode: true } },
       },
     }),
@@ -269,6 +336,7 @@ export async function getReferralSummary(userId: string): Promise<ReferralSummar
     promoter: user?.referredBy
       ? { displayName: user.referredBy.displayName, referralCode: user.referredBy.referralCode }
       : null,
+    foundingRateUntil: user?.foundingRateUntil ?? null,
     currency: "USD",
   };
 }

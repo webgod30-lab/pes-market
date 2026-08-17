@@ -21,7 +21,15 @@ import {
   generateReferralCode,
   normaliseReferralCode,
 } from "../src/lib/ids";
-import { MINIMUM_PAYOUT_CENTS, nextPayoutDate, REFERRAL_REWARD_CENTS } from "../src/lib/referrals";
+import {
+  FIRST_PAYOUT_CENTS,
+  FOUNDING_PLACES,
+  FOUNDING_RATE_DAYS,
+  FOUNDING_REWARD_CENTS,
+  MINIMUM_PAYOUT_CENTS,
+  nextPayoutDate,
+  REFERRAL_REWARD_CENTS,
+} from "../src/lib/referrals";
 import { databaseProblemMessage, describeDatabaseProblemDeep } from "../src/lib/db-errors";
 
 let passed = 0;
@@ -169,11 +177,23 @@ async function main() {
   ok("an empty code stays empty rather than becoming a bare prefix");
 
   assert.equal(REFERRAL_REWARD_CENTS, 200);
+  assert.equal(FOUNDING_REWARD_CENTS, 500);
+  assert.equal(FIRST_PAYOUT_CENTS, 1_000);
   assert.equal(MINIMUM_PAYOUT_CENTS, 4_000);
-  // The stated rule is "twenty completed deals", and the two constants have to
-  // keep saying that to each other.
-  assert.equal(MINIMUM_PAYOUT_CENTS / REFERRAL_REWARD_CENTS, 20);
-  ok("$2 a deal and a $40 minimum — twenty deals, as the pages promise");
+  ok("$2 standard, $5 founding, $10 first payout, $40 after");
+
+  // The first payout has to be reachable, which is the whole reason it exists.
+  // Five completed deals is a fortnight of a working code; twenty is where
+  // promoters quit before ever being paid.
+  assert.equal(FIRST_PAYOUT_CENTS / REFERRAL_REWARD_CENTS, 5);
+  assert.ok(FIRST_PAYOUT_CENTS < MINIMUM_PAYOUT_CENTS);
+  ok("the first payout is five deals away, not twenty");
+
+  // The founding rate has to actually be worth more, or the scarcity is a lie.
+  assert.ok(FOUNDING_REWARD_CENTS > REFERRAL_REWARD_CENTS);
+  assert.equal(FOUNDING_RATE_DAYS, 90);
+  assert.equal(FOUNDING_PLACES, 20);
+  ok("the founding rate beats the standard one, for 90 days, for 20 people");
 
   // --- payout timing --------------------------------------------------------
   //

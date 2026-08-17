@@ -2,16 +2,25 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentUserQuietly } from "@/lib/dal";
-import { MINIMUM_PAYOUT_CENTS, REFERRAL_REWARD_CENTS } from "@/lib/referrals";
+import {
+  FIRST_PAYOUT_CENTS,
+  FOUNDING_PLACES,
+  FOUNDING_RATE_DAYS,
+  FOUNDING_REWARD_CENTS,
+  foundingPlacesLeft,
+  MINIMUM_PAYOUT_CENTS,
+  REFERRAL_REWARD_CENTS,
+} from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
 import { PromoterApplyForm } from "@/components/promoter-apply-form";
+import { PublisherWarning } from "@/components/publisher-warning";
 import { Card, PageHeading } from "@/components/ui";
 import { Prose, Section } from "@/components/prose";
 
 export const metadata = {
   title: "Become a promoter",
   description:
-    "Earn $2 every time someone you introduced completes an account swap on PESescrow.com. No code needed to apply — this is the way in if you do not know anyone here yet.",
+    "Your code is the door — nobody registers on PESescrow.com without one. Earn $2 every time someone who used yours completes a swap. No code needed to apply.",
 };
 
 /**
@@ -23,6 +32,11 @@ export const metadata = {
  * for somebody who wants to advertise the service and knows nobody.
  *
  * So this page takes no code. It is the only one that does not.
+ *
+ * The order is deliberate: what you earn comes before what you cannot do. An
+ * earlier version led with the restriction, and the people best placed to
+ * promote this — traders with reputations — read "cannot open or join a swap"
+ * as "not for me" and left.
  */
 export default async function PromotePage() {
   // Quietly: this page must render with a broken database so the form can
@@ -33,49 +47,137 @@ export default async function PromotePage() {
   // them apply for something they have.
   if (user) redirect(user.role === "admin" ? "/admin/promoters" : "/referrals");
 
+  // Tolerates failure for the same reason: a page that cannot render is worse
+  // than one missing a number.
+  const placesLeft = await foundingPlacesLeft().catch(() => 0);
+
   return (
     <Prose>
       <PageHeading
         title="Become a promoter"
-        description={`Earn ${formatCents(REFERRAL_REWARD_CENTS)} every time somebody you brought here completes a swap. You do not need a code to apply — this page is the way in if you do not know anyone yet.`}
+        description="Your code is the door. Nobody registers here without one."
       />
 
-      <Section title="What you get">
-        <ul className="space-y-2">
+      <p className="text-base leading-relaxed">
+        There is no open sign-up on this site. Every single person who trades here got in through
+        somebody&apos;s code. If it is yours, you earn{" "}
+        <strong className="text-[var(--foreground)]">{formatCents(REFERRAL_REWARD_CENTS)}</strong>{" "}
+        every time they complete a swap.
+      </p>
+
+      <p className="mt-3 text-base leading-relaxed">
+        You do not need a code to apply for this. This page is the way in if you do not know anyone
+        yet.
+      </p>
+
+      {placesLeft > 0 ? (
+        <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-4">
+          <p className="text-overline uppercase text-[var(--tone-success)]">Founding promoters</p>
+          <p className="mt-1.5 text-sm leading-relaxed">
+            <strong className="text-[var(--foreground)]">
+              {formatCents(FOUNDING_REWARD_CENTS)} per swap for your first {FOUNDING_RATE_DAYS} days.
+            </strong>{" "}
+            The first {FOUNDING_PLACES} approved promoters get the higher rate — we are keeping the
+            number small while the platform is young, so a code is worth something.{" "}
+            <strong className="text-[var(--foreground)]">
+              {placesLeft} of {FOUNDING_PLACES} remaining.
+            </strong>
+          </p>
+        </div>
+      ) : null}
+
+      <Section title="How it works">
+        <ol className="space-y-2">
           <li>
-            A promoter code of your own, and a link that fills it in automatically. Nobody can
-            register on this site without a code from somebody, so yours is how people get in.
+            <strong className="text-[var(--foreground)]">Apply below.</strong> Tell us where you
+            would share it and roughly how many people you reach. We read every application — this
+            is the part we actually judge.
+          </li>
+          <li>
+            <strong className="text-[var(--foreground)]">Get your code and auto-fill link.</strong>{" "}
+            Anyone using it registers instantly, no typing.
           </li>
           <li>
             <strong className="text-[var(--foreground)]">
-              {formatCents(REFERRAL_REWARD_CENTS)} per completed swap
+              Earn on every swap they complete.
             </strong>{" "}
-            by anyone who used your code. Both people in a swap earn for their own promoter, so a
-            trade between two people you introduced pays you twice.
+            Forever, not just their first.
           </li>
-          <li>
-            Paid out once you reach{" "}
-            <strong className="text-[var(--foreground)]">{formatCents(MINIMUM_PAYOUT_CENTS)}</strong>
-            , in one batch on the 1st of each month. You can request it on any day once you are over
-            the minimum.
-          </li>
+        </ol>
+      </Section>
+
+      <Section title="What you earn">
+        {/* Scrolls on its own rather than pushing the page sideways on a phone. */}
+        <div className="-mx-1 overflow-x-auto px-1">
+          <table className="w-full min-w-[22rem] border-collapse text-sm">
+            <tbody>
+              <Row
+                label="Every completed swap by someone who used your code"
+                value={formatCents(REFERRAL_REWARD_CENTS)}
+              />
+              <Row
+                label={
+                  <>
+                    A swap where <strong className="text-[var(--foreground)]">both</strong> sides
+                    used your code
+                  </>
+                }
+                value={formatCents(REFERRAL_REWARD_CENTS * 2)}
+              />
+              <Row label="First payout at" value={formatCents(FIRST_PAYOUT_CENTS)} />
+              <Row label="After that, payouts at" value={formatCents(MINIMUM_PAYOUT_CENTS)} />
+              <Row
+                label="Paid"
+                value="1st of each month, one batch"
+                note="Request any day once you are over."
+              />
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="You can promote and still trade">
+        <p>
+          This is the question everyone asks, so: <strong>yes, you can do both.</strong>
+        </p>
+        <p>
+          A promoter account collects earnings and cannot open swaps itself — that is an
+          anti-farming rule, not a punishment. If you want to trade as well, register a separate
+          normal account using someone else&apos;s code. Promoting does not cost you your trading.
+        </p>
+        {/* The one thing the audit's copy left out, and it matters: the terms
+            ban extra accounts used to multiply credits, and a trading account
+            registered under your OWN code is exactly that. Saying so here is
+            cheaper than reversing the credits later. */}
+        <p>
+          One rule on that: do not use{" "}
+          <strong className="text-[var(--foreground)]">your own</strong> code on your trading
+          account. Referring yourself is farming, and it gets the credits reversed and both accounts
+          suspended. Use somebody else&apos;s — that is what everyone here did.
+        </p>
+      </Section>
+
+      <Section title="This works best if you">
+        <ul className="space-y-1.5">
+          <li>Run a Discord server, Telegram group or Facebook group where people trade accounts</li>
+          <li>Sell accounts with real feedback behind you and lose deals to &ldquo;you go first&rdquo;</li>
+          <li>Already middleman for your community — get paid for what you are doing free</li>
+          <li>Make eFootball content and get trade requests in your comments</li>
         </ul>
       </Section>
 
-      <Section title="What it is not">
+      <Section title="What gets you removed">
         <p>
-          A promoter account cannot open or join a swap. You were let in to bring people to the
-          service, not to trade on it, and the site enforces that rather than just hiding the
-          buttons. If you want to trade as well, ask somebody for their code and{" "}
-          <Link href="/register" className="text-[var(--accent)] hover:underline">
-            register normally
-          </Link>{" "}
-          instead — a normal account can do both.
+          Opening deals just to generate credits. Both sides get reversed and the account is
+          suspended. We are paying for real trades between real people; that is the whole point.
         </p>
-        <p>
-          You also earn nothing from a deal you were part of yourself, and deals opened only to
-          generate credits get reversed. The programme pays for bringing people here, not for using
-          the site.
+      </Section>
+
+      <Section title="Before you promote it, know this">
+        <PublisherWarning />
+        <p className="mt-3">
+          Say that to your community and you will be the one who told them the truth. It is also the
+          answer to the first hard question anyone will ask you.
         </p>
       </Section>
 
@@ -98,5 +200,27 @@ export default async function PromotePage() {
         — you get a promoter code of your own either way, and a normal account can trade too.
       </p>
     </Prose>
+  );
+}
+
+function Row({
+  label,
+  value,
+  note,
+}: {
+  label: React.ReactNode;
+  value: string;
+  note?: string;
+}) {
+  return (
+    <tr className="border-b border-[var(--border)] last:border-0">
+      <td className="py-2.5 pe-4 align-top leading-relaxed text-[var(--muted)]">
+        {label}
+        {note ? <span className="mt-0.5 block text-xs">{note}</span> : null}
+      </td>
+      <td className="py-2.5 text-end align-top font-semibold tabular-nums whitespace-nowrap">
+        {value}
+      </td>
+    </tr>
   );
 }

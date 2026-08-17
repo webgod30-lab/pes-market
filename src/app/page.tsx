@@ -11,6 +11,7 @@ import { TrustBanner } from "@/components/landing/trust-banner";
 import { Stats } from "@/components/landing/stats";
 import { Features } from "@/components/landing/features";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { PublisherWarning } from "@/components/publisher-warning";
 import { Testimonials } from "@/components/landing/testimonials";
 import { LandingFaq } from "@/components/landing/faq";
 import { FinalCta } from "@/components/landing/final-cta";
@@ -61,6 +62,15 @@ export default async function HomePage() {
       <Features locale={locale} />
 
       <HowItWorks locale={locale} />
+
+      {/* Directly under the how-it-works summary, not in the footer.
+          Somebody who has just read how the escrow protects them is exactly
+          who needs to be told what it does not cover, and it is worth more
+          here — where it reads as candour — than buried in the FAQ where only
+          careful readers find it. */}
+      <div className="mx-auto max-w-3xl px-4">
+        <PublisherWarning locale={locale} />
+      </div>
 
       <Testimonials reviews={reviews} locale={locale} />
 
