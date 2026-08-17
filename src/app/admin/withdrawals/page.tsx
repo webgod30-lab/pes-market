@@ -26,6 +26,7 @@ const METHOD_LABEL: Record<PaymentMethod, string> = {
   crypto: "Crypto",
   bank_transfer: "Bank transfer",
   card: "Card / wallet",
+  gift_card: "Gift card",
 };
 
 /**
@@ -160,6 +161,9 @@ export default async function AdminWithdrawalsPage({
                     withdrawalId={withdrawal.id}
                     amountLabel={formatCents(withdrawal.amountCents, withdrawal.currency)}
                     promoterName={withdrawal.promoter.displayName}
+                    needsTest={withdrawal.needsTest}
+                    testSentAt={withdrawal.testSentAt}
+                    testConfirmedAt={withdrawal.testConfirmedAt}
                   />
                 ) : null}
               </Card>

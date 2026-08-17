@@ -8,7 +8,9 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin, requireUser } from "@/lib/dal";
 import {
   cancelWithdrawal,
+  confirmTestTransfer,
   markWithdrawalSent,
+  recordTestTransfer,
   rejectWithdrawal,
   requestWithdrawal,
 } from "@/lib/wallet";
@@ -154,4 +156,65 @@ export async function rejectWithdrawalAction(
   revalidatePath("/wallet");
 
   return {};
+}
+
+/**
+ * ADMIN. Records the nominal test transfer on a first payout.
+ *
+ * The balance does not follow until the promoter says the test landed. A
+ * crypto transfer to a mistyped address cannot be undone, and the person who
+ * typed it will not accept that it was their mistake.
+ */
+export async function recordTestTransferAction(
+  _previousState: FormState | undefined,
+  formData: FormData,
+): Promise<FormState> {
+  const admin = await requireAdmin();
+
+  const id = String(formData.get("withdrawalId") ?? "");
+  const reference = String(formData.get("reference") ?? "");
+
+  if (!id) return { message: "Missing withdrawal." };
+
+  try {
+    const result = await recordTestTransfer(admin, id, reference);
+
+    if (!result.ok) return { message: result.error };
+  } catch (error) {
+    const dbProblem = databaseProblemMessage(error);
+    if (dbProblem) return { message: dbProblem };
+    throw error;
+  }
+
+  revalidatePath("/admin/withdrawals");
+  revalidatePath("/wallet");
+
+  return {};
+}
+
+/** The promoter confirms the test arrived. Only they can. */
+export async function confirmTestTransferAction(
+  _previousState: FormState | undefined,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser("/wallet");
+
+  const id = String(formData.get("withdrawalId") ?? "");
+
+  if (!id) return { message: "Missing withdrawal." };
+
+  try {
+    const result = await confirmTestTransfer(user, id);
+
+    if (!result.ok) return { message: result.error };
+  } catch (error) {
+    const dbProblem = databaseProblemMessage(error);
+    if (dbProblem) return { message: dbProblem };
+    throw error;
+  }
+
+  revalidatePath("/wallet");
+  revalidatePath("/admin/withdrawals");
+
+  return { success: "Thanks — the rest will go out in the next batch." };
 }

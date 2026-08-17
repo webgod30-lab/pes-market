@@ -5,11 +5,16 @@ import {
   destinationFields,
   getBalance,
   listWithdrawals,
+  preferredPayoutMethodFor,
   WITHDRAWAL_TONE,
 } from "@/lib/wallet";
 import { listReferralEarnings, REFERRAL_REWARD_CENTS } from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
-import { WithdrawForm, CancelWithdrawalButton } from "@/components/withdraw-form";
+import {
+  WithdrawForm,
+  CancelWithdrawalButton,
+  ConfirmTestButton,
+} from "@/components/withdraw-form";
 import { sectionsFor } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
@@ -35,10 +40,13 @@ export default async function WalletPage() {
 
   const user = auth.user;
 
-  const [balance, earnings, withdrawals] = await Promise.all([
+  const [balance, earnings, withdrawals, preferredMethod] = await Promise.all([
     getBalance(user.id),
     listReferralEarnings(user.id),
     listWithdrawals(user.id),
+    // Read here rather than carried on the session: it changes without a
+    // re-login, and a stale copy in a cookie would preselect the wrong rail.
+    preferredPayoutMethodFor(user.id),
   ]);
 
   const open = withdrawals.find((w) => w.status === "requested");
@@ -137,6 +145,19 @@ export default async function WalletPage() {
               waiting to be sent. You can only have one at a time.
             </p>
             <DetailList rows={destinationFields(open)} labelWidth="w-40" className="mt-2" />
+
+            {/* The $1 test, on a first payout. Nothing else moves until they
+                say it arrived — see lib/wallet.ts. */}
+            {open.testSentAt && !open.testConfirmedAt ? (
+              <ConfirmTestButton withdrawalId={open.id} reference={open.testReference} />
+            ) : null}
+
+            {open.testConfirmedAt ? (
+              <p className="mt-2 text-xs text-[var(--tone-success)]">
+                Test confirmed. The rest goes out in the next batch.
+              </p>
+            ) : null}
+
             <CancelWithdrawalButton withdrawalId={open.id} />
           </div>
         ) : (
@@ -145,6 +166,7 @@ export default async function WalletPage() {
               availableCents={balance.availableCents}
               minimumCents={balance.thresholdCents}
               currency={balance.currency}
+              preferredMethod={preferredMethod}
             />
           </div>
         )}

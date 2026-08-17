@@ -1,15 +1,21 @@
 "use client";
 
+
 import { useActionState, useState } from "react";
 
-import { requestWithdrawalAction, cancelWithdrawalAction } from "@/app/actions/wallet-actions";
+import {
+  requestWithdrawalAction,
+  cancelWithdrawalAction,
+  confirmTestTransferAction,
+} from "@/app/actions/wallet-actions";
 import { formatCents } from "@/lib/money";
 import { Button, Field, FormError, inputClassName } from "@/components/ui";
 
 const METHODS = [
   { value: "crypto", label: "Crypto" },
+  { value: "card", label: "PayPal / wallet" },
+  { value: "gift_card", label: "Gift card" },
   { value: "bank_transfer", label: "Bank transfer" },
-  { value: "card", label: "Card / wallet" },
 ] as const;
 
 type Method = (typeof METHODS)[number]["value"];
@@ -18,13 +24,26 @@ export function WithdrawForm({
   availableCents,
   minimumCents,
   currency,
+  preferredMethod,
 }: {
   availableCents: number;
   minimumCents: number;
   currency: string;
+  /** What they chose when they applied. A default, not a commitment. */
+  preferredMethod?: Method | null;
 }) {
   const [state, formAction, pending] = useActionState(requestWithdrawalAction, undefined);
-  const [method, setMethod] = useState<Method>("crypto");
+  const [method, setMethod] = useState<Method>(preferredMethod ?? "crypto");
+
+  // Typed twice, and they have to match.
+  //
+  // A crypto transfer to a wrong address is gone permanently, and one wrong
+  // character does it. The $1 test catches it too, but this catches it before
+  // anybody spends a dollar and a day finding out.
+  const [destination, setDestination] = useState("");
+  const [destinationAgain, setDestinationAgain] = useState("");
+  const destinationMismatch =
+    destinationAgain.length > 0 && destination.trim() !== destinationAgain.trim();
 
   const belowMinimum = availableCents < minimumCents;
 
@@ -104,7 +123,8 @@ export function WithdrawForm({
               required
               autoComplete="off"
               spellCheck={false}
-              defaultValue={state?.values?.destinationAccount ?? ""}
+              value={destination}
+              onChange={(event) => setDestination(event.target.value)}
               className={`${inputClassName} font-mono`}
               placeholder="TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE"
             />
@@ -141,7 +161,8 @@ export function WithdrawForm({
               required
               autoComplete="off"
               spellCheck={false}
-              defaultValue={state?.values?.destinationAccount ?? ""}
+              value={destination}
+              onChange={(event) => setDestination(event.target.value)}
               className={`${inputClassName} font-mono`}
               placeholder="AE07 0331 2345 6789 0123 456"
             />
@@ -188,7 +209,7 @@ export function WithdrawForm({
               id="destinationProvider"
               name="destinationProvider"
               required
-              defaultValue={state?.values?.destinationProvider ?? ""}
+              defaultValue={state?.values?.destinationProvider ?? "PayPal"}
               className={inputClassName}
               placeholder="PayPal, Wise, Payoneer"
             />
@@ -205,13 +226,76 @@ export function WithdrawForm({
               required
               autoComplete="off"
               spellCheck={false}
-              defaultValue={state?.values?.destinationAccount ?? ""}
+              value={destination}
+              onChange={(event) => setDestination(event.target.value)}
               className={inputClassName}
               placeholder="you@example.com"
             />
           </Field>
         </>
       ) : null}
+
+      {method === "gift_card" ? (
+        <>
+          <Field
+            label="Which card"
+            name="destinationProvider"
+            error={state?.fieldErrors?.destinationProvider}
+            hint="Steam, Amazon or Google Play."
+          >
+            <input
+              id="destinationProvider"
+              name="destinationProvider"
+              required
+              defaultValue={state?.values?.destinationProvider ?? ""}
+              className={inputClassName}
+              placeholder="Steam"
+            />
+          </Field>
+
+          <Field
+            label="Where to send the code"
+            name="destinationAccount"
+            error={state?.fieldErrors?.destinationAccount}
+            hint="An email address. Nothing is charged to it — the code is just sent there."
+          >
+            <input
+              id="destinationAccount"
+              name="destinationAccount"
+              required
+              autoComplete="off"
+              spellCheck={false}
+              value={destination}
+              onChange={(event) => setDestination(event.target.value)}
+              className={inputClassName}
+              placeholder="you@example.com"
+            />
+          </Field>
+        </>
+      ) : null}
+
+      {/* Typed again, and it has to match.
+          One wrong character in a wallet address sends the money somewhere
+          nobody can reach, and the person who typed it will be certain they
+          typed it correctly. Re-entry is the cheapest place to catch that. */}
+      <Field
+        label={method === "crypto" ? "Wallet address again" : "Confirm where it goes"}
+        name="destinationConfirm"
+        error={destinationMismatch ? "These do not match. Check both, character for character." : undefined}
+        hint="Paste or type it a second time. We compare the two before submitting."
+      >
+        <input
+          id="destinationConfirm"
+          name="destinationConfirm"
+          required
+          autoComplete="off"
+          spellCheck={false}
+          value={destinationAgain}
+          onChange={(event) => setDestinationAgain(event.target.value)}
+          aria-invalid={destinationMismatch || undefined}
+          className={`${inputClassName} ${method === "crypto" ? "font-mono" : ""}`}
+        />
+      </Field>
 
       <Field
         label="Name on the account"
@@ -229,8 +313,8 @@ export function WithdrawForm({
         />
       </Field>
 
-      <Button type="submit" disabled={pending}>
-        {pending ? "Requesting…" : "Request withdrawal"}
+      <Button type="submit" disabled={pending || destinationMismatch || destinationAgain === ""}>
+        {pending ? "Requesting…" : "Request payout"}
       </Button>
 
       <p className="text-xs text-[var(--muted)]">
@@ -256,6 +340,48 @@ export function CancelWithdrawalButton({ withdrawalId }: { withdrawalId: string 
       >
         {pending ? "Cancelling…" : "Cancel this request"}
       </button>
+    </form>
+  );
+}
+
+/**
+ * The promoter says the $1 test arrived.
+ *
+ * Only they can. The whole point of the test is that somebody who is not the
+ * admin looks at the receiving end and confirms the money is really there —
+ * an admin ticking it off themselves would prove nothing.
+ */
+export function ConfirmTestButton({
+  withdrawalId,
+  reference,
+}: {
+  withdrawalId: string;
+  reference: string | null;
+}) {
+  const [state, formAction, pending] = useActionState(confirmTestTransferAction, undefined);
+
+  if (state?.success) {
+    return <p className="mt-2 text-xs text-[var(--tone-success)]">{state.success}</p>;
+  }
+
+  return (
+    <form action={formAction} className="mt-3 rounded-[var(--radius-control)] border border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] p-3">
+      <FormError message={state?.message} />
+      <input type="hidden" name="withdrawalId" value={withdrawalId} />
+
+      <p className="text-xs font-medium text-[var(--tone-info)]">We sent you a $1 test</p>
+      <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+        Check it arrived before we send the rest. If it did not, do not confirm — tell us, and we
+        will check the address rather than send the balance after it.
+      </p>
+
+      {reference ? (
+        <p className="mt-2 break-all font-mono text-[0.6875rem] text-[var(--muted)]">{reference}</p>
+      ) : null}
+
+      <Button type="submit" size="sm" loading={pending} disabled={pending} className="mt-2.5">
+        {pending ? "Confirming…" : "Yes, the $1 arrived"}
+      </Button>
     </form>
   );
 }

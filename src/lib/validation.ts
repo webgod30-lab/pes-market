@@ -76,6 +76,18 @@ export const promoterApplicationSchema = z.object({
     .trim()
     .min(20, "Say where you would promote it, and roughly how many people you reach.")
     .max(1000, "Keep it under 1000 characters."),
+  /**
+   * Asked at application, not at the first payout.
+   *
+   * Bank transfer is deliberately absent from the offered list — the amounts
+   * are $10 to $40, and a flat wire fee eats a quarter of that. The three here
+   * each solve a different problem: crypto is near-free and needs no bank,
+   * PayPal is for people who will not touch crypto, and a gift card is the
+   * only one that works for a promoter under 18.
+   */
+  payoutMethod: z.enum(["crypto", "card", "gift_card"], {
+    message: "Choose how you would like to be paid.",
+  }),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -345,6 +357,22 @@ export const withdrawalSchema = z.discriminatedUnion("method", [
       .string()
       .trim()
       .min(2, "Which service — PayPal, Wise, Payoneer?")
+      .max(60),
+  }),
+  z.object({
+    method: z.literal("gift_card"),
+    amountCents: withdrawalAmount,
+    destinationName,
+    /** Where the code is emailed. Not a payment account — nothing is debited. */
+    destinationAccount: z
+      .string()
+      .trim()
+      .min(3, "Where should we send the code?")
+      .max(160),
+    destinationProvider: z
+      .string()
+      .trim()
+      .min(2, "Which card — Steam, Amazon, Google Play?")
       .max(60),
   }),
 ]);

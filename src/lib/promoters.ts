@@ -15,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/passwords";
 import { claimFoundingPlace, mintReferralCode } from "@/lib/referrals";
 import type { CurrentUser } from "@/lib/dal";
-import type { PromoterApplicationStatus } from "@/generated/prisma/client";
+import type { PaymentMethod, PromoterApplicationStatus } from "@/generated/prisma/client";
 
 export type PromoterResult<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -24,6 +24,7 @@ export type ApplicationInput = {
   email: string;
   password: string;
   channel: string;
+  payoutMethod: PaymentMethod;
 };
 
 /**
@@ -67,12 +68,13 @@ export async function submitApplication(
       displayName,
       channel,
       passwordHash,
+      payoutMethod: input.payoutMethod,
       status: "pending",
       reviewedById: null,
       reviewedAt: null,
       decisionNote: null,
     },
-    create: { email, displayName, channel, passwordHash },
+    create: { email, displayName, channel, passwordHash, payoutMethod: input.payoutMethod },
   });
 
   return { ok: true };
@@ -87,6 +89,7 @@ export type ApplicationRow = {
   createdAt: Date;
   reviewedAt: Date | null;
   decisionNote: string | null;
+  payoutMethod: PaymentMethod | null;
   reviewedByName: string | null;
   /** The account this produced, once approved. */
   createdUserId: string | null;
@@ -108,6 +111,7 @@ export async function listApplications(onlyPending: boolean): Promise<Applicatio
       createdAt: true,
       reviewedAt: true,
       decisionNote: true,
+      payoutMethod: true,
       createdUserId: true,
       reviewedBy: { select: { displayName: true } },
     },
@@ -122,6 +126,7 @@ export async function listApplications(onlyPending: boolean): Promise<Applicatio
     createdAt: row.createdAt,
     reviewedAt: row.reviewedAt,
     decisionNote: row.decisionNote,
+    payoutMethod: row.payoutMethod,
     createdUserId: row.createdUserId,
     reviewedByName: row.reviewedBy?.displayName ?? null,
   }));
@@ -147,7 +152,14 @@ export async function approveApplication(
 
   const application = await prisma.promoterApplication.findUnique({
     where: { id: applicationId },
-    select: { id: true, email: true, displayName: true, passwordHash: true, status: true },
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+      passwordHash: true,
+      status: true,
+      payoutMethod: true,
+    },
   });
 
   if (!application) return { ok: false, error: "That application no longer exists." };
@@ -188,6 +200,9 @@ export async function approveApplication(
       role: "promoter",
       referralCode: await mintReferralCode(),
       foundingRateUntil,
+      // Carried over so their first withdraw form is already on the method
+      // they said they wanted, rather than asking the same question twice.
+      preferredPayoutMethod: application.payoutMethod,
     },
     select: { id: true },
   });

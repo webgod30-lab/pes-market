@@ -8,6 +8,31 @@ import { PasswordInput } from "@/components/auth/password-input";
 import { PasswordStrength } from "@/components/auth/password-strength";
 import { Alert, Button, Field, fieldDescribedBy, inputClassName } from "@/components/ui";
 
+/**
+ * The three rails offered, and who each is for.
+ *
+ * Bank transfer is deliberately absent. Payouts here are $10 to $40, and a flat
+ * wire fee takes a quarter of that — percentage fees barely matter at this
+ * size, fixed ones are what kill it.
+ */
+const PAYOUT_METHODS = [
+  {
+    value: "crypto",
+    label: "USDT (TRC-20)",
+    detail: "Arrives in minutes, costs almost nothing to send, and needs no bank account.",
+  },
+  {
+    value: "card",
+    label: "PayPal",
+    detail: "One to two days, sent in US dollars. Their conversion and withdrawal fees are theirs, not ours.",
+  },
+  {
+    value: "gift_card",
+    label: "Gift card — Steam, Amazon or Google Play",
+    detail: "Instant. The one that works if you have no bank account, or you are under 18.",
+  },
+] as const;
+
 const NAME_HINT = "What people will see next to your code.";
 const PASSWORD_HINT = "At least 8 characters. You will use this to sign in once you are approved.";
 const CHANNEL_HINT = "A Discord server, a YouTube channel, a group chat — and roughly how many people.";
@@ -107,6 +132,49 @@ export function PromoterApplyForm() {
           placeholder="I run a 4,000-member eFootball Discord where people arrange account trades in a #trading channel. I would pin the link and post it when someone asks how to swap safely."
         />
       </Field>
+
+      {/* Asked here rather than at the first payout.
+          It is the question a prospective promoter has and currently cannot
+          find an answer to, and choosing a method while applying quietly makes
+          the earnings feel real — a commitment device that costs nothing. */}
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium">How would you like to be paid?</legend>
+
+        <div className="space-y-2">
+          {PAYOUT_METHODS.map((option) => (
+            <label
+              key={option.value}
+              className="flex cursor-pointer gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-2)] p-3 transition-colors has-[:checked]:border-[var(--accent)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--accent)]"
+            >
+              <input
+                type="radio"
+                name="payoutMethod"
+                value={option.value}
+                required
+                defaultChecked={state?.values?.payoutMethod === option.value}
+                className="mt-0.5 accent-[var(--accent)]"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{option.label}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-[var(--muted)]">
+                  {option.detail}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {state?.fieldErrors?.payoutMethod ? (
+          <p role="alert" className="mt-1.5 text-xs text-[var(--tone-danger)]">
+            {state.fieldErrors.payoutMethod}
+          </p>
+        ) : (
+          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+            You can change this any time before a payout goes out. Everything is in US dollars, and
+            we cover the cost of sending.
+          </p>
+        )}
+      </fieldset>
 
       <Field
         label="Password"

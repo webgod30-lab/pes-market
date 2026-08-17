@@ -327,11 +327,21 @@ export type TrustStats = {
   /** Share of completed deals that ended without a dispute. */
   cleanRate: number | null;
   traders: number;
+  /**
+   * When the most recent deal completed.
+   *
+   * The question every visitor to a small escrow site has and does not ask out
+   * loud is "is anyone still here, or am I about to hand my credentials to a
+   * dead service". Recency answers it before they consciously form it. Once
+   * per-review dates are coarsened to the month, this is the only thing left
+   * carrying that signal — so it moves to the top of the page.
+   */
+  lastCompletedAt: Date | null;
 };
 
 /** Headline numbers for the public trust page and the landing page. */
 export async function getTrustStats(): Promise<TrustStats> {
-  const [completedDeals, dealValue, reviewAgg, disputedDeals, traders] = await Promise.all([
+  const [completedDeals, dealValue, reviewAgg, disputedDeals, traders, lastCompleted] = await Promise.all([
     prisma.deal.count({ where: { status: "completed" } }),
     // What escrow actually did: money that passed through and came out the
     // other side. For a service whose whole promise is holding funds safely,
@@ -343,6 +353,11 @@ export async function getTrustStats(): Promise<TrustStats> {
     prisma.review.aggregate({ _avg: { rating: true }, _count: { _all: true } }),
     prisma.deal.count({ where: { disputes: { some: {} } } }),
     prisma.user.count({ where: { role: "user" } }),
+    prisma.deal.findFirst({
+      where: { status: "completed" },
+      orderBy: { completedAt: "desc" },
+      select: { completedAt: true },
+    }),
   ]);
 
   const totalSettled = completedDeals + disputedDeals;
@@ -354,6 +369,7 @@ export async function getTrustStats(): Promise<TrustStats> {
     averageRating: reviewAgg._avg.rating,
     cleanRate: totalSettled > 0 ? completedDeals / totalSettled : null,
     traders,
+    lastCompletedAt: lastCompleted?.completedAt ?? null,
   };
 }
 

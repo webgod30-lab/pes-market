@@ -95,10 +95,20 @@ enum DealStatus {
   cancelled // abandoned before payment
 }
 
+/// How money moves. In practice this is now only ever a promoter payout —
+/// nothing on this service takes a payment any more.
+///
+/// `gift_card` exists because a large share of the people best placed to
+/// promote this are under 18 or unbanked, and every other rail here assumes
+/// otherwise: PayPal requires 18+, so does a KYC'd exchange, and a bank
+/// transfer requires a bank. A Steam or Google Play code costs nothing to send,
+/// needs no account anywhere, and is something a gaming audience actually
+/// wants. It is the only option that works for the youngest promoters at all.
 enum PaymentMethod {
   crypto
   card
   bank_transfer
+  gift_card
 }
 
 enum DisputeStatus {
@@ -175,6 +185,13 @@ model User {
   /// remember to turn it off, and nobody ever does. Set when an application is
   /// approved, and only for the first few; null on everyone else.
   foundingRateUntil DateTime?
+
+  /// The payout method they picked, carried over from their application.
+  ///
+  /// A default for the withdraw form, not a commitment — it is re-chosen on
+  /// every request, because the destination is typed fresh every time and a
+  /// stored one is an account compromise away from redirecting a payout.
+  preferredPayoutMethod PaymentMethod?
 
   // Moderation (phase 5)
   isBanned  Boolean   @default(false)
@@ -254,6 +271,16 @@ model PromoterApplication {
   /// Where they intend to promote — a Discord server, a YouTube channel, a
   /// group chat. Free text, and the main thing the admin decides on.
   channel String @db.Text
+
+  /// How they want to be paid, chosen at application.
+  ///
+  /// Asked here rather than at the first payout for two reasons. It is the
+  /// question a prospective promoter has and cannot currently find an answer
+  /// to — "how do I actually get the money" — and answering it inside the form
+  /// is cheaper than a page of copy. And choosing a method at the moment of
+  /// applying makes the earnings concrete: it is a small commitment that costs
+  /// nothing and makes the money feel real rather than theoretical.
+  payoutMethod PaymentMethod?
 
   status PromoterApplicationStatus @default(pending)
 
@@ -816,6 +843,23 @@ model Withdrawal {
   destinationProvider String?
 
   status WithdrawalStatus @default(requested)
+
+  // --- the test transaction ---
+  //
+  // On a promoter's first payout the admin sends a nominal amount, waits for
+  // them to confirm it landed, and only then sends the balance.
+  //
+  // This is not ceremony. A crypto transfer to a mistyped address is gone
+  // permanently, and the person who typed it will not believe it was their own
+  // mistake — which turns a lost $40 into a public argument on the forum you
+  // recruit from. Losing a dollar and a day is the cheaper outcome.
+
+  /// When the admin sent the test, and its hash or reference.
+  testSentAt    DateTime?
+  testReference String?
+  /// When the promoter confirmed it arrived. Until this is set, the balance
+  /// must not be sent.
+  testConfirmedAt DateTime?
 
   requestedAt DateTime  @default(now())
   decidedAt   DateTime?

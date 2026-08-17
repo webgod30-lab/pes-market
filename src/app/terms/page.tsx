@@ -106,6 +106,27 @@ export default function TermsPage() {
         />
       </Section>
 
+      <Section title="5b. Payment of credits">
+        <p>
+          Credits are payable in US dollars once the balance reaches the applicable minimum. The
+          promoter selects a payout method from those offered at the time of payment, currently
+          USDT (TRC-20), PayPal, or a gift card of the promoter&apos;s choice from the available
+          list. We meet the cost of sending; any conversion, withdrawal, or receiving cost charged
+          by the promoter&apos;s own provider is the promoter&apos;s responsibility.
+        </p>
+        <p>
+          The promoter is responsible for the accuracy of the payment details they supply. Payments
+          sent to an address or account provided by the promoter are treated as delivered, and
+          cryptocurrency transfers cannot be reversed. On a first payout we send a nominal test
+          amount for confirmation before releasing the balance.
+        </p>
+        <p>
+          We may change the available payout methods, and will give notice before a change affects a
+          pending balance. A promoter is responsible for any tax due in their own country on amounts
+          received.
+        </p>
+      </Section>
+
       <Section title="6. Disputes">
         <p>
           Either party may open a dispute on a deal once accounts have been deposited. This freezes

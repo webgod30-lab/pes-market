@@ -136,6 +136,73 @@ export default async function PromotePage() {
         </div>
       </Section>
 
+      {/* Directly under the earnings table, because "how do I actually get the
+          money" is the next question and the site previously had no answer to
+          it anywhere. In a niche where everyone has been scammed at least once,
+          an unanswered payment question is not a gap — it reads as evasion. */}
+      <Section title="How you get paid">
+        <p>
+          You choose your payout method when you apply, and you can change it any time before a
+          payout goes out.
+        </p>
+
+        <div className="-mx-1 mt-3 overflow-x-auto px-1">
+          <table className="w-full min-w-[30rem] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-start">
+                <th className="py-2 pe-4 text-start font-medium">Method</th>
+                <th className="py-2 pe-4 text-start font-medium">Speed</th>
+                <th className="py-2 text-start font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <PayoutRow
+                method="USDT (TRC-20)"
+                speed="Minutes"
+                note="Our default. Lowest fees, works anywhere, no bank needed."
+              />
+              <PayoutRow
+                method="PayPal"
+                speed="1–2 days"
+                note="Sent in USD. Your own conversion and withdrawal costs are set by PayPal, not us."
+              />
+              <PayoutRow
+                method="Gift card"
+                speed="Instant"
+                note="Steam, Amazon or Google Play. Useful if you don't have a bank account or you're under 18."
+              />
+            </tbody>
+          </table>
+        </div>
+
+        <p className="mt-4">
+          <strong className="text-[var(--foreground)]">We cover the sending fee.</strong> What it
+          costs you to convert or withdraw on your side is between you and your provider — worth
+          checking before you pick.
+        </p>
+
+        <p>
+          <strong className="text-[var(--foreground)]">All balances are in US dollars.</strong> A{" "}
+          {formatCents(MINIMUM_PAYOUT_CENTS)} payout is {formatCents(MINIMUM_PAYOUT_CENTS)} sent,
+          not {formatCents(MINIMUM_PAYOUT_CENTS)} after we have taken something out.
+        </p>
+
+        <p>
+          <strong className="text-[var(--foreground)]">
+            Your first payout gets a test transaction.
+          </strong>{" "}
+          We send $1 first and wait for you to confirm it landed, then send the rest. Wallet
+          addresses cannot be undone if they are wrong, and we would rather lose a day than lose
+          your money.
+        </p>
+
+        <p>
+          <strong className="text-[var(--foreground)]">Every payment gets a receipt</strong> — a
+          transaction hash or reference, recorded against the payout. Keep them. If we ever disagree
+          about whether something was paid, that record settles it.
+        </p>
+      </Section>
+
       <Section title="You can promote and still trade">
         <p>
           This is the question everyone asks, so: <strong>yes, you can do both.</strong>
@@ -200,6 +267,24 @@ export default async function PromotePage() {
         — you get a promoter code of your own either way, and a normal account can trade too.
       </p>
     </Prose>
+  );
+}
+
+function PayoutRow({
+  method,
+  speed,
+  note,
+}: {
+  method: string;
+  speed: string;
+  note: string;
+}) {
+  return (
+    <tr className="border-b border-[var(--border)] last:border-0 align-top">
+      <td className="py-2.5 pe-4 font-semibold whitespace-nowrap">{method}</td>
+      <td className="py-2.5 pe-4 whitespace-nowrap text-[var(--muted)]">{speed}</td>
+      <td className="py-2.5 leading-relaxed text-[var(--muted)]">{note}</td>
+    </tr>
   );
 }
 

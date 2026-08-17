@@ -45,6 +45,9 @@ import {
   rejectWithdrawal,
   requestWithdrawal,
   MINIMUM_WITHDRAWAL_CENTS,
+  needsTestTransfer,
+  recordTestTransfer,
+  confirmTestTransfer,
 } from "../src/lib/wallet";
 import { hashPassword } from "../src/lib/passwords";
 import { generateDealReference, generateInviteCode, generateReferralCode } from "../src/lib/ids";
@@ -787,6 +790,38 @@ async function main() {
 
   const withdrawalId = (firstRequest as { withdrawalId: string }).withdrawalId;
 
+  // The first payout does not go until a nominal test has been sent AND the
+  // promoter has said it arrived. A crypto transfer to a mistyped address is
+  // gone permanently, so this is the guard that stops the balance following
+  // the test into the wrong place.
+  assert.equal(await needsTestTransfer(withdrawalId), true);
+
+  const sentTooEarly = await markWithdrawalSent(admin, withdrawalId, "0xtooearly");
+  assert.equal(sentTooEarly.ok, false);
+  assert.match((sentTooEarly as { error: string }).error, /test/i);
+  ok("a first payout cannot be sent before the test transfer");
+
+  assert.equal((await recordTestTransfer(walletPromoter, withdrawalId, "0xtest")).ok, false);
+  ok("only an admin can record the test transfer");
+
+  assert.equal((await recordTestTransfer(admin, withdrawalId, "   ")).ok, false);
+  ok("recording the test needs a hash or reference");
+
+  assert.equal((await recordTestTransfer(admin, withdrawalId, "0xtest")).ok, true);
+
+  // Sent, but not yet confirmed by the person receiving it — which is the only
+  // confirmation worth having. An admin ticking it off themselves proves
+  // nothing about whether the money arrived.
+  assert.equal((await markWithdrawalSent(admin, withdrawalId, "0xstill-too-early")).ok, false);
+  ok("the balance still waits after the test is sent, until they confirm it");
+
+  assert.equal((await confirmTestTransfer(karim, withdrawalId)).ok, false);
+  ok("somebody else cannot confirm a test on your payout");
+
+  assert.equal((await confirmTestTransfer(walletPromoter, withdrawalId)).ok, true);
+  assert.equal(await needsTestTransfer(withdrawalId), false);
+  ok("the promoter confirms the test, and the balance is released to be sent");
+
   assert.equal((await markWithdrawalSent(karim, withdrawalId, "0xnope")).ok, false);
   assert.equal((await rejectWithdrawal(walletPromoter, withdrawalId, "mine now")).ok, false);
   ok("only an admin can send or refuse a payout");
@@ -808,6 +843,16 @@ async function main() {
     destinationNetwork: "TRC-20",
   });
   const secondId = (second as { withdrawalId: string }).withdrawalId;
+
+  // Still their first *sent* payout — the earlier one was refused — so the test
+  // applies again. Correct: the destination is typed fresh on every request, so
+  // confirming a test against the previous address proves nothing about this
+  // one. The requirement lifts on having been paid, not on having confirmed.
+  assert.equal(await needsTestTransfer(secondId), true);
+  ok("a refused first payout does not spend the test requirement");
+
+  assert.equal((await recordTestTransfer(admin, secondId, "0xtest2")).ok, true);
+  assert.equal((await confirmTestTransfer(walletPromoter, secondId)).ok, true);
 
   assert.equal((await markWithdrawalSent(admin, secondId, "0xsent")).ok, true);
   assert.equal((await markWithdrawalSent(admin, secondId, "0xsent-again")).ok, false);

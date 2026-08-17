@@ -24,6 +24,40 @@ export const dynamic = "force-dynamic";
  */
 const NEW_SERVICE_THRESHOLD = 20;
 
+/**
+ * Reviews are dated to the month, not the day.
+ *
+ * Eleven reviews sharing one timestamp reads as a batch import even when the
+ * deals behind them were real, and that is the single most damaging thing a
+ * date field can do on a page whose entire job is looking like a ledger.
+ *
+ * Rounded rather than removed, though. For most products a review date is
+ * decoration; for an escrow service it is load-bearing, because it answers the
+ * question nobody asks out loud — "is anyone still here?" — and stripping it
+ * would trade an obvious problem for a subtler one. The month keeps the
+ * freshness signal and loses the tell, and the summary line above carries the
+ * precise recency the individual dates no longer do.
+ *
+ * DISPLAY ONLY. The full timestamp stays in the database, because disputes,
+ * fraud checks and sorting all need it and it cannot be reconstructed later.
+ */
+function monthOf(date: Date): string {
+  return date.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+/** "3 days ago", for the one place precise recency still earns its keep. */
+function agoFrom(date: Date, now: Date): string {
+  const days = Math.floor((now.getTime() - date.getTime()) / 86_400_000);
+
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+
+  const months = Math.floor(days / 30);
+
+  return months === 1 ? "a month ago" : `${months} months ago`;
+}
+
 export const metadata = {
   title: "Reviews",
   description:
@@ -111,7 +145,24 @@ export default async function ReviewsPage() {
         wrong. A dispute counts against the clean rate whichever way it was decided.
       </p>
 
-      <h2 className="mt-10 mb-3 text-sm font-semibold">Recent reviews</h2>
+      <h2 className="mt-10 mb-1 text-sm font-semibold">Recent reviews</h2>
+
+      {/* The pulse line.
+          Individual reviews only carry a month now, so precise recency lives
+          here instead — and it is the more useful place for it, because "most
+          recent 3 days ago" answers "is anyone still here" for the whole page
+          rather than for one card. Newest first, always, since order is the
+          only other recency cue left. */}
+      {stats.lastCompletedAt ? (
+        <p className="mb-3 text-xs text-[var(--muted)]">
+          {stats.completedDeals} swap{stats.completedDeals === 1 ? "" : "s"} completed · most recent{" "}
+          {agoFrom(stats.lastCompletedAt, new Date())}
+          {stats.averageRating ? ` · average rating ${stats.averageRating.toFixed(1)}` : ""} ·
+          newest first
+        </p>
+      ) : (
+        <p className="mb-3 text-xs text-[var(--muted)]">Newest first.</p>
+      )}
 
       {reviews.length === 0 ? (
         <EmptyPanel icon="star" title="No reviews yet">
@@ -125,9 +176,7 @@ export default async function ReviewsPage() {
               <Card className="h-full">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Stars rating={review.rating} />
-                  <span className="text-xs text-[var(--muted)]">
-                    {review.createdAt.toLocaleDateString("en-GB")}
-                  </span>
+                  <span className="text-xs text-[var(--muted)]">{monthOf(review.createdAt)}</span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed">{review.comment}</p>
                 <p className="mt-3 text-xs text-[var(--muted)]">

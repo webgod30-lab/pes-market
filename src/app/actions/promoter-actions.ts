@@ -25,6 +25,7 @@ export async function applyToPromoteAction(
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
     channel: String(formData.get("channel") ?? ""),
+    payoutMethod: String(formData.get("payoutMethod") ?? ""),
   };
 
   // Everything back except the password. The channel answer especially — it is
@@ -34,6 +35,7 @@ export async function applyToPromoteAction(
     displayName: rawValues.displayName,
     email: rawValues.email,
     channel: rawValues.channel,
+    payoutMethod: rawValues.payoutMethod,
   };
 
   const parsed = promoterApplicationSchema.safeParse(rawValues);
