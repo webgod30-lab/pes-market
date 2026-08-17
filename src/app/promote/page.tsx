@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUserQuietly } from "@/lib/dal";
 import {
-  FIRST_PAYOUT_CENTS,
   FOUNDING_PLACES,
   FOUNDING_RATE_DAYS,
   FOUNDING_REWARD_CENTS,
@@ -169,8 +168,7 @@ export default async function PromotePage() {
                 }
                 value={formatCents(REFERRAL_REWARD_CENTS * 2)}
               />
-              <Row label="First payout at" value={formatCents(FIRST_PAYOUT_CENTS)} />
-              <Row label="After that, payouts at" value={formatCents(MINIMUM_PAYOUT_CENTS)} />
+              <Row label="Payouts at" value={formatCents(MINIMUM_PAYOUT_CENTS)} />
               <Row
                 label="Paid"
                 value="1st of each month, one batch"

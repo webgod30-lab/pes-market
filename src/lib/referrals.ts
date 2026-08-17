@@ -41,20 +41,11 @@ export const FOUNDING_RATE_DAYS = 90;
 export const FOUNDING_PLACES = 20;
 
 /**
- * The balance a promoter has to reach before their FIRST payout.
+ * The balance a promoter has to reach before they can ask to be paid.
  *
- * Deliberately low. At $2 a swap, a $40 threshold means twenty completed deals
- * before anybody sees a penny — and most promoters earn four dollars and quit
- * having never been paid, which teaches them the money was never real. One
- * cheap payout early is worth more than the fee it costs.
- */
-export const FIRST_PAYOUT_CENTS = 1_000;
-
-/**
- * The threshold for every payout after the first.
- *
- * Every payout is a manual transfer that costs a fee and somebody's time. Once
- * a promoter has been paid once and knows the money arrives, batching is fine.
+ * One threshold, every time — not a cheaper first one. Every payout is a manual
+ * transfer that costs a fee and somebody's time, and $2 at a time would be
+ * spent entirely on sending it.
  */
 export const MINIMUM_PAYOUT_CENTS = 4_000;
 

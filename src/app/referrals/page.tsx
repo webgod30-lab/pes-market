@@ -5,7 +5,6 @@ import {
   getReferralSummary,
   listReferralEarnings,
   listReferredUsers,
-  FIRST_PAYOUT_CENTS,
   FOUNDING_REWARD_CENTS,
   MINIMUM_PAYOUT_CENTS,
   nextPayoutDate,
@@ -47,7 +46,7 @@ export default async function ReferralsPage() {
     getBalance(user.id),
   ]);
 
-  const shortfallCents = Math.max(0, balance.thresholdCents - balance.availableCents);
+  const shortfallCents = Math.max(0, MINIMUM_PAYOUT_CENTS - balance.availableCents);
   const dealsToGo = Math.ceil(shortfallCents / REFERRAL_REWARD_CENTS);
 
   const payoutDay = nextPayoutDate().toLocaleDateString("en-GB", {
@@ -142,18 +141,10 @@ export default async function ReferralsPage() {
             </li>
             <li>
               <strong className="text-[var(--foreground)]">
-                {formatCents(FIRST_PAYOUT_CENTS)} for your first payout
-              </strong>
-              , then {formatCents(MINIMUM_PAYOUT_CENTS)} for each one after. The first is
-              deliberately cheap — you should not have to take it on faith that the money is real.
-              {balance.isFirstPayout ? (
-                <>
-                  {" "}
-                  <strong className="text-[var(--foreground)]">
-                    You are on the {formatCents(FIRST_PAYOUT_CENTS)} threshold.
-                  </strong>
-                </>
-              ) : null}
+                {formatCents(MINIMUM_PAYOUT_CENTS)} minimum
+              </strong>{" "}
+              before you can request a payout. Every payout is a transfer sent by hand, and smaller
+              ones would go entirely on the fee.
             </li>
             <li>
               <strong className="text-[var(--foreground)]">Paid on the 1st of the month.</strong>{" "}

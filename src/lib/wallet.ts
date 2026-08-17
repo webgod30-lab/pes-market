@@ -18,7 +18,7 @@
 // cancelled request simply stops being counted and the money is available
 // again, with no compensating entry to forget.
 import { prisma } from "@/lib/prisma";
-import { FIRST_PAYOUT_CENTS, MINIMUM_PAYOUT_CENTS, nextPayoutDate } from "@/lib/referrals";
+import { MINIMUM_PAYOUT_CENTS, nextPayoutDate } from "@/lib/referrals";
 import type { CurrentUser } from "@/lib/dal";
 import type { PaymentMethod, WithdrawalStatus } from "@/generated/prisma/client";
 
@@ -28,32 +28,13 @@ export type WalletResult<T = unknown> = ({ ok: true } & T) | { ok: false; error:
 const COMMITTED: WithdrawalStatus[] = ["requested", "sent"];
 
 /**
- * Nothing below this is paid out, once a promoter has been paid once.
+ * Nothing below this is paid out.
  *
- * Re-exported from lib/referrals rather than defined twice. The numbers are a
- * property of the referral programme, and a copy of them here would be one edit
+ * Re-exported from lib/referrals rather than defined twice. The number is a
+ * property of the referral programme, and a copy of it here would be one edit
  * away from the form and the page promising different thresholds.
  */
 export const MINIMUM_WITHDRAWAL_CENTS = MINIMUM_PAYOUT_CENTS;
-
-/**
- * The threshold that actually applies to a given promoter.
- *
- * The first one is cheap on purpose. Somebody who has never been paid has no
- * evidence the money is real, and twenty completed deals is a long time to
- * believe on faith — most give up before they find out. Once they have been
- * paid once, that doubt is gone and batching is fine.
- *
- * Keyed on having been SENT a payout, not on having requested one: a request
- * that was refused taught them nothing.
- */
-export async function payoutThresholdFor(userId: string): Promise<number> {
-  const paidBefore = await prisma.withdrawal.count({
-    where: { promoterId: userId, status: "sent" },
-  });
-
-  return paidBefore > 0 ? MINIMUM_PAYOUT_CENTS : FIRST_PAYOUT_CENTS;
-}
 
 export type Balance = {
   /** Every referral credit ever earned. */
@@ -72,22 +53,15 @@ export type Balance = {
   availableCents: number;
   /** The signed truth, including a shortfall. */
   netCents: number;
-  /** Whether the balance has reached this promoter's payout minimum. */
+  /** Whether the balance has reached the payout minimum. */
   meetsMinimum: boolean;
-  /**
-   * The threshold that applies to them — $10 before their first payout, $40
-   * after. Exposed rather than assumed, so a page never quotes the wrong one.
-   */
-  thresholdCents: number;
-  /** True while they are still on the cheap first-payout threshold. */
-  isFirstPayout: boolean;
   /** The next 1st of the month — when requests are actually sent. */
   nextPayoutAt: Date;
   currency: string;
 };
 
 export async function getBalance(userId: string): Promise<Balance> {
-  const [earned, committed, thresholdCents] = await Promise.all([
+  const [earned, committed] = await Promise.all([
     prisma.referralEarning.aggregate({
       where: { promoterId: userId },
       _sum: { amountCents: true },
@@ -96,7 +70,6 @@ export async function getBalance(userId: string): Promise<Balance> {
       where: { promoterId: userId, status: { in: COMMITTED } },
       _sum: { amountCents: true },
     }),
-    payoutThresholdFor(userId),
   ]);
 
   const earnedCents = earned._sum?.amountCents ?? 0;
@@ -111,9 +84,7 @@ export async function getBalance(userId: string): Promise<Balance> {
     // requestWithdrawal checks against.
     availableCents,
     netCents,
-    meetsMinimum: availableCents >= thresholdCents,
-    thresholdCents,
-    isFirstPayout: thresholdCents === FIRST_PAYOUT_CENTS,
+    meetsMinimum: availableCents >= MINIMUM_WITHDRAWAL_CENTS,
     nextPayoutAt: nextPayoutDate(),
     currency: "USD",
   };
@@ -222,20 +193,15 @@ export async function requestWithdrawal(
 
   const balance = await getBalance(user.id);
 
-  // Their threshold, not the constant: a promoter who has never been paid is
-  // on $10, and quoting $40 at them would refuse a request the rules allow.
-  const threshold = balance.thresholdCents;
-  const asMoney = `$${(threshold / 100).toFixed(0)}`;
-
-  if (balance.availableCents < threshold) {
+  if (balance.availableCents < MINIMUM_WITHDRAWAL_CENTS) {
     return {
       ok: false,
-      error: `You need ${asMoney} in referral earnings before you can request a payout.`,
+      error: "You need $40 in referral earnings before you can request a payout.",
     };
   }
 
-  if (input.amountCents < threshold) {
-    return { ok: false, error: `The smallest payout is ${asMoney}.` };
+  if (input.amountCents < MINIMUM_WITHDRAWAL_CENTS) {
+    return { ok: false, error: "The smallest payout is $40." };
   }
 
   if (input.amountCents > balance.availableCents) {
