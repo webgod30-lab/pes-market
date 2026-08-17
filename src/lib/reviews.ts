@@ -354,7 +354,14 @@ export async function getTrustStats(): Promise<TrustStats> {
     prisma.deal.count({ where: { disputes: { some: {} } } }),
     prisma.user.count({ where: { role: "user" } }),
     prisma.deal.findFirst({
-      where: { status: "completed" },
+      // `completedAt: not null` is load-bearing, not defensive.
+      //
+      // Postgres sorts NULLs FIRST on a DESC order, so a single completed deal
+      // with no timestamp — a row forced through by an admin, or one closed
+      // before the column was populated — sorts ahead of every real date and
+      // makes this return null. The page then silently drops its recency line
+      // and shows nothing, which is exactly the signal it exists to carry.
+      where: { status: "completed", completedAt: { not: null } },
       orderBy: { completedAt: "desc" },
       select: { completedAt: true },
     }),
