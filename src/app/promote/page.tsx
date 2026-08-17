@@ -8,12 +8,14 @@ import {
   FOUNDING_RATE_DAYS,
   FOUNDING_REWARD_CENTS,
   foundingPlacesLeft,
+  listRecentPayouts,
   MINIMUM_PAYOUT_CENTS,
   REFERRAL_REWARD_CENTS,
 } from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
 import { SITE } from "@/lib/site";
 import { PromoterApplyForm } from "@/components/promoter-apply-form";
+import { PayoutTicker } from "@/components/payout-ticker";
 import { PublisherWarning } from "@/components/publisher-warning";
 import { Card, PageHeading } from "@/components/ui";
 import { Prose, Section } from "@/components/prose";
@@ -48,9 +50,12 @@ export default async function PromotePage() {
   // them apply for something they have.
   if (user) redirect(user.role === "admin" ? "/admin/promoters" : "/referrals");
 
-  // Tolerates failure for the same reason: a page that cannot render is worse
-  // than one missing a number.
-  const placesLeft = await foundingPlacesLeft().catch(() => 0);
+  // Both tolerate failure for the same reason: a page that cannot render is
+  // worse than one missing a number.
+  const [placesLeft, payouts] = await Promise.all([
+    foundingPlacesLeft().catch(() => 0),
+    listRecentPayouts().catch(() => []),
+  ]);
 
   return (
     <Prose>
@@ -103,6 +108,12 @@ export default async function PromotePage() {
           by hand run on something, and so the code you share leads somewhere.
         </p>
       </div>
+
+      {/* Straight after the network figures, because it is the evidence for
+          them. A number on a page is a claim; a name and an amount from twenty
+          minutes ago is the thing that makes the claim land. Renders nothing at
+          all until there is something real to show. */}
+      <PayoutTicker payouts={payouts} />
 
       {placesLeft > 0 ? (
         <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-4">

@@ -13,6 +13,7 @@
 // from the events behind it and cannot be re-derived once it has.
 import { prisma } from "@/lib/prisma";
 import { generateReferralCode, normaliseReferralCode } from "@/lib/ids";
+import { DEMO_EMAIL_SUFFIXES } from "@/lib/demo-data";
 
 /**
  * What one completed deal earns the trader's promoter.
@@ -380,6 +381,69 @@ export async function listReferralEarnings(userId: string, take = 100): Promise<
     traderName: row.trader.displayName,
     dealReference: row.deal.reference,
   }));
+}
+
+export type PublicPayoutRow = {
+  id: string;
+  /** First name and an initial. Never the full display name — see below. */
+  promoterName: string;
+  amountCents: number;
+  currency: string;
+  createdAt: Date;
+};
+
+/**
+ * Recent credits, for the public feed on /promote.
+ *
+ * Two things this deliberately does not do.
+ *
+ * It does not show a full name. Reviews already show display names publicly,
+ * so identity is not new exposure — but a name attached to an amount is income
+ * data, and a promoter did not agree to have theirs published when they signed
+ * up. First name and an initial proves a real person earned it without
+ * publishing who earns what.
+ *
+ * And it excludes demo accounts outright. The seed and the deal bot both
+ * generate credits, and a feed that broadcast those would be announcing
+ * invented payouts as real ones on the page whose whole job is convincing
+ * somebody the money exists — the worst possible place for it. Filtered by
+ * reserved email domain, the same way lib/demo-data.ts recognises them, so it
+ * holds even if the demo data is still sitting in the database.
+ */
+export async function listRecentPayouts(take = 8): Promise<PublicPayoutRow[]> {
+  const rows = await prisma.referralEarning.findMany({
+    where: {
+      promoter: {
+        AND: DEMO_EMAIL_SUFFIXES.map((suffix) => ({ email: { not: { endsWith: suffix } } })),
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: {
+      id: true,
+      amountCents: true,
+      currency: true,
+      createdAt: true,
+      promoter: { select: { displayName: true } },
+    },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    promoterName: shortenName(row.promoter.displayName),
+    amountCents: row.amountCents,
+    currency: row.currency,
+    createdAt: row.createdAt,
+  }));
+}
+
+/** "Youssef Benali" -> "Youssef B."  ·  "Youssef" -> "Youssef" */
+function shortenName(displayName: string): string {
+  const parts = displayName.trim().split(/\s+/);
+
+  if (parts.length < 2) return parts[0] ?? "Someone";
+
+  return `${parts[0]} ${parts[parts.length - 1]!.charAt(0).toUpperCase()}.`;
 }
 
 export type ReferredUserRow = {

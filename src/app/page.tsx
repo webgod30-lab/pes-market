@@ -8,6 +8,7 @@ import { getMonthlyVisits, looksAutomated, recordVisit } from "@/lib/visits";
 import { featuredFaqsFor } from "@/components/faq-content";
 import { Hero } from "@/components/landing/hero";
 import { TrustBanner } from "@/components/landing/trust-banner";
+import { NetworkRecord } from "@/components/landing/network-record";
 import { Stats } from "@/components/landing/stats";
 import { Features } from "@/components/landing/features";
 import { HowItWorks } from "@/components/landing/how-it-works";
@@ -56,6 +57,11 @@ export default async function HomePage() {
       <Hero signedIn={signedIn} dashboardHref={dashboardHref} locale={locale} />
 
       <TrustBanner locale={locale} />
+
+      {/* Before the site's own numbers, deliberately. The network's record is
+          the larger and older claim, and seeing it first is what stops the
+          smaller platform figures below reading as the whole story. */}
+      <NetworkRecord locale={locale} />
 
       <Stats stats={stats} monthlyVisits={monthlyVisits} locale={locale} />
 
