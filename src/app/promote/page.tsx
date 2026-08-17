@@ -12,6 +12,7 @@ import {
   REFERRAL_REWARD_CENTS,
 } from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
+import { SITE } from "@/lib/site";
 import { PromoterApplyForm } from "@/components/promoter-apply-form";
 import { PublisherWarning } from "@/components/publisher-warning";
 import { Card, PageHeading } from "@/components/ui";
@@ -69,6 +70,39 @@ export default async function PromotePage() {
         You do not need a code to apply for this. This page is the way in if you do not know anyone
         yet.
       </p>
+
+      {/* The network's track record, said before the mechanics.
+          Attributed to the network rather than to this site, deliberately: the
+          platform is new and its own numbers are small, so a promoter who read
+          "200 promoters" and then saw a handful of deals here would conclude
+          the figure was invented. Saying where it comes from is what keeps a
+          true claim believable. */}
+      <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
+        <p className="text-overline uppercase text-[var(--muted)]">
+          We were doing this before the site existed
+        </p>
+
+        <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-[var(--muted)]">Promoters across the network</dt>
+            <dd className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums">
+              {SITE.network.promoters}+
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-[var(--muted)]">Paid out to them monthly</dt>
+            <dd className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums">
+              ${(SITE.network.monthlyPayoutUsd / 1000).toFixed(0)}k+
+            </dd>
+          </div>
+        </dl>
+
+        <p className="mt-3 border-t border-[var(--border)] pt-3 text-xs leading-relaxed text-[var(--muted)]">
+          Those are the people already promoting this and what they are paid every month. The
+          escrow you see here is the new part — we built it so the swaps we were already refereeing
+          by hand run on something, and so the code you share leads somewhere.
+        </p>
+      </div>
 
       {placesLeft > 0 ? (
         <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-4">
