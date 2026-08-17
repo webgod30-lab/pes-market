@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     default: `${SITE.name} — trusted third party for account trades`,
   },
   description:
-    "Already agreed a price for an eFootball / PES account? Trade it safely: the account is held encrypted, the money is held in escrow, and neither moves until the trade works.",
+    "Already agreed a swap with someone? Trade eFootball / PES accounts safely: both accounts are held encrypted, and neither is released until an admin has checked them both. Free — no money involved.",
   applicationName: SITE.name,
   openGraph: {
     siteName: SITE.name,

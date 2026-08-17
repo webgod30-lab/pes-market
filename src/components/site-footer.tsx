@@ -55,8 +55,8 @@ export async function SiteFooter() {
           <div className="lg:col-span-1">
             <LogoLink />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-[var(--muted)]">
-              {SITE.tagline}. We hold the account and the money until both sides are proven — so
-              whoever goes first is not the one taking the risk.
+              {SITE.tagline}. We hold both accounts until both have been checked — so neither of you
+              has to go first, and neither of you is the one taking the risk.
             </p>
 
             {/* The status line from the logo system — the third element of the

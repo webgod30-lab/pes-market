@@ -24,6 +24,8 @@ export type HistoryFacts = {
   deliveryApprovedAt?: Date | null;
   credentialsReleasedAt?: Date | null;
   buyerConfirmedAt?: Date | null;
+  /** Swap only — the second confirmation, without which the deal stays open. */
+  sellerConfirmedAt?: Date | null;
   completedAt?: Date | null;
   payoutAt?: Date | null;
   refundedAt?: Date | null;
@@ -44,13 +46,17 @@ export function historyOf(facts: HistoryFacts): Entry[] {
     at(facts.paymentSubmittedAt, "Buyer said they had paid", "Not yet checked by the admin.", "info"),
     at(facts.paymentConfirmedAt, "Payment confirmed and held", "The money is with the admin, not the seller.", "success"),
     at(facts.verificationStartedAt, "Admin started verifying the account", undefined, "info"),
-    at(facts.deliveryApprovedAt, "Admin approved delivery", "The account matched what was promised.", "success"),
-    at(facts.credentialsReleasedAt, "Credentials released to the buyer", undefined, "success"),
+    at(facts.deliveryApprovedAt, "Admin approved delivery", "Both accounts matched what was promised.", "success"),
+    at(facts.credentialsReleasedAt, "Accounts released to each other", undefined, "success"),
+    // Both confirmations are listed. A swap does not close on the first, and a
+    // history that showed only one would make a half-finished deal look done.
     at(facts.buyerConfirmedAt, "Buyer confirmed they have the account", undefined, "success"),
+    at(facts.sellerConfirmedAt, "Seller confirmed they have the account", undefined, "success"),
     at(facts.completedAt, "Deal completed", undefined, "success"),
+    // Retired cash flow only; a swap has no payout and leaves this null.
     at(facts.payoutAt, "Payout sent to the seller", undefined, "success"),
-    at(facts.refundedAt, "Buyer refunded", "The deal was reversed.", "danger"),
-    at(facts.cancelledAt, "Deal cancelled", "Called off before any money moved.", "neutral"),
+    at(facts.refundedAt, "Deal reversed", "Everything was returned to where it came from.", "danger"),
+    at(facts.cancelledAt, "Deal cancelled", "Called off before either account was deposited.", "neutral"),
   ];
 
   return entries

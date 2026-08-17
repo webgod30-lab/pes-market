@@ -62,7 +62,7 @@ export function initialOf(displayName: string): string {
 export const PRIMARY_LINK: NavItem = {
   href: "/how-it-works",
   labelKey: "nav.howItWorks",
-  description: "The seven steps, and when the money actually moves",
+  description: "The six steps, and when the accounts actually change hands",
   icon: "route",
 };
 

@@ -118,7 +118,7 @@ export function headlineStats(
 export const TRUST_POINTS: Record<Locale, string[]> = {
   en: [
     "AES-256-GCM encrypted at rest",
-    "Funds held until both sides are proven",
+    "Both accounts held until both are checked",
     `${CONFIRMATION_WINDOW_HOURS}-hour confirmation window`,
     "Every deal reviewable by both parties",
     "Disputes decided from the record",
@@ -128,7 +128,7 @@ export const TRUST_POINTS: Record<Locale, string[]> = {
   ],
   ar: [
     "تشفير AES-256-GCM للبيانات المخزَّنة",
-    "الأموال محتجزة حتى يثبت الطرفان التزامهما",
+    "الحسابان محتجزان حتى يتم التحقق من كليهما",
     `نافذة تأكيد مدتها ${CONFIRMATION_WINDOW_HOURS} ساعة`,
     "كل صفقة قابلة للتقييم من الطرفين",
     "النزاعات تُحسم من السجل",
@@ -150,17 +150,17 @@ export const HERO: Record<
     badge: "Escrow for game account trades",
     titleTop: "You two agreed the deal.",
     titleAccent: "We make sure nobody gets robbed.",
-    body: "Not a shop — there is nothing to browse here. Bring a deal you already agreed on. The account is held encrypted, the money is held in escrow, and neither moves until the trade actually works.",
-    note: "Free to open a deal. You only pay when one completes.",
-    cta: { start: "Start a deal", code: "I have an invite code", deals: "Go to your deals" },
+    body: "Not a shop — there is nothing to browse here. Bring a swap you already agreed on. Both accounts are held encrypted, and neither is released until the admin has checked them both.",
+    note: "Free. There is no money in a swap, and we take no cut of one.",
+    cta: { start: "Start a swap", code: "I have an invite code", deals: "Go to your deals" },
   },
   ar: {
-    badge: "ضمان لصفقات حسابات الألعاب",
-    titleTop: "أنتما اتفقتما على الصفقة.",
+    badge: "ضمان لمبادلات حسابات الألعاب",
+    titleTop: "أنتما اتفقتما على المبادلة.",
     titleAccent: "ونحن نضمن ألا يُسرق أحد.",
-    body: "هذا ليس متجرًا — لا يوجد ما تتصفحه هنا. أحضر صفقة اتفقتما عليها مسبقًا. يُحفظ الحساب مشفَّرًا، ويُحتجز المال في الضمان، ولا يتحرك أي منهما حتى تتم الصفقة فعليًا.",
-    note: "فتح الصفقة مجاني. لا تدفع إلا عند إتمامها.",
-    cta: { start: "ابدأ صفقة", code: "لديّ رمز دعوة", deals: "اذهب إلى صفقاتك" },
+    body: "هذا ليس متجرًا — لا يوجد ما تتصفحه هنا. أحضر مبادلة اتفقتما عليها مسبقًا. يُحفظ الحسابان مشفَّرين، ولا يُسلَّم أي منهما حتى يتحقق المشرف من كليهما.",
+    note: "مجانًا. لا مال في المبادلة، ولا نأخذ منها أي نسبة.",
+    cta: { start: "ابدأ مبادلة", code: "لديّ رمز دعوة", deals: "اذهب إلى صفقاتك" },
   },
 };
 
@@ -189,13 +189,13 @@ export const SECTIONS: Record<
     featuresTitle: "Both halves are held. Neither side is exposed.",
     featuresBody:
       "In a normal account trade someone has to move first, and that person can simply be robbed. This removes the choice.",
-    howTitle: "Seven steps, and the money moves on the last one",
+    howTitle: "Six steps, and both accounts move on the last one",
     howBody:
       "Nothing happens automatically. Every release is a deliberate action by someone who has checked.",
     howMore: "Read the whole thing, in detail →",
     reviewsTitle: "Both sides rate each other",
     reviewsBody:
-      "Every review here came from a deal that completed through escrow. A buyer who never pays is as visible as a seller who hands over a dead account.",
+      "Every review here came from a deal that completed through escrow. Someone who goes quiet halfway is as visible as someone who hands over a dead account.",
     reviewsMore: "Read every review →",
     faqTitle: "The questions people ask first",
     faqBody: "Including the ones with awkward answers.",
@@ -206,12 +206,12 @@ export const SECTIONS: Record<
     featuresTitle: "كلا الطرفين محفوظ. ولا أحد مكشوف.",
     featuresBody:
       "في أي صفقة حساب عادية، على أحدهما أن يتحرك أولًا — وهذا الشخص يمكن ببساطة أن يُسرق. هذا النظام يلغي ذلك الخيار.",
-    howTitle: "سبع خطوات، والمال يتحرك في الأخيرة فقط",
+    howTitle: "ست خطوات، والحسابان ينتقلان في الأخيرة فقط",
     howBody: "لا شيء يحدث تلقائيًا. كل تسليم إجراء مقصود من شخص تحقّق أولًا.",
     howMore: "اقرأ التفاصيل كاملة ←",
     reviewsTitle: "كل طرف يقيّم الآخر",
     reviewsBody:
-      "كل تقييم هنا جاء من صفقة اكتملت عبر الضمان. المشتري الذي لا يدفع ظاهر تمامًا مثل البائع الذي يسلّم حسابًا معطّلًا.",
+      "كل تقييم هنا جاء من صفقة اكتملت عبر الضمان. ومن يختفي في منتصف الطريق ظاهر تمامًا مثل من يسلّم حسابًا معطّلًا.",
     reviewsMore: "اقرأ كل التقييمات ←",
     faqTitle: "الأسئلة التي تُطرح أولًا",
     faqBody: "بما فيها تلك التي إجاباتها غير مريحة.",
@@ -242,13 +242,13 @@ export const FEATURES: Record<Locale, Feature[]> = {
       wide: true,
     },
     {
-      title: "Money is held, not forwarded",
-      body: `It reaches the seller only after the buyer confirms they have the account — and the buyer has ${CONFIRMATION_WINDOW_HOURS} hours to say otherwise.`,
+      title: "Released together, or not at all",
+      body: `Neither login is handed over until the admin has checked both accounts — and then both move at the same moment. You each have ${CONFIRMATION_WINDOW_HOURS} hours to say something is wrong.`,
       icon: "vault",
     },
     {
       title: "Either side can freeze it",
-      body: "One button stops the deal dead. No credentials, no payout, and a case decided from the record rather than from whoever shouts loudest.",
+      body: "One button stops the deal dead. Nothing is released to anybody, and a case is decided from the record rather than from whoever shouts loudest.",
       icon: "scales",
     },
   ],
@@ -260,13 +260,13 @@ export const FEATURES: Record<Locale, Feature[]> = {
       wide: true,
     },
     {
-      title: "المال محتجز، لا مُحوَّل",
-      body: `لا يصل إلى البائع إلا بعد أن يؤكد المشتري استلامه الحساب — وأمام المشتري ${CONFIRMATION_WINDOW_HOURS} ساعة ليقول غير ذلك.`,
+      title: "يُسلَّمان معًا، أو لا يُسلَّم أي منهما",
+      body: `لا تُسلَّم بيانات أي حساب حتى يتحقق المشرف من الحسابين — ثم ينتقلان في اللحظة نفسها. وأمام كل منكما ${CONFIRMATION_WINDOW_HOURS} ساعة ليقول إن هناك خطأ.`,
       icon: "vault",
     },
     {
       title: "أي طرف يستطيع تجميدها",
-      body: "زر واحد يوقف الصفقة تمامًا. لا بيانات دخول، ولا دفع، وقضية تُحسم من السجل لا ممن يرفع صوته أكثر.",
+      body: "زر واحد يوقف الصفقة تمامًا. لا يُسلَّم شيء لأحد، وتُحسم القضية من السجل لا ممن يرفع صوته أكثر.",
       icon: "scales",
     },
   ],
