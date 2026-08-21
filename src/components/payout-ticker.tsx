@@ -3,7 +3,9 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
+import type { Locale } from "@/lib/locale";
 import { formatCents } from "@/lib/money";
+import { TICKER } from "@/lib/promoter-copy";
 import type { PublicPayoutRow } from "@/lib/referrals";
 
 /** How often the list re-fetches while somebody is reading the page. */
@@ -47,9 +49,20 @@ const clockOnServer = () => null;
  * Names are already shortened to a first name and an initial upstream — see
  * listRecentPayouts. Nothing here can widen that, because nothing here has the
  * full name to widen it to.
+ *
+ * The locale arrives as a prop because this is a client component and cannot
+ * read the cookie itself. Both languages ship in the bundle, which is a few
+ * hundred bytes and the same trade the rest of the site makes.
  */
-export function PayoutTicker({ payouts }: { payouts: PublicPayoutRow[] }) {
+export function PayoutTicker({
+  payouts,
+  locale = "en",
+}: {
+  payouts: PublicPayoutRow[];
+  locale?: Locale;
+}) {
   const router = useRouter();
+  const copy = TICKER[locale];
 
   // The clock read as an external store rather than as state written from an
   // effect. Reading it during render would be impure, and it would also hydrate
@@ -72,14 +85,11 @@ export function PayoutTicker({ payouts }: { payouts: PublicPayoutRow[] }) {
   return (
     <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
       <div className="flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="relative flex size-2 shrink-0"
-        >
+        <span aria-hidden="true" className="relative flex size-2 shrink-0">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
           <span className="relative inline-flex size-2 rounded-full bg-[var(--accent)]" />
         </span>
-        <p className="text-overline uppercase text-[var(--muted)]">Paid out just now</p>
+        <p className="text-overline uppercase text-[var(--muted)]">{copy.overline}</p>
       </div>
 
       <ul className="mt-3 space-y-1.5">
@@ -92,21 +102,20 @@ export function PayoutTicker({ payouts }: { payouts: PublicPayoutRow[] }) {
               <strong className="font-medium text-[var(--foreground)]">
                 {payout.promoterName}
               </strong>{" "}
-              earned{" "}
+              {copy.earned}{" "}
               <strong className="font-medium tabular-nums text-[var(--tone-success)]">
                 {formatCents(payout.amountCents, payout.currency)}
               </strong>
             </span>
             <span className="text-xs tabular-nums text-[var(--faint)]">
-              {now === null ? "" : relativeTime(payout.createdAt, now)}
+              {now === null ? "" : relativeTime(payout.createdAt, now, copy)}
             </span>
           </li>
         ))}
       </ul>
 
       <p className="mt-3 border-t border-[var(--border)] pt-2.5 text-xs leading-relaxed text-[var(--muted)]">
-        Every credit here is a real swap that completed through the escrow. Names are shortened —
-        what somebody earns is their business, not the page&apos;s.
+        {copy.foot}
       </p>
     </div>
   );
@@ -118,17 +127,21 @@ export function PayoutTicker({ payouts }: { payouts: PublicPayoutRow[] }) {
  * `now` is passed in rather than read here so this stays a pure function of its
  * arguments — and so the ticker's own interval is what makes the ages count up,
  * rather than each row deciding independently what time it is.
+ *
+ * The unit strings are templates rather than concatenation because Arabic puts
+ * the preposition in front ("منذ ٣ د") and English puts it behind ("3m ago") —
+ * gluing a number to a suffix only works in one of the two.
  */
-function relativeTime(at: Date, now: number): string {
+function relativeTime(at: Date, now: number, copy: (typeof TICKER)["en"]): string {
   const seconds = Math.max(0, Math.floor((now - new Date(at).getTime()) / 1000));
 
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return copy.justNow;
 
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return copy.minutesAgo.replace("{n}", String(minutes));
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return copy.hoursAgo.replace("{n}", String(hours));
 
-  return `${Math.floor(hours / 24)}d ago`;
+  return copy.daysAgo.replace("{n}", String(Math.floor(hours / 24)));
 }

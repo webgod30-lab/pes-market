@@ -122,7 +122,7 @@ function GroupMenu({ group, locale }: { group: NavGroup; locale: Locale }) {
           aria-current={isActive(pathname, item.href) ? "page" : undefined}
           icon={<NavIcon name={item.icon} />}
           title={t(item.labelKey)}
-          description={item.description}
+          description={item.descriptionKey ? t(item.descriptionKey) : undefined}
         />
       ))}
     </Menu>

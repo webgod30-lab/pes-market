@@ -5,21 +5,59 @@
 import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/dal";
+import { isLocale, type Locale } from "@/lib/locale";
 import { promoterApplicationSchema } from "@/lib/validation";
 import { approveApplication, rejectApplication, submitApplication } from "@/lib/promoters";
 import { fieldErrorsFrom, type FormState } from "@/lib/form-state";
 import { databaseProblemMessage } from "@/lib/db-errors";
 import { clientIp } from "@/lib/client-ip";
-import {
-  describeRetryAfter,
-  hitRateLimits,
-  PROMOTER_APPLICATION_BY_IP,
-} from "@/lib/rate-limit";
+import { hitRateLimits, PROMOTER_APPLICATION_BY_IP } from "@/lib/rate-limit";
+
+/**
+ * The action's own replies, in both languages.
+ *
+ * /promote is translated, so an English "Application received" under an Arabic
+ * form would be the one visibly broken thing left on the page. The locale
+ * arrives as a hidden field rather than from the cookie so the answer matches
+ * the form that was actually filled in.
+ */
+const REPLIES = {
+  en: {
+    received:
+      "Application received. We read every one by hand — if it is a fit you will get an email with your code.",
+    tooMany: (when: string) => `Too many applications from here. Try again in ${when}.`,
+    underMinute: "less than a minute",
+    oneMinute: "a minute",
+    minutes: (n: number) => `${n} minutes`,
+  },
+  ar: {
+    received:
+      "تم استلام طلبك. نقرأ كل طلب بأنفسنا — وإن كان مناسبًا فستصلك رسالة بريدية فيها رمزك.",
+    tooMany: (when: string) => `طلبات كثيرة من هنا. حاول مرة أخرى بعد ${when}.`,
+    underMinute: "أقل من دقيقة",
+    oneMinute: "دقيقة",
+    minutes: (n: number) => `${n} دقيقة`,
+  },
+} satisfies Record<Locale, unknown>;
+
+/** describeRetryAfter, in the applicant's language. */
+function retryAfter(seconds: number, locale: Locale): string {
+  const say = REPLIES[locale];
+
+  if (seconds < 60) return say.underMinute;
+
+  const minutes = Math.ceil(seconds / 60);
+
+  return minutes === 1 ? say.oneMinute : say.minutes(minutes);
+}
 
 export async function applyToPromoteAction(
   _previousState: FormState | undefined,
   formData: FormData,
 ): Promise<FormState> {
+  const submitted = String(formData.get("locale") ?? "");
+  const locale: Locale = isLocale(submitted) ? submitted : "en";
+
   const rawValues = {
     displayName: String(formData.get("displayName") ?? ""),
     email: String(formData.get("email") ?? ""),
@@ -38,7 +76,7 @@ export async function applyToPromoteAction(
     payoutMethod: rawValues.payoutMethod,
   };
 
-  const parsed = promoterApplicationSchema.safeParse(rawValues);
+  const parsed = promoterApplicationSchema(locale).safeParse(rawValues);
 
   if (!parsed.success) {
     return { fieldErrors: fieldErrorsFrom(parsed.error), values: echo };
@@ -53,7 +91,7 @@ export async function applyToPromoteAction(
 
     if (!limit.allowed) {
       return {
-        message: `Too many applications from here. Try again in ${describeRetryAfter(limit.retryAfterSeconds)}.`,
+        message: REPLIES[locale].tooMany(retryAfter(limit.retryAfterSeconds, locale)),
         values: echo,
       };
     }
@@ -79,10 +117,7 @@ export async function applyToPromoteAction(
   // one, or did nothing because the address already has an account. Anything
   // else turns a public form into a way of asking "does this person trade game
   // accounts here?".
-  return {
-    success:
-      "Application received. We read every one by hand — if it is a fit you will get an email with your code.",
-  };
+  return { success: REPLIES[locale].received };
 }
 
 async function adminDecision(fn: (admin: Awaited<ReturnType<typeof requireRole>>) => Promise<{ ok: boolean; error?: string }>): Promise<FormState> {

@@ -2,11 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentUserQuietly } from "@/lib/dal";
-import {
-  listRecentPayouts,
-  MINIMUM_PAYOUT_CENTS,
-  REFERRAL_REWARD_CENTS,
-} from "@/lib/referrals";
+import { getLocale } from "@/lib/locale-server";
+import { PROMOTE } from "@/lib/promoter-copy";
+import { listRecentPayouts, MINIMUM_PAYOUT_CENTS, REFERRAL_REWARD_CENTS } from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
 import { SITE } from "@/lib/site";
 import { PromoterApplyForm } from "@/components/promoter-apply-form";
@@ -35,6 +33,11 @@ export const metadata = {
  * earlier version led with the restriction, and the people best placed to
  * promote this — traders with reputations — read "cannot open or join a swap"
  * as "not for me" and left.
+ *
+ * Every string comes from lib/promoter-copy so the page follows the language
+ * menu. It used to be written inline in English, which made this the one page
+ * that ignored the switch — on a recruitment page aimed at Arabic-speaking
+ * communities, that was the worst place on the site for it to happen.
  */
 export default async function PromotePage() {
   // Quietly: this page must render with a broken database so the form can
@@ -45,28 +48,24 @@ export default async function PromotePage() {
   // them apply for something they have.
   if (user) redirect(user.role === "admin" ? "/admin/promoters" : "/referrals");
 
+  const locale = await getLocale();
+  const copy = PROMOTE[locale];
+
   // Tolerates failure for the same reason: a page that cannot render is worse
   // than one missing a list.
   const payouts = await listRecentPayouts().catch(() => []);
 
   return (
     <Prose>
-      <PageHeading
-        title="Become a promoter"
-        description="Your code is the door. Nobody registers here without one."
-      />
+      <PageHeading title={copy.title} description={copy.subtitle} />
 
       <p className="text-base leading-relaxed">
-        There is no open sign-up on this site. Every single person who trades here got in through
-        somebody&apos;s code. If it is yours, you earn{" "}
+        {copy.leadOne}{" "}
         <strong className="text-[var(--foreground)]">{formatCents(REFERRAL_REWARD_CENTS)}</strong>{" "}
-        every time they complete a swap.
+        {copy.leadOneTail}
       </p>
 
-      <p className="mt-3 text-base leading-relaxed">
-        You do not need a code to apply for this. This page is the way in if you do not know anyone
-        yet.
-      </p>
+      <p className="mt-3 text-base leading-relaxed">{copy.leadTwo}</p>
 
       {/* The network's track record, said before the mechanics.
           Attributed to the network rather than to this site, deliberately: the
@@ -75,19 +74,17 @@ export default async function PromotePage() {
           the figure was invented. Saying where it comes from is what keeps a
           true claim believable. */}
       <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
-        <p className="text-overline uppercase text-[var(--muted)]">
-          We were doing this before the site existed
-        </p>
+        <p className="text-overline uppercase text-[var(--muted)]">{copy.networkOverline}</p>
 
         <dl className="mt-3 grid gap-4 sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-[var(--muted)]">Promoters across the network</dt>
+            <dt className="text-xs text-[var(--muted)]">{copy.networkPromoters}</dt>
             <dd className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums">
               {SITE.network.promoters}+
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-[var(--muted)]">Paid out to them monthly</dt>
+            <dt className="text-xs text-[var(--muted)]">{copy.networkPayout}</dt>
             <dd className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums">
               ${(SITE.network.monthlyPayoutUsd / 1000).toFixed(0)}k+
             </dd>
@@ -95,9 +92,7 @@ export default async function PromotePage() {
         </dl>
 
         <p className="mt-3 border-t border-[var(--border)] pt-3 text-xs leading-relaxed text-[var(--muted)]">
-          Those are the people already promoting this and what they are paid every month. The
-          escrow you see here is the new part — we built it so the swaps we were already refereeing
-          by hand run on something, and so the code you share leads somewhere.
+          {copy.networkBody}
         </p>
       </div>
 
@@ -105,52 +100,40 @@ export default async function PromotePage() {
           them. A number on a page is a claim; a name and an amount from twenty
           minutes ago is the thing that makes the claim land. Renders nothing at
           all until there is something real to show. */}
-      <PayoutTicker payouts={payouts} />
+      <PayoutTicker payouts={payouts} locale={locale} />
 
-      <Section title="How it works">
+      <Section title={copy.howTitle}>
         <ol className="space-y-2">
           <li>
-            <strong className="text-[var(--foreground)]">Apply below.</strong> Tell us where you
-            would share it and roughly how many people you reach. We read every application — this
-            is the part we actually judge.
+            <strong className="text-[var(--foreground)]">{copy.howApply}</strong> {copy.howApplyBody}
           </li>
           <li>
-            <strong className="text-[var(--foreground)]">Get your code and auto-fill link.</strong>{" "}
-            Anyone using it registers instantly, no typing.
+            <strong className="text-[var(--foreground)]">{copy.howCode}</strong> {copy.howCodeBody}
           </li>
           <li>
-            <strong className="text-[var(--foreground)]">
-              Earn on every swap they complete.
-            </strong>{" "}
-            Forever, not just their first.
+            <strong className="text-[var(--foreground)]">{copy.howEarn}</strong> {copy.howEarnBody}
           </li>
         </ol>
       </Section>
 
-      <Section title="What you earn">
+      <Section title={copy.earnTitle}>
         {/* Scrolls on its own rather than pushing the page sideways on a phone. */}
         <div className="-mx-1 overflow-x-auto px-1">
           <table className="w-full min-w-[22rem] border-collapse text-sm">
             <tbody>
-              <Row
-                label="Every completed swap by someone who used your code"
-                value={formatCents(REFERRAL_REWARD_CENTS)}
-              />
+              <Row label={copy.earnPerSwap} value={formatCents(REFERRAL_REWARD_CENTS)} />
               <Row
                 label={
                   <>
-                    A swap where <strong className="text-[var(--foreground)]">both</strong> sides
-                    used your code
+                    {copy.earnBothLead}{" "}
+                    <strong className="text-[var(--foreground)]">{copy.earnBothBold}</strong>{" "}
+                    {copy.earnBothTail}
                   </>
                 }
                 value={formatCents(REFERRAL_REWARD_CENTS * 2)}
               />
-              <Row label="Payouts at" value={formatCents(MINIMUM_PAYOUT_CENTS)} />
-              <Row
-                label="Paid"
-                value="1st of each month, one batch"
-                note="Request any day once you are over."
-              />
+              <Row label={copy.earnPayoutsAt} value={formatCents(MINIMUM_PAYOUT_CENTS)} />
+              <Row label={copy.earnPaid} value={copy.earnPaidValue} note={copy.earnPaidNote} />
             </tbody>
           </table>
         </div>
@@ -160,147 +143,109 @@ export default async function PromotePage() {
           money" is the next question and the site previously had no answer to
           it anywhere. In a niche where everyone has been scammed at least once,
           an unanswered payment question is not a gap — it reads as evasion. */}
-      <Section title="How you get paid">
-        <p>
-          You choose your payout method when you apply, and you can change it any time before a
-          payout goes out.
-        </p>
+      <Section title={copy.paidTitle}>
+        <p>{copy.paidIntro}</p>
 
         <div className="-mx-1 mt-3 overflow-x-auto px-1">
           <table className="w-full min-w-[30rem] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] text-start">
-                <th className="py-2 pe-4 text-start font-medium">Method</th>
-                <th className="py-2 pe-4 text-start font-medium">Speed</th>
-                <th className="py-2 text-start font-medium">Notes</th>
+              <tr className="border-b border-[var(--border)]">
+                <th className="py-2 pe-4 text-start font-medium">{copy.paidMethod}</th>
+                <th className="py-2 pe-4 text-start font-medium">{copy.paidSpeed}</th>
+                <th className="py-2 text-start font-medium">{copy.paidNotes}</th>
               </tr>
             </thead>
             <tbody>
               <PayoutRow
                 method="USDT (TRC-20)"
-                speed="Minutes"
-                note="Our default. Lowest fees, works anywhere, no bank needed."
+                speed={copy.paidCryptoSpeed}
+                note={copy.paidCryptoNote}
               />
+              <PayoutRow method="PayPal" speed={copy.paidPaypalSpeed} note={copy.paidPaypalNote} />
               <PayoutRow
-                method="PayPal"
-                speed="1–2 days"
-                note="Sent in USD. Your own conversion and withdrawal costs are set by PayPal, not us."
-              />
-              <PayoutRow
-                method="Gift card"
-                speed="Instant"
-                note="Steam, Amazon or Google Play. Useful if you don't have a bank account or you're under 18."
+                method={copy.paidGift}
+                speed={copy.paidGiftSpeed}
+                note={copy.paidGiftNote}
               />
             </tbody>
           </table>
         </div>
 
         <p className="mt-4">
-          <strong className="text-[var(--foreground)]">We cover the sending fee.</strong> What it
-          costs you to convert or withdraw on your side is between you and your provider — worth
-          checking before you pick.
+          <strong className="text-[var(--foreground)]">{copy.paidFeeBold}</strong> {copy.paidFeeBody}
         </p>
 
         <p>
-          <strong className="text-[var(--foreground)]">All balances are in US dollars.</strong> A{" "}
-          {formatCents(MINIMUM_PAYOUT_CENTS)} payout is {formatCents(MINIMUM_PAYOUT_CENTS)} sent,
-          not {formatCents(MINIMUM_PAYOUT_CENTS)} after we have taken something out.
+          <strong className="text-[var(--foreground)]">{copy.paidUsdBold}</strong>{" "}
+          {formatCents(MINIMUM_PAYOUT_CENTS)} {copy.paidUsdBody}
         </p>
 
         <p>
-          <strong className="text-[var(--foreground)]">
-            Your first payout gets a test transaction.
-          </strong>{" "}
-          We send $1 first and wait for you to confirm it landed, then send the rest. Wallet
-          addresses cannot be undone if they are wrong, and we would rather lose a day than lose
-          your money.
+          <strong className="text-[var(--foreground)]">{copy.paidTestBold}</strong>{" "}
+          {copy.paidTestBody}
         </p>
 
         <p>
-          <strong className="text-[var(--foreground)]">Every payment gets a receipt</strong> — a
-          transaction hash or reference, recorded against the payout. Keep them. If we ever disagree
-          about whether something was paid, that record settles it.
+          <strong className="text-[var(--foreground)]">{copy.paidReceiptBold}</strong>{" "}
+          {copy.paidReceiptBody}
         </p>
       </Section>
 
-      <Section title="You can promote and still trade">
+      <Section title={copy.bothTitle}>
         <p>
-          This is the question everyone asks, so: <strong>yes, you can do both.</strong>
+          {copy.bothAsk} <strong>{copy.bothAnswer}</strong>
         </p>
-        <p>
-          A promoter account collects earnings and cannot open swaps itself — that is an
-          anti-farming rule, not a punishment. If you want to trade as well, register a separate
-          normal account using someone else&apos;s code. Promoting does not cost you your trading.
-        </p>
+        <p>{copy.bothBody}</p>
         {/* The one thing the audit's copy left out, and it matters: the terms
             ban extra accounts used to multiply credits, and a trading account
             registered under your OWN code is exactly that. Saying so here is
             cheaper than reversing the credits later. */}
         <p>
-          One rule on that: do not use{" "}
-          <strong className="text-[var(--foreground)]">your own</strong> code on your trading
-          account. Referring yourself is farming, and it gets the credits reversed and both accounts
-          suspended. Use somebody else&apos;s — that is what everyone here did.
+          {copy.bothRuleLead}{" "}
+          <strong className="text-[var(--foreground)]">{copy.bothRuleBold}</strong>{" "}
+          {copy.bothRuleTail}
         </p>
       </Section>
 
-      <Section title="This works best if you">
+      <Section title={copy.bestTitle}>
         <ul className="space-y-1.5">
-          <li>Run a Discord server, Telegram group or Facebook group where people trade accounts</li>
-          <li>Sell accounts with real feedback behind you and lose deals to &ldquo;you go first&rdquo;</li>
-          <li>Already middleman for your community — get paid for what you are doing free</li>
-          <li>Make eFootball content and get trade requests in your comments</li>
+          {copy.best.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
         </ul>
       </Section>
 
-      <Section title="What gets you removed">
-        <p>
-          Opening deals just to generate credits. Both sides get reversed and the account is
-          suspended. We are paying for real trades between real people; that is the whole point.
-        </p>
+      <Section title={copy.removedTitle}>
+        <p>{copy.removedBody}</p>
       </Section>
 
-      <Section title="Before you promote it, know this">
-        <PublisherWarning />
-        <p className="mt-3">
-          Say that to your community and you will be the one who told them the truth. It is also the
-          answer to the first hard question anyone will ask you.
-        </p>
+      <Section title={copy.warningTitle}>
+        <PublisherWarning locale={locale} />
+        <p className="mt-3">{copy.warningTail}</p>
       </Section>
 
-      <Section title="Apply">
-        <p>
-          Every application is read by hand. The thing that decides it is the last question: where
-          you would actually promote this, and to roughly how many people.
-        </p>
+      <Section title={copy.applyTitle}>
+        <p>{copy.applyBody}</p>
       </Section>
 
       <Card elevation="raised">
-        <PromoterApplyForm />
+        <PromoterApplyForm locale={locale} />
       </Card>
 
       <p className="mt-6 text-xs leading-relaxed text-[var(--muted)]">
-        Already have a code from someone?{" "}
+        {copy.alreadyLead}{" "}
         <Link href="/register" className="text-[var(--accent)] hover:underline">
-          Register normally
+          {copy.alreadyLink}
         </Link>{" "}
-        — you get a promoter code of your own either way, and a normal account can trade too.
+        {copy.alreadyTail}
       </p>
     </Prose>
   );
 }
 
-function PayoutRow({
-  method,
-  speed,
-  note,
-}: {
-  method: string;
-  speed: string;
-  note: string;
-}) {
+function PayoutRow({ method, speed, note }: { method: string; speed: string; note: string }) {
   return (
-    <tr className="border-b border-[var(--border)] last:border-0 align-top">
+    <tr className="border-b border-[var(--border)] align-top last:border-0">
       <td className="py-2.5 pe-4 font-semibold whitespace-nowrap">{method}</td>
       <td className="py-2.5 pe-4 whitespace-nowrap text-[var(--muted)]">{speed}</td>
       <td className="py-2.5 leading-relaxed text-[var(--muted)]">{note}</td>

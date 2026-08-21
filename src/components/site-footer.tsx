@@ -55,8 +55,7 @@ export async function SiteFooter() {
           <div className="lg:col-span-1">
             <LogoLink />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-[var(--muted)]">
-              {SITE.tagline}. We hold both accounts until both have been checked — so neither of you
-              has to go first, and neither of you is the one taking the risk.
+              {t("footer.brand")}. {t("footer.tagline")}
             </p>
 
             {/* The status line from the logo system — the third element of the
@@ -64,7 +63,7 @@ export async function SiteFooter() {
                 quietly, where it can be checked against the rest of the site
                 rather than shouted as a badge. */}
             <p className="mt-5">
-              <StatusLine>AES-256-GCM encrypted at rest</StatusLine>
+              <StatusLine>{t("footer.encrypted")}</StatusLine>
             </p>
           </div>
 
@@ -96,22 +95,18 @@ export async function SiteFooter() {
         {/* The honest bit. Saying this plainly is worth more than a trust badge. */}
         <div className="mt-12 space-y-3 border-t border-[var(--border)] pt-8 text-xs leading-relaxed text-[var(--muted)]">
           <p>
-            <strong className="text-[var(--foreground)]">We do not sell accounts.</strong> Nothing is
-            listed or advertised here. Buyers and sellers agree their own deals elsewhere and use this
-            service to complete them safely.
+            <strong className="text-[var(--foreground)]">{t("footer.noSaleBold")}</strong>{" "}
+            {t("footer.noSaleBody")}
           </p>
           <p>
-            Game publishers generally prohibit selling or transferring accounts, and can suspend a
-            traded account. Escrow protects you from the other person in the trade — not from the
-            publisher. See the{" "}
+            {t("footer.publisherLead")}{" "}
             <Link href="/terms" className="text-[var(--accent)] hover:underline">
-              terms
+              {t("footer.publisherLink")}
             </Link>{" "}
-            before you trade.
+            {t("footer.publisherTail")}
           </p>
           <p>
-            Not affiliated with, endorsed by, or connected to Konami, eFootball, PES, or any game
-            publisher.
+            {t("footer.notAffiliated")}
           </p>
         </div>
 
@@ -124,19 +119,19 @@ export async function SiteFooter() {
               near-miss lands on the neighbour rather than on nothing. */}
           <div className="-my-1 flex flex-wrap gap-x-5">
             <Link href="/terms" className="inline-flex min-h-9 items-center hover:text-[var(--foreground)]">
-              Terms
+              {t("footer.termsShort")}
             </Link>
             <Link
               href="/privacy"
               className="inline-flex min-h-9 items-center hover:text-[var(--foreground)]"
             >
-              Privacy
+              {t("footer.privacyShort")}
             </Link>
             <Link
               href="/contact"
               className="inline-flex min-h-9 items-center hover:text-[var(--foreground)]"
             >
-              Contact
+              {t("nav.contact")}
             </Link>
           </div>
         </div>

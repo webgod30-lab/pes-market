@@ -2,6 +2,7 @@
 // Validation lives on the server: never trust the browser.
 import { z } from "zod";
 
+import type { Locale } from "@/lib/locale";
 import { parsePriceToCents } from "@/lib/money";
 
 /** Normalised email: trimmed and lowercased before the format check. */
@@ -55,40 +56,58 @@ export const loginSchema = z.object({
  * The one public form that does not need a code — it is the way in for someone
  * who has nobody to get a code from. The password is taken up front so that
  * approving is one click rather than a second round of emails.
+ *
+ * Built per language rather than once, because /promote is translated and a
+ * form that answers an Arabic page in English reads as half-finished — which is
+ * the exact impression this form exists to avoid.
  */
-export const promoterApplicationSchema = z.object({
-  displayName: z
-    .string()
-    .trim()
-    .min(2, "Display name must be at least 2 characters.")
-    .max(40, "Display name must be at most 40 characters."),
-  email: emailField,
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters.")
-    .max(72, "Password must be at most 72 characters."),
-  /**
-   * The only thing an admin really decides on, so it asks for enough to decide
-   * with. A one-word answer is not a case.
-   */
-  channel: z
-    .string()
-    .trim()
-    .min(20, "Say where you would promote it, and roughly how many people you reach.")
-    .max(1000, "Keep it under 1000 characters."),
-  /**
-   * Asked at application, not at the first payout.
-   *
-   * Bank transfer is deliberately absent from the offered list — the amounts
-   * are $10 to $40, and a flat wire fee eats a quarter of that. The three here
-   * each solve a different problem: crypto is near-free and needs no bank,
-   * PayPal is for people who will not touch crypto, and a gift card is the
-   * only one that works for a promoter under 18.
-   */
-  payoutMethod: z.enum(["crypto", "card", "gift_card"], {
-    message: "Choose how you would like to be paid.",
-  }),
-});
+const PROMOTER_MESSAGES = {
+  en: {
+    nameShort: "Display name must be at least 2 characters.",
+    nameLong: "Display name must be at most 40 characters.",
+    email: "Enter a valid email address.",
+    passwordShort: "Password must be at least 8 characters.",
+    passwordLong: "Password must be at most 72 characters.",
+    channelShort: "Say where you would promote it, and roughly how many people you reach.",
+    channelLong: "Keep it under 1000 characters.",
+    payout: "Choose how you would like to be paid.",
+  },
+  ar: {
+    nameShort: "الاسم المعروض حرفان على الأقل.",
+    nameLong: "الاسم المعروض ٤٠ حرفًا على الأكثر.",
+    email: "أدخل بريدًا إلكترونيًا صحيحًا.",
+    passwordShort: "كلمة المرور ٨ أحرف على الأقل.",
+    passwordLong: "كلمة المرور ٧٢ حرفًا على الأكثر.",
+    channelShort: "قل أين ستروّج لها، ولكم من الناس تصل تقريبًا.",
+    channelLong: "اجعلها أقل من ١٠٠٠ حرف.",
+    payout: "اختر كيف تحب أن تُدفع لك أموالك.",
+  },
+} satisfies Record<Locale, Record<string, string>>;
+
+export function promoterApplicationSchema(locale: Locale = "en") {
+  const say = PROMOTER_MESSAGES[locale];
+
+  return z.object({
+    displayName: z.string().trim().min(2, say.nameShort).max(40, say.nameLong),
+    email: z.string().trim().toLowerCase().pipe(z.email(say.email)),
+    password: z.string().min(8, say.passwordShort).max(72, say.passwordLong),
+    /**
+     * The only thing an admin really decides on, so it asks for enough to
+     * decide with. A one-word answer is not a case.
+     */
+    channel: z.string().trim().min(20, say.channelShort).max(1000, say.channelLong),
+    /**
+     * Asked at application, not at the first payout.
+     *
+     * Bank transfer is deliberately absent from the offered list — a payout is
+     * $40 and a flat wire fee eats a quarter of that. The three here each solve
+     * a different problem: crypto is near-free and needs no bank, PayPal is for
+     * people who will not touch crypto, and a gift card is the only one that
+     * works for a promoter under 18.
+     */
+    payoutMethod: z.enum(["crypto", "card", "gift_card"], { message: say.payout }),
+  });
+}
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

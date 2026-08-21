@@ -7,35 +7,8 @@ import { AuthFormError } from "@/components/auth/form-alert";
 import { PasswordInput } from "@/components/auth/password-input";
 import { PasswordStrength } from "@/components/auth/password-strength";
 import { Alert, Button, Field, fieldDescribedBy, inputClassName } from "@/components/ui";
-
-/**
- * The three rails offered, and who each is for.
- *
- * Bank transfer is deliberately absent. Payouts here are $10 to $40, and a flat
- * wire fee takes a quarter of that — percentage fees barely matter at this
- * size, fixed ones are what kill it.
- */
-const PAYOUT_METHODS = [
-  {
-    value: "crypto",
-    label: "USDT (TRC-20)",
-    detail: "Arrives in minutes, costs almost nothing to send, and needs no bank account.",
-  },
-  {
-    value: "card",
-    label: "PayPal",
-    detail: "One to two days, sent in US dollars. Their conversion and withdrawal fees are theirs, not ours.",
-  },
-  {
-    value: "gift_card",
-    label: "Gift card — Steam, Amazon or Google Play",
-    detail: "Instant. The one that works if you have no bank account, or you are under 18.",
-  },
-] as const;
-
-const NAME_HINT = "What people will see next to your code.";
-const PASSWORD_HINT = "At least 8 characters. You will use this to sign in once you are approved.";
-const CHANNEL_HINT = "A Discord server, a YouTube channel, a group chat — and roughly how many people.";
+import type { Locale } from "@/lib/locale";
+import { APPLY_FORM } from "@/lib/promoter-copy";
 
 /**
  * Apply to become a promoter.
@@ -47,13 +20,25 @@ const CHANNEL_HINT = "A Discord server, a YouTube channel, a group chat — and 
  * is one click for the admin and one email for the applicant. It is hashed the
  * moment it reaches the server and cleared entirely if the application is
  * refused.
+ *
+ * Bank transfer is deliberately not among the payout rails. A payout here is
+ * $40 and a flat wire fee takes a quarter of it — percentage fees barely matter
+ * at this size, fixed ones are what kill it.
  */
-export function PromoterApplyForm() {
+export function PromoterApplyForm({ locale = "en" }: { locale?: Locale }) {
   const [state, formAction, pending] = useActionState(applyToPromoteAction, undefined);
+  const copy = APPLY_FORM[locale];
 
   // Held only to draw the meter. Never submitted separately, never sent
   // anywhere, and dies with the component.
   const [password, setPassword] = useState("");
+
+  // Built here rather than at module scope so the labels follow the language.
+  const payoutMethods = [
+    { value: "crypto", label: copy.cryptoLabel, detail: copy.cryptoDetail },
+    { value: "card", label: copy.paypalLabel, detail: copy.paypalDetail },
+    { value: "gift_card", label: copy.giftLabel, detail: copy.giftDetail },
+  ];
 
   // Once it is in, the form has nothing left to do. Replacing it outright beats
   // leaving a filled-in form under a success banner, which reads as "that did
@@ -62,22 +47,26 @@ export function PromoterApplyForm() {
     return (
       <Alert tone="success">
         <p className="font-medium">{state.success}</p>
-        <p className="mt-1.5 text-sm">
-          Nothing else to do for now. Applications are read by hand, so it will not be instant.
-        </p>
+        <p className="mt-1.5 text-sm">{copy.doneTail}</p>
       </Alert>
     );
   }
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* Read by the action so its own replies come back in the same language
+          the form was filled in. A cookie would work too, but a hidden field
+          keeps the answer tied to this submission rather than to whatever the
+          language menu was last set to. */}
+      <input type="hidden" name="locale" value={locale} />
+
       <AuthFormError message={state?.message} />
 
       <Field
-        label="Display name"
+        label={copy.nameLabel}
         name="displayName"
         error={state?.fieldErrors?.displayName}
-        hint={NAME_HINT}
+        hint={copy.nameHint}
       >
         <input
           id="displayName"
@@ -88,15 +77,15 @@ export function PromoterApplyForm() {
           defaultValue={state?.values?.displayName ?? ""}
           aria-invalid={Boolean(state?.fieldErrors?.displayName) || undefined}
           aria-describedby={fieldDescribedBy("displayName", {
-            hint: NAME_HINT,
+            hint: copy.nameHint,
             error: state?.fieldErrors?.displayName,
           })}
           className={inputClassName}
-          placeholder="Your name or handle"
+          placeholder={copy.namePlaceholder}
         />
       </Field>
 
-      <Field label="Email" name="email" error={state?.fieldErrors?.email}>
+      <Field label={copy.emailLabel} name="email" error={state?.fieldErrors?.email}>
         <input
           id="email"
           name="email"
@@ -108,14 +97,15 @@ export function PromoterApplyForm() {
           aria-describedby={fieldDescribedBy("email", { error: state?.fieldErrors?.email })}
           className={inputClassName}
           placeholder="you@example.com"
+          dir="ltr"
         />
       </Field>
 
       <Field
-        label="Where would you promote it?"
+        label={copy.channelLabel}
         name="channel"
         error={state?.fieldErrors?.channel}
-        hint={CHANNEL_HINT}
+        hint={copy.channelHint}
       >
         <textarea
           id="channel"
@@ -125,11 +115,11 @@ export function PromoterApplyForm() {
           defaultValue={state?.values?.channel ?? ""}
           aria-invalid={Boolean(state?.fieldErrors?.channel) || undefined}
           aria-describedby={fieldDescribedBy("channel", {
-            hint: CHANNEL_HINT,
+            hint: copy.channelHint,
             error: state?.fieldErrors?.channel,
           })}
           className={inputClassName}
-          placeholder="I run a 4,000-member eFootball Discord where people arrange account trades in a #trading channel. I would pin the link and post it when someone asks how to swap safely."
+          placeholder={copy.channelPlaceholder}
         />
       </Field>
 
@@ -138,10 +128,10 @@ export function PromoterApplyForm() {
           find an answer to, and choosing a method while applying quietly makes
           the earnings feel real — a commitment device that costs nothing. */}
       <fieldset>
-        <legend className="mb-2 text-sm font-medium">How would you like to be paid?</legend>
+        <legend className="mb-2 text-sm font-medium">{copy.payoutLegend}</legend>
 
         <div className="space-y-2">
-          {PAYOUT_METHODS.map((option) => (
+          {payoutMethods.map((option) => (
             <label
               key={option.value}
               className="flex cursor-pointer gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-2)] p-3 transition-colors has-[:checked]:border-[var(--accent)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--accent)]"
@@ -169,18 +159,15 @@ export function PromoterApplyForm() {
             {state.fieldErrors.payoutMethod}
           </p>
         ) : (
-          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
-            You can change this any time before a payout goes out. Everything is in US dollars, and
-            we cover the cost of sending.
-          </p>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">{copy.payoutNote}</p>
         )}
       </fieldset>
 
       <Field
-        label="Password"
+        label={copy.passwordLabel}
         name="password"
         error={state?.fieldErrors?.password}
-        hint={PASSWORD_HINT}
+        hint={copy.passwordHint}
       >
         <PasswordInput
           name="password"
@@ -188,7 +175,7 @@ export function PromoterApplyForm() {
           minLength={8}
           invalid={Boolean(state?.fieldErrors?.password)}
           describedBy={fieldDescribedBy("password", {
-            hint: PASSWORD_HINT,
+            hint: copy.passwordHint,
             error: state?.fieldErrors?.password,
           })}
           onValueChange={setPassword}
@@ -197,13 +184,10 @@ export function PromoterApplyForm() {
       </Field>
 
       <Button type="submit" loading={pending} disabled={pending} block size="md">
-        {pending ? "Sending…" : "Apply to promote"}
+        {pending ? copy.submitting : copy.submit}
       </Button>
 
-      <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
-        A promoter account shares a code and collects earnings. It cannot open or join a swap — if
-        you want to trade accounts too, ask someone for their code and register normally.
-      </p>
+      <p className="text-center text-xs leading-relaxed text-[var(--muted)]">{copy.foot}</p>
     </form>
   );
 }

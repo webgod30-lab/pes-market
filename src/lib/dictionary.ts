@@ -34,6 +34,17 @@ const en = {
   "nav.balance": "Your balance",
   "nav.referrals": "Promote & earn",
   "nav.promote": "Become a promoter",
+  "nav.desc.howItWorks": "The six steps, and when the accounts actually change hands",
+  "nav.desc.reviews": "Every review, from both sides of a completed deal",
+  "nav.desc.faq": "Payouts, disputes, and the awkward questions",
+  "nav.desc.promote": "Earn $2 a swap — the way in if you know nobody here",
+  "nav.desc.contact": "Ask before you send anything",
+  "nav.desc.referrals": "Your code, and what it has earned",
+  "nav.desc.balance": "Take your earnings out",
+  "nav.desc.adminConsole": "Deals, disputes, withdrawals and users",
+  "nav.desc.joinCode": "Someone sent you an invite",
+  "nav.desc.yourDeals": "Everything you have open right now",
+  "nav.desc.openDeal": "Record the terms and get an invite code",
   "nav.security": "Security",
   "nav.overview": "Overview",
   "nav.learn": "Learn",
@@ -59,6 +70,23 @@ const en = {
   "footer.terms": "Terms of service",
   "footer.privacy": "Privacy policy",
   "footer.createAccount": "Create an account",
+  // The prose blocks. These are on every page, so leaving them English made
+  // an otherwise Arabic page look like a translation that had run out.
+  "footer.brand": "Trusted third party for game account trades",
+  "footer.tagline":
+    "We hold both accounts until both have been checked — so neither of you has to go first, and neither of you is the one taking the risk.",
+  "footer.encrypted": "AES-256-GCM encrypted at rest",
+  "footer.noSaleBold": "We do not sell accounts.",
+  "footer.noSaleBody":
+    "Nothing is listed or advertised here. Buyers and sellers agree their own deals elsewhere and use this service to complete them safely.",
+  "footer.publisherLead":
+    "Game publishers generally prohibit selling or transferring accounts, and can suspend a traded account. Escrow protects you from the other person in the trade — not from the publisher. See the",
+  "footer.publisherLink": "terms",
+  "footer.publisherTail": "before you trade.",
+  "footer.notAffiliated":
+    "Not affiliated with, endorsed by, or connected to Konami, eFootball, PES, or any game publisher.",
+  "footer.termsShort": "Terms",
+  "footer.privacyShort": "Privacy",
 
   // --- menus ---
   "menu.open": "Open menu",
@@ -149,6 +177,17 @@ const ar: Record<MessageKey, string> = {
   "nav.balance": "رصيدك",
   "nav.referrals": "ادعُ واربح",
   "nav.promote": "كن داعيًا",
+  "nav.desc.howItWorks": "الخطوات الست، ومتى تنتقل الحسابات فعلًا",
+  "nav.desc.reviews": "كل تقييم، من طرفي صفقة مكتملة",
+  "nav.desc.faq": "الدفعات والنزاعات والأسئلة المحرجة",
+  "nav.desc.promote": "اربح ٢ دولار عن كل مبادلة — وهذا طريقك للدخول إن لم تعرف أحدًا هنا",
+  "nav.desc.contact": "اسأل قبل أن ترسل أي شيء",
+  "nav.desc.referrals": "رمزك، وما ربّحه لك",
+  "nav.desc.balance": "اسحب أرباحك",
+  "nav.desc.adminConsole": "الصفقات والنزاعات والسحوبات والمستخدمون",
+  "nav.desc.joinCode": "أحدهم أرسل لك دعوة",
+  "nav.desc.yourDeals": "كل ما هو مفتوح لديك الآن",
+  "nav.desc.openDeal": "سجّل الشروط واحصل على رمز دعوة",
   "nav.security": "الأمان",
   "nav.overview": "نظرة عامة",
   "nav.learn": "تعرّف على الخدمة",
@@ -171,6 +210,21 @@ const ar: Record<MessageKey, string> = {
   "footer.terms": "شروط الخدمة",
   "footer.privacy": "سياسة الخصوصية",
   "footer.createAccount": "إنشاء حساب",
+  "footer.brand": "طرف ثالث موثوق لتبادل حسابات الألعاب",
+  "footer.tagline":
+    "نحتفظ بالحسابين حتى يُفحص كلاهما — فلا يضطر أحدكما أن يبدأ أولًا، ولا يكون أحدكما وحده من يتحمل المخاطرة.",
+  "footer.encrypted": "مشفّرة بـ AES-256-GCM أثناء التخزين",
+  "footer.noSaleBold": "نحن لا نبيع الحسابات.",
+  "footer.noSaleBody":
+    "لا شيء معروض أو مُعلن عنه هنا. المتبادلون يتفقون على صفقاتهم في مكان آخر، ويستخدمون هذه الخدمة لإتمامها بأمان.",
+  "footer.publisherLead":
+    "ناشرو الألعاب يمنعون عادةً بيع الحسابات أو نقلها، ويستطيعون تعليق حساب مُتداوَل. الضمان يحميك ممّن تتبادل معه — لا من الناشر. راجع",
+  "footer.publisherLink": "الشروط",
+  "footer.publisherTail": "قبل أن تتبادل.",
+  "footer.notAffiliated":
+    "غير تابعة لـ Konami أو eFootball أو PES أو أي ناشر ألعاب، ولا معتمدة منها ولا مرتبطة بها.",
+  "footer.termsShort": "الشروط",
+  "footer.privacyShort": "الخصوصية",
 
   "menu.open": "افتح القائمة",
   "menu.close": "أغلق القائمة",

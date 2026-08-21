@@ -8,6 +8,7 @@
 // Plain data with no JSX, so a server component, a client component or a test
 // can all import it. Every href already existed.
 import type { NavIconName } from "@/components/nav/nav-icons";
+import type { Locale } from "@/lib/locale";
 import type { Role } from "@/generated/prisma/client";
 
 export type DashSection = {
@@ -22,7 +23,43 @@ export type DashSection = {
 
 export type DashGroup = { label: string; items: DashSection[] };
 
-/** The trader's own area. */
+
+/**
+ * The rail labels, in both languages.
+ *
+ * The admin console is deliberately not translated: it is used by us, and a
+ * half-translated console is harder to work in than an English one. Everything
+ * a promoter or a trader sees is.
+ */
+const RAIL = {
+  en: {
+    yourDeals: "Your deals",
+    promoteEarn: "Promote & earn",
+    account: "Account",
+    overview: "Overview",
+    notifications: "Notifications",
+    openSwap: "Open a swap",
+    joinCode: "Join with a code",
+    history: "Trade history",
+    yourCode: "Your code",
+    yourBalance: "Your balance",
+    security: "Security",
+  },
+  ar: {
+    yourDeals: "صفقاتك",
+    promoteEarn: "ادعُ واربح",
+    account: "الحساب",
+    overview: "نظرة عامة",
+    notifications: "الإشعارات",
+    openSwap: "افتح مبادلة",
+    joinCode: "انضم برمز",
+    history: "سجل التداول",
+    yourCode: "رمزك",
+    yourBalance: "رصيدك",
+    security: "الأمان",
+  },
+} satisfies Record<Locale, Record<string, string>>;
+
 /**
  * A promoter's sidebar.
  *
@@ -30,51 +67,54 @@ export type DashGroup = { label: string; items: DashSection[] };
  * What is left is the two things they can actually do — share their code and
  * take the money — plus their own account settings.
  */
-export function promoterSections(): DashGroup[] {
+export function promoterSections(locale: Locale = "en"): DashGroup[] {
+  const say = RAIL[locale];
+
   return [
     {
-      label: "Promote & earn",
+      label: say.promoteEarn,
       items: [
-        { key: "referrals", href: "/referrals", label: "Your code", icon: "ticket" },
-        { key: "wallet", href: "/wallet", label: "Your balance", icon: "wallet" },
+        { key: "referrals", href: "/referrals", label: say.yourCode, icon: "ticket" },
+        { key: "wallet", href: "/wallet", label: say.yourBalance, icon: "wallet" },
       ],
     },
     {
-      label: "Account",
-      items: [{ key: "security", href: "/settings/security", label: "Security", icon: "shield" }],
+      label: say.account,
+      items: [{ key: "security", href: "/settings/security", label: say.security, icon: "shield" }],
     },
   ];
 }
 
-export function traderSections(counts: {
-  open?: number;
-  waiting?: number;
-  unread?: number;
-}): DashGroup[] {
+export function traderSections(
+  counts: { open?: number; waiting?: number; unread?: number },
+  locale: Locale = "en",
+): DashGroup[] {
+  const say = RAIL[locale];
+
   return [
     {
-      label: "Your deals",
+      label: say.yourDeals,
       items: [
-        { key: "dashboard", href: "/dashboard", label: "Overview", icon: "grid", badge: counts.waiting },
-        { key: "notifications", href: "/notifications", label: "Notifications", icon: "inbox" },
-        { key: "deals-new", href: "/deals/new", label: "Open a swap", icon: "plus" },
-        { key: "deals-join", href: "/deals/join", label: "Join with a code", icon: "ticket" },
-        { key: "deals", href: "/deals", label: "Trade history", icon: "folder" },
+        { key: "dashboard", href: "/dashboard", label: say.overview, icon: "grid", badge: counts.waiting },
+        { key: "notifications", href: "/notifications", label: say.notifications, icon: "inbox" },
+        { key: "deals-new", href: "/deals/new", label: say.openSwap, icon: "plus" },
+        { key: "deals-join", href: "/deals/join", label: say.joinCode, icon: "ticket" },
+        { key: "deals", href: "/deals", label: say.history, icon: "folder" },
       ],
     },
     {
       // Renamed from "Money" because a trader has none here: swaps are free and
       // nobody is paid for one. The only money in this section is what someone
       // earns for bringing other people in, so the section says that.
-      label: "Promote & earn",
+      label: say.promoteEarn,
       items: [
-        { key: "referrals", href: "/referrals", label: "Your code", icon: "ticket" },
-        { key: "wallet", href: "/wallet", label: "Your balance", icon: "wallet" },
+        { key: "referrals", href: "/referrals", label: say.yourCode, icon: "ticket" },
+        { key: "wallet", href: "/wallet", label: say.yourBalance, icon: "wallet" },
       ],
     },
     {
-      label: "Account",
-      items: [{ key: "security", href: "/settings/security", label: "Security", icon: "shield" }],
+      label: say.account,
+      items: [{ key: "security", href: "/settings/security", label: say.security, icon: "shield" }],
     },
   ];
 }
@@ -139,9 +179,10 @@ export function adminSections(counts: {
 export function sectionsFor(
   role: Role,
   counts: { deals?: number; withdrawals?: number; disputes?: number; waiting?: number },
+  locale: Locale = "en",
 ): DashGroup[] {
   if (role === "admin") return adminSections(counts);
-  if (role === "promoter") return promoterSections();
+  if (role === "promoter") return promoterSections(locale);
 
-  return traderSections(counts);
+  return traderSections(counts, locale);
 }

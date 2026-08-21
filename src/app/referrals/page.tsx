@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { requireUserOrProblem } from "@/lib/dal";
+import { getLocale } from "@/lib/locale-server";
+import { REFERRALS } from "@/lib/promoter-copy";
 import {
   getReferralSummary,
   listReferralEarnings,
@@ -37,6 +39,8 @@ export default async function ReferralsPage() {
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
   const user = auth.user;
+  const locale = await getLocale();
+  const copy = REFERRALS[locale];
 
   const [summary, referred, earnings, balance] = await Promise.all([
     getReferralSummary(user.id),
@@ -48,53 +52,62 @@ export default async function ReferralsPage() {
   const shortfallCents = Math.max(0, MINIMUM_PAYOUT_CENTS - balance.availableCents);
   const dealsToGo = Math.ceil(shortfallCents / REFERRAL_REWARD_CENTS);
 
-  const payoutDay = nextPayoutDate().toLocaleDateString("en-GB", {
+  // The one date on the page written out in words rather than digits, so it is
+  // the one that has to follow the language. The dd/mm/yyyy stamps further down
+  // stay numeric, as they are everywhere else on the site.
+  const payoutDay = nextPayoutDate().toLocaleDateString(locale === "ar" ? "ar" : "en-GB", {
     day: "numeric",
     month: "long",
     timeZone: "UTC",
   });
 
+  /** "{n} completed deals", in whichever order the language wants them. */
+  const completedDeals = (n: number) =>
+    copy.completedDeals
+      .replace("{n}", String(n))
+      .replace("{noun}", n === 1 ? copy.dealSingular : copy.dealPlural);
+
   return (
     <DashShell
-      groups={sectionsFor(user.role, {})}
-      title="Promote & earn"
-      description={`Share your code. You earn ${formatCents(REFERRAL_REWARD_CENTS)} every time someone who signed up with it completes a swap.`}
+      groups={sectionsFor(user.role, {}, locale)}
+      title={copy.title}
+      description={`${copy.subtitleLead} ${formatCents(REFERRAL_REWARD_CENTS)} ${copy.subtitleTail}`}
     >
       <div className="max-w-3xl space-y-3">
         <Card elevation="raised">
-          <ReferralShare code={summary.referralCode} />
+          <ReferralShare code={summary.referralCode} locale={locale} />
 
           <p className="mt-4 border-t border-[var(--border)] pt-3 text-xs leading-relaxed text-[var(--muted)]">
-            Do not write the pitch yourself —{" "}
+            {copy.kitLead}{" "}
             <Link href="/explainer" className="text-[var(--accent)] hover:underline">
-              the 60-second explainer
+              {copy.kitLink}
             </Link>{" "}
-            has a paste-anywhere version and a video script with your code already in them.
+            {copy.kitTail}
           </p>
         </Card>
 
         <StatGrid columns={3}>
           <StatCard
-            label="Signed up with your code"
+            label={copy.statSignUps}
             value={String(summary.signUps)}
             caption={
               summary.signUps === 0
-                ? "Nobody yet"
-                : `${summary.activeSignUps} have completed a swap`
+                ? copy.statNobody
+                : `${summary.activeSignUps} ${copy.statCompletedSuffix}`
             }
           />
           <StatCard
-            label="Earned all time"
+            label={copy.statEarned}
             value={formatCents(summary.earnedCents, summary.currency)}
-            caption={`${formatCents(summary.thisMonthCents, summary.currency)} this month`}
+            caption={`${formatCents(summary.thisMonthCents, summary.currency)} ${copy.statThisMonth}`}
           />
           <StatCard
-            label="Available to withdraw"
+            label={copy.statAvailable}
             value={formatCents(balance.availableCents, balance.currency)}
             caption={
               balance.meetsMinimum
-                ? `Paid out on ${payoutDay}`
-                : `${formatCents(shortfallCents, balance.currency)} to the minimum`
+                ? `${copy.statPaidOn} ${payoutDay}`
+                : `${formatCents(shortfallCents, balance.currency)} ${copy.statToMinimum}`
             }
           />
         </StatGrid>
@@ -103,59 +116,51 @@ export default async function ReferralsPage() {
             numbers. Repeating them on the wallet page would be two copies to
             keep in step, so that page links here instead. */}
         <Card>
-          <h2 className="text-sm font-semibold">How it pays</h2>
+          <h2 className="text-sm font-semibold">{copy.paysTitle}</h2>
 
           <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[var(--muted)]">
             <li>
               <strong className="text-[var(--foreground)]">
-                {formatCents(REFERRAL_REWARD_CENTS)} per completed swap
+                {formatCents(REFERRAL_REWARD_CENTS)} {copy.paysRateTail}
               </strong>{" "}
-              by anyone who signed up with your code. Both sides of a swap earn for their own
-              promoter, so a deal between two people you introduced pays you twice.
+              {copy.paysRateBody}
             </li>
             <li>
               <strong className="text-[var(--foreground)]">
-                {formatCents(MINIMUM_PAYOUT_CENTS)} minimum
+                {formatCents(MINIMUM_PAYOUT_CENTS)} {copy.paysMinimumTail}
               </strong>{" "}
-              before you can request a payout. Every payout is a transfer sent by hand, and smaller
-              ones would go entirely on the fee.
+              {copy.paysMinimumBody}
             </li>
             <li>
-              <strong className="text-[var(--foreground)]">Paid on the 1st of the month.</strong>{" "}
-              Request it on any day once you are over the minimum; it goes out in the next batch, on{" "}
-              {payoutDay}.
+              <strong className="text-[var(--foreground)]">{copy.paysDateBold}</strong>{" "}
+              {copy.paysDateBody} {payoutDay}.
             </li>
-            <li>
-              You earn nothing from a deal you were part of yourself, and deals opened only to
-              generate credits are reversed.
-            </li>
+            <li>{copy.paysOwnDeals}</li>
           </ul>
 
           {balance.meetsMinimum ? (
             <p className="mt-4 border-t border-[var(--border)] pt-3 text-sm">
               <Link href="/wallet" className="font-medium text-[var(--accent)] hover:underline">
-                Request your payout →
+                {copy.paysRequest}
               </Link>
             </p>
           ) : summary.earnedCents > 0 ? (
             <p className="mt-4 border-t border-[var(--border)] pt-3 text-sm text-[var(--muted)]">
-              {dealsToGo} more completed {dealsToGo === 1 ? "deal" : "deals"} and you can request a
-              payout.
+              {copy.paysToGo
+                .replace("{n}", String(dealsToGo))
+                .replace("{noun}", dealsToGo === 1 ? copy.dealSingular : copy.dealPlural)}
             </p>
           ) : null}
         </Card>
 
         {/* --- who you brought in --- */}
         <Card>
-          <h2 className="text-sm font-semibold">People you introduced</h2>
-          <p className="mb-3 mt-1 text-xs text-[var(--muted)]">
-            Everyone who signed up with your code, and what each has earned you.
-          </p>
+          <h2 className="text-sm font-semibold">{copy.introducedTitle}</h2>
+          <p className="mb-3 mt-1 text-xs text-[var(--muted)]">{copy.introducedBody}</p>
 
           {referred.length === 0 ? (
-            <EmptyPanel icon="inbox" title="Nobody has used your code yet">
-              Send the link above to anyone who trades eFootball accounts. They cannot create an
-              account without a code from someone, so yours is as good as anyone&apos;s.
+            <EmptyPanel icon="inbox" title={copy.introducedEmptyTitle}>
+              {copy.introducedEmptyBody}
             </EmptyPanel>
           ) : (
             <ul className="space-y-2">
@@ -167,10 +172,10 @@ export default async function ReferralsPage() {
                   <div className="min-w-0">
                     <p className="font-medium">{person.displayName}</p>
                     <p className="mt-0.5 text-xs text-[var(--muted)]">
-                      Joined {person.joinedAt.toLocaleDateString("en-GB")} ·{" "}
+                      {copy.joined} {person.joinedAt.toLocaleDateString("en-GB")} ·{" "}
                       {person.completedDeals === 0
-                        ? "no completed deals yet"
-                        : `${person.completedDeals} completed ${person.completedDeals === 1 ? "deal" : "deals"}`}
+                        ? copy.noDealsYet
+                        : completedDeals(person.completedDeals)}
                     </p>
                   </div>
                   <span
@@ -192,13 +197,14 @@ export default async function ReferralsPage() {
         {/* --- the credits themselves --- */}
         {earnings.length > 0 ? (
           <Card>
-            <h2 className="text-sm font-semibold">Recent credits</h2>
+            <h2 className="text-sm font-semibold">{copy.creditsTitle}</h2>
             <p className="mb-3 mt-1 text-xs text-[var(--muted)]">
-              The last {earnings.length}. Your{" "}
+              {copy.creditsLead} {earnings.length}
+              {copy.creditsMid}{" "}
               <Link href="/wallet" className="underline">
-                balance page
+                {copy.creditsLink}
               </Link>{" "}
-              has the full list.
+              {copy.creditsTail}
             </p>
 
             <ul className="space-y-2">
@@ -208,7 +214,9 @@ export default async function ReferralsPage() {
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border)] p-3 text-sm"
                 >
                   <div className="min-w-0">
-                    <span className="font-mono text-xs">{earning.dealReference}</span>
+                    <span dir="ltr" className="font-mono text-xs">
+                      {earning.dealReference}
+                    </span>
                     <p className="mt-0.5 text-xs text-[var(--muted)]">
                       {earning.traderName} · {earning.createdAt.toLocaleDateString("en-GB")}
                     </p>
@@ -225,16 +233,15 @@ export default async function ReferralsPage() {
         {/* --- who introduced you --- */}
         {summary.promoter ? (
           <Card>
-            <Overline>You were introduced by</Overline>
+            <Overline>{copy.byTitle}</Overline>
             <p className="mt-1.5 text-sm">
               {summary.promoter.displayName}{" "}
-              <span className="font-mono text-xs text-[var(--muted)]">
+              <span dir="ltr" className="font-mono text-xs text-[var(--muted)]">
                 ({summary.promoter.referralCode})
               </span>
             </p>
             <p className="mt-1.5 text-xs text-[var(--muted)]">
-              They earn {formatCents(REFERRAL_REWARD_CENTS)} each time you complete a swap. It costs
-              you nothing.
+              {copy.byLead} {formatCents(REFERRAL_REWARD_CENTS)} {copy.byTail}
             </p>
           </Card>
         ) : null}

@@ -19,8 +19,14 @@ import type { Role } from "@/generated/prisma/client";
 export type NavItem = {
   href: string;
   labelKey: MessageKey;
-  /** Shown in dropdowns, which have room to say what a link is for. */
-  description?: string;
+  /**
+   * Shown in dropdowns, which have room to say what a link is for.
+   *
+   * A key rather than a string: these render on every page, including the
+   * Arabic ones, and an English sentence under an Arabic label was the most
+   * visible thing left untranslated in the chrome.
+   */
+  descriptionKey?: MessageKey;
   icon: NavIconName;
 };
 
@@ -62,7 +68,7 @@ export function initialOf(displayName: string): string {
 export const PRIMARY_LINK: NavItem = {
   href: "/how-it-works",
   labelKey: "nav.howItWorks",
-  description: "The six steps, and when the accounts actually change hands",
+  descriptionKey: "nav.desc.howItWorks",
   icon: "route",
 };
 
@@ -72,25 +78,25 @@ export const RESOURCES: NavGroup = {
     {
       href: "/reviews",
       labelKey: "nav.reviews",
-      description: "Every review, from both sides of a completed deal",
+      descriptionKey: "nav.desc.reviews",
       icon: "star",
     },
     {
       href: "/faq",
       labelKey: "nav.faq",
-      description: "Payouts, disputes, and the awkward questions",
+      descriptionKey: "nav.desc.faq",
       icon: "help",
     },
     {
       href: "/promote",
       labelKey: "nav.promote",
-      description: "Earn $2 a swap — the way in if you know nobody here",
+      descriptionKey: "nav.desc.promote",
       icon: "payout",
     },
     {
       href: "/contact",
       labelKey: "nav.contact",
-      description: "Ask before you send anything",
+      descriptionKey: "nav.desc.contact",
       icon: "mail",
     },
   ],
@@ -139,13 +145,13 @@ export function dealsGroup(role: Role): NavGroup {
         {
           href: "/referrals",
           labelKey: "nav.referrals",
-          description: "Your code, and what it has earned",
+          descriptionKey: "nav.desc.referrals",
           icon: "ticket",
         },
         {
           href: "/wallet",
           labelKey: "nav.balance",
-          description: "Take your earnings out",
+          descriptionKey: "nav.desc.balance",
           icon: "wallet",
         },
       ],
@@ -159,13 +165,13 @@ export function dealsGroup(role: Role): NavGroup {
         {
           href: "/admin",
           labelKey: "nav.adminConsole",
-          description: "Deals, disputes, withdrawals and users",
+          descriptionKey: "nav.desc.adminConsole",
           icon: "gauge",
         },
         {
           href: "/deals/join",
           labelKey: "nav.joinCode",
-          description: "Someone sent you an invite",
+          descriptionKey: "nav.desc.joinCode",
           icon: "ticket",
         },
       ],
@@ -178,19 +184,19 @@ export function dealsGroup(role: Role): NavGroup {
       {
         href: "/dashboard",
         labelKey: "nav.yourDeals",
-        description: "Everything you have open right now",
+        descriptionKey: "nav.desc.yourDeals",
         icon: "grid",
       },
       {
         href: "/deals/new",
         labelKey: "nav.openDeal",
-        description: "Record the terms and get an invite code",
+        descriptionKey: "nav.desc.openDeal",
         icon: "plus",
       },
       {
         href: "/deals/join",
         labelKey: "nav.joinCode",
-        description: "Someone sent you an invite",
+        descriptionKey: "nav.desc.joinCode",
         icon: "ticket",
       },
     ],
