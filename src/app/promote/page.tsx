@@ -3,10 +3,6 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUserQuietly } from "@/lib/dal";
 import {
-  FOUNDING_PLACES,
-  FOUNDING_RATE_DAYS,
-  FOUNDING_REWARD_CENTS,
-  foundingPlacesLeft,
   listRecentPayouts,
   MINIMUM_PAYOUT_CENTS,
   REFERRAL_REWARD_CENTS,
@@ -49,12 +45,9 @@ export default async function PromotePage() {
   // them apply for something they have.
   if (user) redirect(user.role === "admin" ? "/admin/promoters" : "/referrals");
 
-  // Both tolerate failure for the same reason: a page that cannot render is
-  // worse than one missing a number.
-  const [placesLeft, payouts] = await Promise.all([
-    foundingPlacesLeft().catch(() => 0),
-    listRecentPayouts().catch(() => []),
-  ]);
+  // Tolerates failure for the same reason: a page that cannot render is worse
+  // than one missing a list.
+  const payouts = await listRecentPayouts().catch(() => []);
 
   return (
     <Prose>
@@ -113,22 +106,6 @@ export default async function PromotePage() {
           minutes ago is the thing that makes the claim land. Renders nothing at
           all until there is something real to show. */}
       <PayoutTicker payouts={payouts} />
-
-      {placesLeft > 0 ? (
-        <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-4">
-          <p className="text-overline uppercase text-[var(--tone-success)]">Founding promoters</p>
-          <p className="mt-1.5 text-sm leading-relaxed">
-            <strong className="text-[var(--foreground)]">
-              {formatCents(FOUNDING_REWARD_CENTS)} per swap for your first {FOUNDING_RATE_DAYS} days.
-            </strong>{" "}
-            The first {FOUNDING_PLACES} approved promoters get the higher rate — we are keeping the
-            number small while the platform is young, so a code is worth something.{" "}
-            <strong className="text-[var(--foreground)]">
-              {placesLeft} of {FOUNDING_PLACES} remaining.
-            </strong>
-          </p>
-        </div>
-      ) : null}
 
       <Section title="How it works">
         <ol className="space-y-2">

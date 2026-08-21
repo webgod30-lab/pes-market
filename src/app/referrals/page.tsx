@@ -5,7 +5,6 @@ import {
   getReferralSummary,
   listReferralEarnings,
   listReferredUsers,
-  FOUNDING_REWARD_CENTS,
   MINIMUM_PAYOUT_CENTS,
   nextPayoutDate,
   REFERRAL_REWARD_CENTS,
@@ -73,31 +72,6 @@ export default async function ReferralsPage() {
             has a paste-anywhere version and a video script with your code already in them.
           </p>
         </Card>
-
-        {/* Only while it applies, and it says when it stops. A rate that
-            quietly reverts is how a promoter finds out they were never told. */}
-        {summary.foundingRateUntil ? (
-          <div className="rounded-[var(--radius-card)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-4">
-            <p className="text-overline uppercase text-[var(--tone-success)]">Founding promoter</p>
-            <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-              You earn{" "}
-              <strong className="text-[var(--foreground)]">
-                {formatCents(FOUNDING_REWARD_CENTS)} per completed swap
-              </strong>{" "}
-              instead of {formatCents(REFERRAL_REWARD_CENTS)}, until{" "}
-              <strong className="text-[var(--foreground)]">
-                {summary.foundingRateUntil.toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  timeZone: "UTC",
-                })}
-              </strong>
-              . After that it returns to the standard rate — anything you earned before then keeps
-              its value.
-            </p>
-          </div>
-        ) : null}
 
         <StatGrid columns={3}>
           <StatCard

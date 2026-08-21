@@ -22,9 +22,6 @@ import {
   normaliseReferralCode,
 } from "../src/lib/ids";
 import {
-  FOUNDING_PLACES,
-  FOUNDING_RATE_DAYS,
-  FOUNDING_REWARD_CENTS,
   MINIMUM_PAYOUT_CENTS,
   nextPayoutDate,
   REFERRAL_REWARD_CENTS,
@@ -176,20 +173,14 @@ async function main() {
   ok("an empty code stays empty rather than becoming a bare prefix");
 
   assert.equal(REFERRAL_REWARD_CENTS, 200);
-  assert.equal(FOUNDING_REWARD_CENTS, 500);
   assert.equal(MINIMUM_PAYOUT_CENTS, 4_000);
-  ok("$2 standard, $5 founding, $40 minimum payout");
+  ok("$2 a completed deal, $40 minimum payout — one rate, one threshold");
 
   // One threshold, every time. The pages say "twenty completed deals", and the
   // two constants have to keep saying that to each other.
   assert.equal(MINIMUM_PAYOUT_CENTS / REFERRAL_REWARD_CENTS, 20);
   ok("$40 is twenty completed deals, as the pages promise");
 
-  // The founding rate has to actually be worth more, or the scarcity is a lie.
-  assert.ok(FOUNDING_REWARD_CENTS > REFERRAL_REWARD_CENTS);
-  assert.equal(FOUNDING_RATE_DAYS, 90);
-  assert.equal(FOUNDING_PLACES, 20);
-  ok("the founding rate beats the standard one, for 90 days, for 20 people");
 
   // --- payout timing --------------------------------------------------------
   //
