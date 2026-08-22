@@ -12,6 +12,9 @@ import { FilterChips } from "@/components/dashboard/filter-chips";
 import { StatusBadge } from "@/components/trade/status-badge";
 import { Badge, SetupProblem } from "@/components/ui";
 import type { DealStatus } from "@/generated/prisma/client";
+import { getLocale } from "@/lib/locale-server";
+import { TRADE_HISTORY_PAGE } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 export const metadata = { title: "Trade history" };
 
@@ -48,6 +51,8 @@ export default async function TradeHistoryPage({
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
   const user = auth.user;
+  const locale = await getLocale();
+  const copy = TRADE_HISTORY_PAGE[locale];
   const { view: raw } = await searchParams;
   const view: View = isView(raw) ? raw : "all";
 
@@ -72,80 +77,85 @@ export default async function TradeHistoryPage({
       groups={traderSections({
         waiting: all.filter((deal) => isTurnOf(deal.status, sideOf(deal), deal.tradeKind)).length,
       })}
-      title="Trade history"
-      description="Every deal you have been part of, on either side, whatever the outcome."
+      title={copy.title}
+      description={copy.description}
     >
       <FilterChips
         options={[
-          { label: `All (${counts.all})`, href: "/deals", active: view === "all" },
-          { label: `Still running (${counts.open})`, href: "/deals?view=open", active: view === "open" },
-          { label: `Settled (${counts.settled})`, href: "/deals?view=settled", active: view === "settled" },
+          { label: copy.filterAll(counts.all), href: "/deals", active: view === "all" },
+          { label: copy.filterOpen(counts.open), href: "/deals?view=open", active: view === "open" },
+          {
+            label: copy.filterSettled(counts.settled),
+            href: "/deals?view=settled",
+            active: view === "settled",
+          },
         ]}
       />
 
       <DataTable
-        caption="Your trade history"
+        caption={copy.tableCaption}
         rows={deals}
         rowKey={(deal) => deal.id}
         rowHref={(deal) => `/deals/${deal.id}`}
-        columns={historyColumns(sideOf)}
+        columns={historyColumns(sideOf, copy, locale)}
         empty={
           view === "all" ? (
             <EmptyPanel
               icon="folder"
-              title="No trades yet"
-              action={{ href: "/deals/new", label: "Open a deal" }}
-              secondaryAction={{ href: "/deals/join", label: "I have a code" }}
+              title={copy.emptyTitle}
+              action={{ href: "/deals/new", label: copy.emptyOpenAction }}
+              secondaryAction={{ href: "/deals/join", label: copy.emptyJoinAction }}
             >
-              Once you complete one, it stays here permanently — including the ones that went
-              wrong. The record is what makes a rating mean anything.
+              {copy.emptyBody}
             </EmptyPanel>
           ) : (
             <EmptyPanel
               icon="folder"
-              title={view === "open" ? "Nothing running right now" : "Nothing settled yet"}
-              secondaryAction={{ href: "/deals", label: "Show everything" }}
+              title={view === "open" ? copy.emptyOpenTitle : copy.emptySettledTitle}
+              secondaryAction={{ href: "/deals", label: copy.emptyShowAll }}
             >
-              {view === "open"
-                ? "None of your deals are currently in flight."
-                : "A deal lands here once it completes, is refunded, or is called off."}
+              {view === "open" ? copy.emptyOpenBody : copy.emptySettledBody}
             </EmptyPanel>
           )
         }
       />
 
       <p className="mt-6 text-xs text-[var(--muted)]">
-        Looking for what needs doing rather than what happened?{" "}
+        {copy.footLead}{" "}
         <Link href="/dashboard" className="text-[var(--accent)] hover:underline">
-          Your dashboard
+          {copy.footLink}
         </Link>{" "}
-        shows that.
+        {copy.footTail}
       </p>
     </DashShell>
   );
 }
 
-function historyColumns(sideOf: (deal: DealRow) => "seller" | "buyer"): Column<DealRow>[] {
+function historyColumns(
+  sideOf: (deal: DealRow) => "seller" | "buyer",
+  copy: (typeof TRADE_HISTORY_PAGE)["en"],
+  locale: Locale,
+): Column<DealRow>[] {
   return [
     {
       key: "reference",
-      header: "Reference",
+      header: copy.colReference,
       primary: true,
       cell: (deal) => <span className="font-mono text-sm">{deal.reference}</span>,
     },
     {
       key: "opened",
-      header: "Opened",
+      header: copy.colOpened,
       hideOnMobile: true,
       cell: (deal) => (
         <time dateTime={deal.createdAt.toISOString()} className="text-xs text-[var(--muted)]">
-          {deal.createdAt.toLocaleDateString("en-GB")}
+          {deal.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB")}
         </time>
       ),
     },
     {
       key: "account",
-      header: "Account",
+      header: copy.colAccount,
       cell: (deal) => (
         <span className="line-clamp-2 max-w-xs text-xs text-[var(--muted)]">
           {deal.accountSummary}
@@ -154,11 +164,15 @@ function historyColumns(sideOf: (deal: DealRow) => "seller" | "buyer"): Column<D
     },
     {
       key: "side",
-      header: "Your side",
+      header: copy.colSide,
       cell: (deal) => {
         const side = sideOf(deal);
 
-        return <Badge tone={side === "seller" ? "info" : "success"}>{side}</Badge>;
+        return (
+          <Badge tone={side === "seller" ? "info" : "success"}>
+            {side === "seller" ? copy.sideSeller : copy.sideBuyer}
+          </Badge>
+        );
       },
     },
     {
@@ -166,14 +180,14 @@ function historyColumns(sideOf: (deal: DealRow) => "seller" | "buyer"): Column<D
       // column says what the trade was and only quotes money for the archived
       // cash deals that actually involved some.
       key: "trade",
-      header: "Trade",
+      header: copy.colTrade,
       align: "end",
       cell: (deal) => {
         if (deal.tradeKind === "swap") {
           return (
             <span className="whitespace-nowrap">
-              <span className="font-semibold">Swap</span>
-              <span className="block text-xs text-[var(--muted)]">account for account</span>
+              <span className="font-semibold">{copy.swap}</span>
+              <span className="block text-xs text-[var(--muted)]">{copy.swapCaption}</span>
             </span>
           );
         }
@@ -186,7 +200,7 @@ function historyColumns(sideOf: (deal: DealRow) => "seller" | "buyer"): Column<D
               {formatCents(isSeller ? deal.sellerPayoutCents : deal.agreedPriceCents, deal.currency)}
             </span>
             <span className="block text-xs text-[var(--muted)]">
-              {isSeller ? "you received" : "you paid"}
+              {isSeller ? copy.youReceived : copy.youPaid}
             </span>
           </span>
         );
@@ -194,9 +208,9 @@ function historyColumns(sideOf: (deal: DealRow) => "seller" | "buyer"): Column<D
     },
     {
       key: "status",
-      header: "Status",
+      header: copy.colStatus,
       align: "end",
-      cell: (deal) => <StatusBadge status={deal.status} side={sideOf(deal)} size="sm" />,
+      cell: (deal) => <StatusBadge status={deal.status} side={sideOf(deal)} size="sm" locale={locale} />,
     },
   ];
 }

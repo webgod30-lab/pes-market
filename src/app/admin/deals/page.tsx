@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { requireUserOrProblem } from "@/lib/dal";
 import { listDealsForAdmin, type DealFilter } from "@/lib/admin";
-import { DEAL_STATUS_LABEL } from "@/lib/deal-status";
+import { dealStatusLabel } from "@/lib/deal-status";
 import { adminSections } from "@/components/dashboard/dash-nav";
 import { adminDealColumns } from "@/components/dashboard/admin-deal-columns";
 import { DashShell } from "@/components/dashboard/dash-shell";
@@ -10,24 +10,32 @@ import { DataTable } from "@/components/dashboard/data-table";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { FilterChips } from "@/components/dashboard/filter-chips";
 import { Button, inputClassName, SearchInput, SetupProblem } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_DEALS_PAGE } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 export const metadata = { title: "Deals — admin" };
 
-const FILTERS: { value: DealFilter; label: string }[] = [
-  { value: "needs_action", label: "Needs action" },
-  { value: "open", label: "In flight" },
-  { value: "all", label: "All" },
-  { value: "disputed", label: DEAL_STATUS_LABEL.disputed },
-  { value: "payment_submitted", label: DEAL_STATUS_LABEL.payment_submitted },
-  { value: "admin_verifying", label: DEAL_STATUS_LABEL.admin_verifying },
-  { value: "claiming", label: DEAL_STATUS_LABEL.claiming },
-  { value: "completed", label: DEAL_STATUS_LABEL.completed },
-  { value: "refunded", label: DEAL_STATUS_LABEL.refunded },
-  { value: "cancelled", label: DEAL_STATUS_LABEL.cancelled },
-];
+function filtersFor(locale: Locale): { value: DealFilter; label: string }[] {
+  const copy = ADMIN_DEALS_PAGE[locale];
+  const status = dealStatusLabel(locale);
 
-function isFilter(value: string | undefined): value is DealFilter {
-  return FILTERS.some((f) => f.value === value);
+  return [
+    { value: "needs_action", label: copy.filterNeedsAction },
+    { value: "open", label: copy.filterInFlight },
+    { value: "all", label: copy.filterAll },
+    { value: "disputed", label: status.disputed },
+    { value: "payment_submitted", label: status.payment_submitted },
+    { value: "admin_verifying", label: status.admin_verifying },
+    { value: "claiming", label: status.claiming },
+    { value: "completed", label: status.completed },
+    { value: "refunded", label: status.refunded },
+    { value: "cancelled", label: status.cancelled },
+  ];
+}
+
+function isFilter(value: string | undefined, filters: { value: DealFilter }[]): value is DealFilter {
+  return filters.some((f) => f.value === value);
 }
 
 export default async function AdminDealsPage({
@@ -39,8 +47,12 @@ export default async function AdminDealsPage({
 
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
+  const locale = await getLocale();
+  const copy = ADMIN_DEALS_PAGE[locale];
+  const FILTERS = filtersFor(locale);
+
   const params = await searchParams;
-  const filter: DealFilter = isFilter(params.filter) ? params.filter : "needs_action";
+  const filter: DealFilter = isFilter(params.filter, FILTERS) ? params.filter : "needs_action";
   const search = params.q ?? "";
   const now = new Date();
 
@@ -53,8 +65,8 @@ export default async function AdminDealsPage({
         // waiting", not "rows currently on screen".
         deals: filter === "needs_action" && !search ? deals.length : undefined,
       })}
-      title="Deals"
-      description="Every trade on the service."
+      title={copy.title}
+      description={copy.description}
     >
       {/* Plain links rather than a client-side control: the filter belongs in
           the URL so it can be linked to from the overview cards. */}
@@ -69,50 +81,46 @@ export default async function AdminDealsPage({
       <form method="get" className="mb-4 flex flex-wrap gap-2">
         <input type="hidden" name="filter" value={filter} />
         <SearchInput
-          label="Search deals"
+          label={copy.searchLabel}
           name="q"
           defaultValue={search}
-          placeholder="Search reference, description or a person's name"
+          placeholder={copy.searchPlaceholder}
           className={`${inputClassName} max-w-md flex-1`}
         />
         <Button type="submit" variant="secondary" size="sm">
-          Search
+          {copy.search}
         </Button>
         {search ? (
           <Link
             href={`/admin/deals?filter=${filter}`}
             className="inline-flex min-h-9 items-center self-center text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
           >
-            Clear
+            {copy.clear}
           </Link>
         ) : null}
       </form>
 
       <p className="mb-3 text-xs text-[var(--muted)]">
-        {deals.length === 100
-          ? "Showing the newest 100."
-          : `${deals.length} deal${deals.length === 1 ? "" : "s"}.`}
+        {deals.length === 100 ? copy.showingNewest : copy.dealCount(deals.length)}
       </p>
 
       <DataTable
-        caption="Deals matching the current filter"
+        caption={copy.tableCaption}
         rows={deals}
         rowKey={(deal) => deal.id}
         rowHref={(deal) => `/admin/deals/${deal.id}`}
-        columns={adminDealColumns(now)}
+        columns={adminDealColumns(now, locale)}
         empty={
           <EmptyPanel
             icon="folder"
-            title={search ? "Nothing matches that search" : "Nothing in this filter"}
+            title={search ? copy.noMatchTitle : copy.noneInFilterTitle}
             secondaryAction={
               search || filter !== "all"
-                ? { href: "/admin/deals?filter=all", label: "Show all deals" }
+                ? { href: "/admin/deals?filter=all", label: copy.showAllDeals }
                 : undefined
             }
           >
-            {search
-              ? "Try a reference, part of an account description, or either person's display name."
-              : "Deals appear here as soon as they reach this stage."}
+            {search ? copy.tryLead : copy.appearHere}
           </EmptyPanel>
         }
       />

@@ -7,16 +7,11 @@ import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { FilterChips } from "@/components/dashboard/filter-chips";
 import { Badge, SetupProblem } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_DISPUTES_PAGE } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 export const metadata = { title: "Disputes — admin" };
-
-const STATUS_LABEL: Record<string, string> = {
-  open: "open",
-  under_review: "under review",
-  resolved_buyer: "refunded the buyer",
-  resolved_seller: "paid the seller",
-  cancelled: "withdrawn",
-};
 
 type Dispute = Awaited<ReturnType<typeof listDisputesForAdmin>>[number];
 
@@ -31,6 +26,9 @@ export default async function AdminDisputesPage({
 
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
+  const locale = await getLocale();
+  const copy = ADMIN_DISPUTES_PAGE[locale];
+
   const params = await searchParams;
   const onlyOpen = params.show !== "all";
 
@@ -43,32 +41,30 @@ export default async function AdminDisputesPage({
         // resolved cases as work waiting.
         disputes: onlyOpen ? disputes.length : undefined,
       })}
-      title="Disputes"
-      description="A dispute freezes the deal. Nothing moves until you decide it."
+      title={copy.title}
+      description={copy.description}
     >
       <FilterChips
         options={[
-          { label: "Open", href: "/admin/disputes", active: onlyOpen },
-          { label: "All, including resolved", href: "/admin/disputes?show=all", active: !onlyOpen },
+          { label: copy.filterOpen, href: "/admin/disputes", active: onlyOpen },
+          { label: copy.filterAll, href: "/admin/disputes?show=all", active: !onlyOpen },
         ]}
       />
 
       <DataTable
-        caption={onlyOpen ? "Open disputes" : "Every dispute"}
+        caption={onlyOpen ? copy.captionOpen : copy.captionAll}
         rows={disputes}
         rowKey={(dispute) => dispute.id}
         rowHref={(dispute) => `/admin/deals/${dispute.deal.id}`}
-        columns={disputeColumns}
+        columns={disputeColumns(copy, locale)}
         empty={
           onlyOpen ? (
-            <EmptyPanel icon="scales" title="No open disputes" tone="positive">
-              Everything is running itself. A dispute freezes its deal the moment either side opens
-              one, so an empty list here means no money is stuck.
+            <EmptyPanel icon="scales" title={copy.noOpenTitle} tone="positive">
+              {copy.noOpenBody}
             </EmptyPanel>
           ) : (
-            <EmptyPanel icon="scales" title="No disputes yet">
-              Nobody has ever opened one. This list keeps resolved cases too, so it will not stay
-              empty once one is decided.
+            <EmptyPanel icon="scales" title={copy.noneYetTitle}>
+              {copy.noneYetBody}
             </EmptyPanel>
           )
         }
@@ -77,57 +73,69 @@ export default async function AdminDisputesPage({
   );
 }
 
-const disputeColumns: Column<Dispute>[] = [
-  {
-    key: "reference",
-    header: "Reference",
-    primary: true,
-    cell: (dispute) => <span className="font-mono text-sm">{dispute.deal.reference}</span>,
-  },
-  {
-    key: "reason",
-    header: "Reason",
-    cell: (dispute) => <span className="line-clamp-2 max-w-sm text-sm">{dispute.reason}</span>,
-  },
-  {
-    key: "opened",
-    header: "Opened by",
-    hideOnMobile: true,
-    cell: (dispute) => (
-      <span className="text-xs text-[var(--muted)]">
-        {dispute.openedBy.displayName}
-        <span className="block">{dispute.createdAt.toLocaleDateString("en-GB")}</span>
-      </span>
-    ),
-  },
-  {
-    key: "parties",
-    header: "Seller → Buyer",
-    hideOnMobile: true,
-    cell: (dispute) => (
-      <span className="text-xs text-[var(--muted)]">
-        {dispute.deal.seller?.displayName ?? "—"} → {dispute.deal.buyer?.displayName ?? "—"}
-      </span>
-    ),
-  },
-  {
-    key: "amount",
-    header: "Amount",
-    align: "end",
-    cell: (dispute) => (
-      <span className="font-semibold">
-        {formatCents(dispute.deal.agreedPriceCents, dispute.deal.currency)}
-      </span>
-    ),
-  },
-  {
-    key: "status",
-    header: "Status",
-    align: "end",
-    cell: (dispute) => (
-      <Badge tone={isOpen(dispute) ? "danger" : "neutral"}>
-        {STATUS_LABEL[dispute.status] ?? dispute.status}
-      </Badge>
-    ),
-  },
-];
+function disputeColumns(copy: (typeof ADMIN_DISPUTES_PAGE)["en"], locale: Locale): Column<Dispute>[] {
+  const statusLabel: Record<string, string> = {
+    open: copy.statusOpen,
+    under_review: copy.statusUnderReview,
+    resolved_buyer: copy.statusResolvedBuyer,
+    resolved_seller: copy.statusResolvedSeller,
+    cancelled: copy.statusCancelled,
+  };
+
+  return [
+    {
+      key: "reference",
+      header: copy.colReference,
+      primary: true,
+      cell: (dispute) => <span className="font-mono text-sm">{dispute.deal.reference}</span>,
+    },
+    {
+      key: "reason",
+      header: copy.colReason,
+      cell: (dispute) => <span className="line-clamp-2 max-w-sm text-sm">{dispute.reason}</span>,
+    },
+    {
+      key: "opened",
+      header: copy.colOpenedBy,
+      hideOnMobile: true,
+      cell: (dispute) => (
+        <span className="text-xs text-[var(--muted)]">
+          {dispute.openedBy.displayName}
+          <span className="block">
+            {dispute.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB")}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "parties",
+      header: copy.colParties,
+      hideOnMobile: true,
+      cell: (dispute) => (
+        <span className="text-xs text-[var(--muted)]">
+          {dispute.deal.seller?.displayName ?? "—"} → {dispute.deal.buyer?.displayName ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "amount",
+      header: copy.colAmount,
+      align: "end",
+      cell: (dispute) => (
+        <span className="font-semibold">
+          {formatCents(dispute.deal.agreedPriceCents, dispute.deal.currency)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: copy.colStatus,
+      align: "end",
+      cell: (dispute) => (
+        <Badge tone={isOpen(dispute) ? "danger" : "neutral"}>
+          {statusLabel[dispute.status] ?? dispute.status}
+        </Badge>
+      ),
+    },
+  ];
+}

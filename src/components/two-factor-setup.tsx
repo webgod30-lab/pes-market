@@ -10,6 +10,8 @@ import {
   type EnrolmentState,
 } from "@/app/actions/security-actions";
 import { Alert, Button, Field, FormError, inputClassName, Skeleton } from "@/components/ui";
+import { TWO_FACTOR_SETUP } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 /**
  * Enrolment, in the order it has to happen: get a secret, prove you can read a
@@ -23,19 +25,22 @@ export function TwoFactorSetup({
   enabled,
   recoveryCodesLeft,
   qrFor,
+  locale = "en",
 }: {
   enabled: boolean;
   recoveryCodesLeft: number;
   qrFor: (uri: string) => Promise<string>;
+  locale?: Locale;
 }) {
   if (enabled) {
-    return <DisablePanel recoveryCodesLeft={recoveryCodesLeft} />;
+    return <DisablePanel recoveryCodesLeft={recoveryCodesLeft} locale={locale} />;
   }
 
-  return <EnrolPanel qrFor={qrFor} />;
+  return <EnrolPanel qrFor={qrFor} locale={locale} />;
 }
 
-function EnrolPanel({ qrFor }: { qrFor: (uri: string) => Promise<string> }) {
+function EnrolPanel({ qrFor, locale }: { qrFor: (uri: string) => Promise<string>; locale: Locale }) {
+  const copy = TWO_FACTOR_SETUP[locale];
   const [setup, setSetup] = useState<{ secret: string; uri: string } | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | undefined>();
@@ -64,19 +69,16 @@ function EnrolPanel({ qrFor }: { qrFor: (uri: string) => Promise<string> }) {
   // Enrolment finished: this is the only moment the recovery codes exist in
   // readable form.
   if (state?.recoveryCodes) {
-    return <RecoveryCodes codes={state.recoveryCodes} />;
+    return <RecoveryCodes codes={state.recoveryCodes} locale={locale} />;
   }
 
   if (!setup) {
     return (
       <div>
         <FormError message={startError} />
-        <p className="mb-4 text-sm text-[var(--muted)]">
-          You will need an authenticator app — Google Authenticator, Aegis, 1Password, Bitwarden and
-          most password managers all work.
-        </p>
+        <p className="mb-4 text-sm text-[var(--muted)]">{copy.appHint}</p>
         <Button type="button" onClick={start} disabled={starting}>
-          {starting ? "Setting up…" : "Turn on two-factor"}
+          {starting ? copy.settingUp : copy.turnOn}
         </Button>
       </div>
     );
@@ -87,7 +89,7 @@ function EnrolPanel({ qrFor }: { qrFor: (uri: string) => Promise<string> }) {
       <FormError message={state?.message} />
 
       <div>
-        <p className="text-sm font-medium">1. Scan this with your authenticator app</p>
+        <p className="text-sm font-medium">{copy.scanTitle}</p>
         {qr ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -99,20 +101,13 @@ function EnrolPanel({ qrFor }: { qrFor: (uri: string) => Promise<string> }) {
           <Skeleton className="mt-3 size-44" />
         )}
 
-        <p className="mt-3 text-xs text-[var(--muted)]">
-          Cannot scan? Enter this key by hand:
-        </p>
+        <p className="mt-3 text-xs text-[var(--muted)]">{copy.cannotScan}</p>
         <code className="mt-1 block break-all rounded-md bg-[var(--surface-2)] px-3 py-2 font-mono text-xs">
           {setup.secret}
         </code>
       </div>
 
-      <Field
-        label="2. Enter the code it shows"
-        name="token"
-        error={state?.fieldErrors?.token}
-        hint="Six digits. This proves the app is set up before we switch anything on."
-      >
+      <Field label={copy.codeLabel} name="token" error={state?.fieldErrors?.token} hint={copy.codeHint}>
         <input
           id="token"
           name="token"
@@ -126,18 +121,19 @@ function EnrolPanel({ qrFor }: { qrFor: (uri: string) => Promise<string> }) {
       </Field>
 
       <Button type="submit" disabled={confirming}>
-        {confirming ? "Checking…" : "Confirm and turn on"}
+        {confirming ? copy.checking : copy.confirmAndTurnOn}
       </Button>
     </form>
   );
 }
 
-function RecoveryCodes({ codes }: { codes: string[] }) {
+function RecoveryCodes({ codes, locale }: { codes: string[]; locale: Locale }) {
+  const copy = TWO_FACTOR_SETUP[locale];
   const [copied, setCopied] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const router = useRouter();
 
-  async function copy() {
+  async function copyCodes() {
     try {
       await navigator.clipboard.writeText(codes.join("\n"));
       setCopied(true);
@@ -149,14 +145,10 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
 
   return (
     <div>
-      <Alert tone="success">Two-factor is on.</Alert>
+      <Alert tone="success">{copy.onAlert}</Alert>
 
-      <h3 className="mt-5 text-sm font-semibold">Save these recovery codes now</h3>
-      <p className="mt-1.5 text-sm text-[var(--muted)]">
-        Each one works once, in place of a code from your app. This service has no password reset
-        yet, so if you lose your phone and have not kept these, nobody can get you back into your
-        account — not even the admin. Print them or put them in a password manager.
-      </p>
+      <h3 className="mt-5 text-sm font-semibold">{copy.saveNowTitle}</h3>
+      <p className="mt-1.5 text-sm text-[var(--muted)]">{copy.saveNowBody}</p>
 
       <ul className="mt-4 grid grid-cols-2 gap-2 font-mono text-sm">
         {codes.map((code) => (
@@ -168,15 +160,13 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
 
       <button
         type="button"
-        onClick={copy}
+        onClick={copyCodes}
         className="mt-4 rounded-lg border border-[var(--border)] px-3 py-2 text-xs hover:bg-[var(--surface-2)]"
       >
-        {copied ? "Copied" : "Copy all"}
+        {copied ? copy.copied : copy.copyAll}
       </button>
 
-      <p className="mt-4 text-xs text-[var(--muted)]">
-        They will not be shown again. Reloading this page loses them.
-      </p>
+      <p className="mt-4 text-xs text-[var(--muted)]">{copy.wontShowAgain}</p>
 
       {/* The page is only refreshed once this is ticked. Refreshing earlier
           re-renders the server component with two-factor now on, which
@@ -188,7 +178,7 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
           onChange={(e) => setAcknowledged(e.target.checked)}
           className="mt-0.5 size-4 shrink-0 accent-emerald-500"
         />
-        <span>I have saved these somewhere I can get to without my phone.</span>
+        <span>{copy.acknowledge}</span>
       </label>
 
       <Button
@@ -197,27 +187,24 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
         disabled={!acknowledged}
         onClick={() => router.refresh()}
       >
-        Done
+        {copy.done}
       </Button>
     </div>
   );
 }
 
-function DisablePanel({ recoveryCodesLeft }: { recoveryCodesLeft: number }) {
+function DisablePanel({ recoveryCodesLeft, locale }: { recoveryCodesLeft: number; locale: Locale }) {
   const [state, action, pending] = useActionState(disableTotpAction, undefined);
   const [confirming, setConfirming] = useState(false);
+  const copy = TWO_FACTOR_SETUP[locale];
 
   return (
     <div>
-      <Alert tone="success">Two-factor is on for this account.</Alert>
+      <Alert tone="success">{copy.onForAccount}</Alert>
 
       <p className="mt-4 text-sm text-[var(--muted)]">
-        {recoveryCodesLeft} recovery code{recoveryCodesLeft === 1 ? "" : "s"} left.
-        {recoveryCodesLeft === 0
-          ? " None remain — if you lose your phone now you cannot get back in. Turn two-factor off and on again to issue a fresh set."
-          : recoveryCodesLeft <= 2
-            ? " Running low. Turn two-factor off and on again to issue a fresh set."
-            : ""}
+        {copy.codesLeft(recoveryCodesLeft)}
+        {recoveryCodesLeft === 0 ? copy.codesNone : recoveryCodesLeft <= 2 ? copy.codesLow : ""}
       </p>
 
       {confirming ? (
@@ -225,10 +212,10 @@ function DisablePanel({ recoveryCodesLeft }: { recoveryCodesLeft: number }) {
           <FormError message={state?.message} />
 
           <Field
-            label="Confirm your password"
+            label={copy.confirmPasswordLabel}
             name="password"
             error={state?.fieldErrors?.password}
-            hint="Asked for so that someone who finds your screen unlocked cannot simply strip it off."
+            hint={copy.confirmPasswordHint}
           >
             <input
               id="password"
@@ -243,10 +230,10 @@ function DisablePanel({ recoveryCodesLeft }: { recoveryCodesLeft: number }) {
 
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant="danger" disabled={pending}>
-              {pending ? "Turning off…" : "Turn off two-factor"}
+              {pending ? copy.turningOff : copy.turnOff}
             </Button>
             <Button type="button" variant="secondary" onClick={() => setConfirming(false)}>
-              Keep it on
+              {copy.keepOn}
             </Button>
           </div>
         </form>
@@ -256,7 +243,7 @@ function DisablePanel({ recoveryCodesLeft }: { recoveryCodesLeft: number }) {
           onClick={() => setConfirming(true)}
           className="mt-4 text-sm text-[var(--tone-danger)] hover:underline"
         >
-          Turn off two-factor
+          {copy.turnOff}
         </button>
       )}
     </div>

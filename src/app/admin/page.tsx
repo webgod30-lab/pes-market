@@ -13,6 +13,8 @@ import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { RatioBar } from "@/components/dashboard/ratio-bar";
 import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
 import { Card, SetupProblem } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_HUB } from "@/lib/page-copy";
 
 export const metadata = { title: "Admin" };
 
@@ -25,6 +27,8 @@ export default async function AdminPage() {
 
   const admin = auth.user;
   const now = new Date();
+  const locale = await getLocale();
+  const copy = ADMIN_HUB[locale];
 
   const [stats, queue, stalledCodes, pendingApplications] = await Promise.all([
     getConsoleStats(now),
@@ -42,55 +46,55 @@ export default async function AdminPage() {
   // Ordered by how much it matters if you ignore it.
   const queues = [
     {
-      label: "Open disputes",
+      label: copy.openDisputes,
       value: stats.openDisputes,
       href: "/admin/disputes",
       icon: "scales" as const,
-      caption: "frozen until you decide",
+      caption: copy.openDisputesCaption,
     },
     {
-      label: "Promoter applications",
+      label: copy.promoterApplications,
       value: pendingApplications,
       href: "/admin/promoters",
       icon: "inbox" as const,
-      caption: "waiting to be let in",
+      caption: copy.promoterApplicationsCaption,
     },
     {
-      label: "Payments to confirm",
+      label: copy.paymentsToConfirm,
       value: stats.paymentsToConfirm,
       href: "/admin/deals?filter=payment_submitted",
       icon: "wallet" as const,
-      caption: "buyer says they have paid",
+      caption: copy.paymentsToConfirmCaption,
     },
     {
-      label: "Deliveries to approve",
+      label: copy.deliveriesToApprove,
       value: stats.deliveriesToApprove,
       href: "/admin/deals?filter=admin_verifying",
       icon: "shield" as const,
-      caption: "check the account first",
+      caption: copy.deliveriesToApproveCaption,
     },
     {
-      label: "Withdrawals to send",
+      label: copy.withdrawalsToSend,
       value: stats.withdrawalsToSend,
       href: "/admin/withdrawals",
       icon: "payout" as const,
-      caption: "money reserved, not yet gone",
+      caption: copy.withdrawalsToSendCaption,
     },
     {
-      label: "Buyers gone quiet",
+      label: copy.buyersGoneQuiet,
       value: stats.buyersGoneQuiet,
       href: "/admin/deals?filter=claiming",
       icon: "route" as const,
-      caption: "past the confirmation window",
+      caption: copy.buyersGoneQuietCaption,
     },
     {
       // Not a status filter: a stalled code can sit on a released deal or a
       // claiming one, so it gets its own list below.
-      label: "Sellers owing a code",
+      label: copy.sellersOwingCode,
       value: stats.codesAwaitingSeller,
       href: "#codes",
       icon: "ticket" as const,
-      caption: "buyer cannot finish without it",
+      caption: copy.sellersOwingCodeCaption,
     },
   ];
 
@@ -102,15 +106,10 @@ export default async function AdminPage() {
         disputes: stats.openDisputes,
         promoters: pendingApplications,
       })}
-      title="Admin console"
-      description={
-        <>
-          Signed in as {admin.email}. No credentials move without you. Swaps are free — the only
-          money leaving is $2 a deal to promoters, paid on the 1st.
-        </>
-      }
+      title={copy.title}
+      description={copy.signedInAs(admin.email)}
     >
-      <h2 className="mb-3 text-sm font-semibold">Waiting on you</h2>
+      <h2 className="mb-3 text-sm font-semibold">{copy.waitingOnYou}</h2>
 
       <StatGrid columns={3}>
         {queues.map((item) => (
@@ -128,38 +127,38 @@ export default async function AdminPage() {
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]">
         <Breakdown
-          title="What the queues look like"
-          caption="The same six numbers above, as a share of everything waiting."
+          title={copy.whatQueuesLookLike}
+          caption={copy.queuesShare}
           segments={[
-            { label: "Open disputes", value: stats.openDisputes, tone: "danger" },
-            { label: "Payments to confirm", value: stats.paymentsToConfirm, tone: "warning" },
-            { label: "Deliveries to approve", value: stats.deliveriesToApprove, tone: "info" },
-            { label: "Withdrawals to send", value: stats.withdrawalsToSend, tone: "success" },
-            { label: "Buyers gone quiet", value: stats.buyersGoneQuiet, tone: "warning" },
-            { label: "Sellers owing a code", value: stats.codesAwaitingSeller, tone: "neutral" },
+            { label: copy.openDisputes, value: stats.openDisputes, tone: "danger" },
+            { label: copy.paymentsToConfirm, value: stats.paymentsToConfirm, tone: "warning" },
+            { label: copy.deliveriesToApprove, value: stats.deliveriesToApprove, tone: "info" },
+            { label: copy.withdrawalsToSend, value: stats.withdrawalsToSend, tone: "success" },
+            { label: copy.buyersGoneQuiet, value: stats.buyersGoneQuiet, tone: "warning" },
+            { label: copy.sellersOwingCode, value: stats.codesAwaitingSeller, tone: "neutral" },
           ]}
-          emptyLabel="Every queue is empty. Nothing is waiting on you."
+          emptyLabel={copy.everyQueueEmpty}
         />
 
         <StatGrid columns={3}>
           <StatCard
-            label="Deals in flight"
+            label={copy.dealsInFlight}
             value={stats.dealsInFlight}
-            caption="not yet settled"
+            caption={copy.notYetSettled}
             icon="folder"
             href="/admin/deals?filter=open"
           />
           <StatCard
-            label="Users"
+            label={copy.users}
             value={stats.users}
-            caption="registered accounts"
+            caption={copy.registeredAccounts}
             icon="users"
             href="/admin/users"
           />
           <StatCard
-            label="Banned"
+            label={copy.banned}
             value={stats.bannedUsers}
-            caption="blocked from trading"
+            caption={copy.blockedFromTrading}
             icon="shield"
             href="/admin/users"
           />
@@ -174,45 +173,42 @@ export default async function AdminPage() {
         className="mt-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4"
       >
         <h2 id="rates-heading" className="text-sm font-semibold">
-          How things are running
+          {copy.howThingsAreRunning}
         </h2>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <RatioBar
-            label="Deals running without you"
+            label={copy.dealsRunningWithoutYou}
             value={Math.max(0, stats.dealsInFlight - blockedOnAdmin)}
             of={stats.dealsInFlight}
-            caption="The rest are sitting in one of your queues."
+            caption={copy.restInQueues}
           />
           <RatioBar
-            label="In-flight deals disputed"
+            label={copy.inFlightDisputed}
             value={stats.openDisputes}
             of={stats.dealsInFlight}
             invert
-            caption="A dispute freezes its deal until you decide it."
+            caption={copy.disputeFreezes}
           />
           <RatioBar
-            label="Accounts in good standing"
+            label={copy.accountsInGoodStanding}
             value={Math.max(0, stats.users - stats.bannedUsers)}
             of={stats.users}
-            caption="Banned accounts cannot open or join a deal."
+            caption={copy.bannedCannot}
           />
           <RatioBar
-            label="Sellers who have answered a code request"
+            label={copy.sellersAnswered}
             value={Math.max(0, stats.dealsInFlight - stats.codesAwaitingSeller)}
             of={stats.dealsInFlight}
-            caption="A buyer cannot finish a transfer without it."
+            caption={copy.buyerCannotFinish}
           />
         </div>
       </section>
 
       {stalledCodes.length > 0 ? (
         <section id="codes" className="mt-8 scroll-mt-20">
-          <h2 className="mb-1 text-sm font-semibold">Buyers waiting on a Konami code</h2>
-          <p className="mb-3 text-xs text-[var(--muted)]">
-            The buyer has paid and cannot finish the transfer. Only the seller can answer — chase
-            them, oldest first.
-          </p>
+          <h2 className="mb-1 text-sm font-semibold">{copy.waitingOnKonami}</h2>
+          <p className="mb-3 text-xs text-[var(--muted)]">{copy.waitingOnKonamiBody}</p>
 
           <ul className="space-y-2">
             {stalledCodes.map((request) => (
@@ -222,11 +218,11 @@ export default async function AdminPage() {
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-mono text-sm">{request.deal.reference}</span>
                       <span className="text-xs text-[var(--tone-warning)]">
-                        asked {request.requestedAt.toLocaleString("en-GB")}
+                        {copy.asked} {request.requestedAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-[var(--muted)]">
-                      {request.deal.buyer?.displayName ?? "—"} is waiting on{" "}
+                      {request.deal.buyer?.displayName ?? "—"} {copy.isWaitingOn}{" "}
                       {request.deal.seller?.displayName ?? "—"}
                     </p>
                     {request.requestNote ? (
@@ -241,22 +237,21 @@ export default async function AdminPage() {
       ) : null}
 
       <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Needs your attention</h2>
+        <h2 className="text-sm font-semibold">{copy.needsAttention}</h2>
         <Link href="/admin/deals" className="text-xs text-[var(--accent)] hover:underline">
-          All deals →
+          {copy.allDeals}
         </Link>
       </div>
 
       <DataTable
-        caption="Deals needing an admin decision"
+        caption={copy.dealsNeedingDecision}
         rows={queue}
         rowKey={(deal) => deal.id}
         rowHref={(deal) => `/admin/deals/${deal.id}`}
-        columns={adminDealColumns(now)}
+        columns={adminDealColumns(now, locale)}
         empty={
-          <EmptyPanel icon="shield" title="Nothing waiting on you" tone="positive">
-            No payments to confirm, no deliveries to approve and no disputes open. Deals still in
-            flight are waiting on the two parties, not on you.
+          <EmptyPanel icon="shield" title={copy.nothingWaitingTitle} tone="positive">
+            {copy.nothingWaitingBody}
           </EmptyPanel>
         }
       />

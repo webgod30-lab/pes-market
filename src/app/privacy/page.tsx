@@ -4,6 +4,8 @@ import { SITE, legalDetailsAreConfigured } from "@/lib/site";
 import { CONFIRMATION_WINDOW_HOURS } from "@/lib/deals";
 import { LastUpdated, Notice, Points, Prose, Section } from "@/components/prose";
 import { PageHeading } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { PRIVACY_PAGE, LEGAL_TRANSLATION_NOTICE } from "@/lib/legal-copy";
 
 export const metadata = {
   title: "Privacy policy",
@@ -11,163 +13,105 @@ export const metadata = {
     "What data this escrow service collects, how account credentials are protected, what is public, and how long things are kept.",
 };
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
   const configured = legalDetailsAreConfigured();
+  const locale = await getLocale();
+  const copy = PRIVACY_PAGE[locale];
+  const translationNotice = LEGAL_TRANSLATION_NOTICE[locale];
 
   return (
     <Prose>
-      <PageHeading title="Privacy policy" />
-      <LastUpdated date={SITE.legalLastUpdated} />
+      <PageHeading title={copy.title} />
+      <LastUpdated date={SITE.legalLastUpdated} locale={locale} />
+
+      {translationNotice ? (
+        <div className="mt-4">
+          <Notice tone="info">{translationNotice}</Notice>
+        </div>
+      ) : null}
 
       {!configured ? (
         <div className="mt-6">
           <Notice>
-            <strong>This is a template, not legal advice.</strong> It accurately describes what the
-            software does with data, which is the part most policies get wrong — but it needs review
-            against the privacy law that applies to you (GDPR, UK GDPR, CCPA and others differ). Fill
-            in the operator details in <code className="font-mono text-xs">src/lib/site.ts</code>;
-            naming who controls the data is a legal requirement in most places.
+            <strong>{copy.templateNoticeBold}</strong> {copy.templateNoticeBody}{" "}
+            <code className="font-mono text-xs">src/lib/site.ts</code>
+            {copy.templateNoticeTail}
           </Notice>
         </div>
       ) : null}
 
-      <Section title="Who controls your data">
-        <p>
-          {SITE.operator}, operating {SITE.name} from {SITE.jurisdiction}. Contact us at{" "}
-          <span className="font-mono text-xs">{SITE.supportEmail}</span> about anything on this page.
-        </p>
+      <Section title={copy.whoControlsTitle}>
+        <p>{copy.whoControls(SITE.operator, SITE.name, SITE.jurisdiction, SITE.supportEmail)}</p>
       </Section>
 
-      <Section title="What we collect">
+      <Section title={copy.whatWeCollectTitle}>
         <Points
           items={[
             <>
-              <strong className="text-[var(--foreground)]">Your account:</strong> email address,
-              display name, and a hashed password. We never store your password itself — only a bcrypt
-              hash, which cannot be reversed back into it.
+              <strong className="text-[var(--foreground)]">{copy.accountLabel}</strong>{" "}
+              {copy.accountBody}
             </>,
             <>
-              <strong className="text-[var(--foreground)]">Deals:</strong> what was traded, the agreed
-              price, who the parties are, timestamps, and every state change.
+              <strong className="text-[var(--foreground)]">{copy.dealsLabel}</strong> {copy.dealsBody}
             </>,
             <>
-              <strong className="text-[var(--foreground)]">Game account credentials:</strong> the
-              login the seller deposits, encrypted (see below).
+              <strong className="text-[var(--foreground)]">{copy.credentialsLabel}</strong>{" "}
+              {copy.credentialsBody}
             </>,
             <>
-              <strong className="text-[var(--foreground)]">Payment references:</strong> the
-              transaction hash or reference you give us so we can match a payment. We do not collect
-              or store card numbers — no card details ever pass through this service.
+              <strong className="text-[var(--foreground)]">{copy.paymentRefsLabel}</strong>{" "}
+              {copy.paymentRefsBody}
             </>,
             <>
-              <strong className="text-[var(--foreground)]">Messages and reviews</strong> you write on
-              deals.
+              <strong className="text-[var(--foreground)]">{copy.messagesLabel}</strong>{" "}
+              {copy.messagesBody}
             </>,
           ]}
         />
       </Section>
 
-      <Section title="How account credentials are protected">
-        <p>
-          Credentials deposited for a deal are encrypted with AES-256-GCM before they are written to
-          the database, using a key held outside it. They are decrypted in exactly two situations: for
-          the administrator to verify the account works before releasing it, and for the buyer after
-          that release is approved.
-        </p>
-        <p>
-          They are never included in a page unless specifically requested by someone entitled to see
-          them, never written to logs, and never sent to any third party. Database query logging is
-          deliberately disabled so credentials cannot leak into log files.
-        </p>
+      <Section title={copy.howProtectedTitle}>
+        <p>{copy.howProtectedP1}</p>
+        <p>{copy.howProtectedP2}</p>
       </Section>
 
-      <Section title="What is public">
-        <p>
-          Reviews are public, along with the display names of the people involved and the rating. This
-          is the point of them: it is how someone decides whether to trade with a stranger.
-        </p>
-        <p>
-          Public pages never include email addresses, deal references, what was traded, or amounts.
-          Choose a display name you are comfortable being seen — you are not required to use your real
-          name.
-        </p>
+      <Section title={copy.whatIsPublicTitle}>
+        <p>{copy.whatIsPublicP1}</p>
+        <p>{copy.whatIsPublicP2}</p>
       </Section>
 
-      <Section title="Who we share it with">
-        <p>
-          We do not sell your data and we do not use it for advertising. It is shared only with the
-          services needed to run this one: our database host, and — if you use an automatic payment
-          method — the payment provider, which receives the amount and a deal reference. We share
-          data with law enforcement only where legally required.
-        </p>
-        <p>The other party to your deal sees your display name, your messages, and your reviews.</p>
+      <Section title={copy.whoWeShareTitle}>
+        <p>{copy.whoWeShareP1}</p>
+        <p>{copy.whoWeShareP2}</p>
       </Section>
 
-      <Section title="How long we keep it">
-        <Points
-          items={[
-            "Deal records are kept while the deal is open and afterwards as a record of the transaction, including for resolving later disputes.",
-            `Credentials are kept for the deal they belong to. Once a deal is complete and the ${CONFIRMATION_WINDOW_HOURS}-hour window has passed, you should have changed them anyway — change the email and password on any account you buy, immediately.`,
-            "Messages and reviews are kept as part of the deal record.",
-            "If you close your account, we remove your personal details but keep the minimum needed to show that past deals happened and were settled.",
-          ]}
-        />
+      <Section title={copy.howLongTitle}>
+        <Points items={copy.howLongPoints(CONFIRMATION_WINDOW_HOURS)} />
       </Section>
 
-      <Section title="Your rights">
-        <p>
-          Depending on where you live, you may have the right to see the data we hold about you,
-          correct it, ask us to delete it, or object to how we use it. Ask us and we will do it,
-          subject to keeping what we genuinely need for deals that have happened and for legal
-          obligations.
-        </p>
-        <p>
-          One thing we cannot do is delete a review purely because it is unflattering. Removing bad
-          reviews on request would make every good review worthless.
-        </p>
+      <Section title={copy.yourRightsTitle}>
+        <p>{copy.yourRightsP1}</p>
+        <p>{copy.yourRightsP2}</p>
       </Section>
 
-      <Section title="Cookies">
-        <p>
-          Two, and neither is used to identify you across the web. One holds your sign-in session so
-          you stay signed in between pages; signing out clears it. The other remembers whether you
-          chose the light or dark theme, and is set only if you press that button.
-        </p>
-        <p>
-          There is no advertising cookie and no third-party tracker on this site.
-        </p>
+      <Section title={copy.cookiesTitle}>
+        <p>{copy.cookiesP1}</p>
+        <p>{copy.cookiesP2}</p>
       </Section>
 
-      <Section title="Analytics">
-        <p>
-          We count page views and measure how quickly pages load, through Vercel Analytics and Speed
-          Insights. This records the page visited, the referring site, and coarse details like
-          country, browser and device type.
-        </p>
-        <p>
-          It sets no cookie, assigns you no identifier, and cannot follow you to other websites, so
-          there is nothing here to ask your consent for. We use it to see which pages people
-          actually read and which ones are slow — not to build a picture of you. If that ever
-          changes, this page changes with it, and you will be asked first.
-        </p>
-        <p>
-          The visit count shown on the home page is our own, and it is a counter rather than a log:
-          one number per calendar month, incremented when the page loads. No row is written for
-          your visit, and no address, browser or identifier is stored alongside it. That is also
-          why it counts visits and not visitors — telling two people apart would mean marking you,
-          which is the thing being avoided.
-        </p>
+      <Section title={copy.analyticsTitle}>
+        <p>{copy.analyticsP1}</p>
+        <p>{copy.analyticsP2}</p>
+        <p>{copy.analyticsP3}</p>
       </Section>
 
-      <Section title="Security, honestly stated">
+      <Section title={copy.securityTitle}>
         <p>
-          Passwords are hashed, credentials are encrypted, and every action that moves money or
-          releases an account is checked against who you are on the server rather than trusted from
-          the browser. No system is perfect. If you find a problem, please{" "}
+          {copy.securityP1Lead}{" "}
           <Link href="/contact" className="text-[var(--accent)] hover:underline">
-            tell us
+            {copy.securityP1Link}
           </Link>{" "}
-          rather than exploiting it — we would rather hear it from you.
+          {copy.securityP1Tail}
         </p>
       </Section>
     </Prose>

@@ -7,9 +7,8 @@ import { loginAction } from "@/app/actions/auth-actions";
 import { AuthFormError } from "@/components/auth/form-alert";
 import { PasswordInput } from "@/components/auth/password-input";
 import { Button, Field, fieldDescribedBy, inputClassName } from "@/components/ui";
-
-/** Named once so the visible hint and its aria-describedby cannot disagree. */
-const TOTP_HINT = "The six-digit code from your authenticator app, or one of your recovery codes.";
+import { LOGIN_FORM } from "@/lib/auth-copy";
+import type { Locale } from "@/lib/locale";
 
 /**
  * Sign in.
@@ -18,8 +17,9 @@ const TOTP_HINT = "The six-digit code from your authenticator app, or one of you
  * were — `loginAction` decides everything, including when the code field
  * appears. Only the surface changed.
  */
-export function LoginForm({ next }: { next?: string }) {
+export function LoginForm({ next, locale = "en" }: { next?: string; locale?: Locale }) {
   const [state, formAction, pending] = useActionState(loginAction, undefined);
+  const copy = LOGIN_FORM[locale];
 
   const secondFactor = Boolean(state?.needsSecondFactor);
 
@@ -29,7 +29,7 @@ export function LoginForm({ next }: { next?: string }) {
 
       {next ? <input type="hidden" name="next" value={next} /> : null}
 
-      <Field label="Email" name="email" error={state?.fieldErrors?.email}>
+      <Field label={copy.emailLabel} name="email" error={state?.fieldErrors?.email}>
         <input
           id="email"
           name="email"
@@ -40,12 +40,12 @@ export function LoginForm({ next }: { next?: string }) {
           aria-invalid={Boolean(state?.fieldErrors?.email) || undefined}
           aria-describedby={fieldDescribedBy("email", { error: state?.fieldErrors?.email })}
           className={inputClassName}
-          placeholder="you@example.com"
+          placeholder={copy.emailPlaceholder}
         />
       </Field>
 
       <Field
-        label="Password"
+        label={copy.passwordLabel}
         name="password"
         error={state?.fieldErrors?.password}
         labelSuffix={
@@ -57,7 +57,7 @@ export function LoginForm({ next }: { next?: string }) {
             // beside a field people are trying to tap.
             className="-my-2 inline-flex min-h-9 items-center text-xs text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
           >
-            Forgot password?
+            {copy.forgotPassword}
           </Link>
         }
       >
@@ -77,10 +77,10 @@ export function LoginForm({ next }: { next?: string }) {
       {secondFactor ? (
         <div className="auth-enter rounded-[var(--radius-control)] border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] p-3">
           <Field
-            label="Authentication code"
+            label={copy.totpLabel}
             name="totp"
             error={state?.fieldErrors?.totp}
-            hint={TOTP_HINT}
+            hint={copy.totpHint}
           >
             <input
               id="totp"
@@ -93,18 +93,18 @@ export function LoginForm({ next }: { next?: string }) {
               maxLength={16}
               aria-invalid={Boolean(state?.fieldErrors?.totp) || undefined}
               aria-describedby={fieldDescribedBy("totp", {
-                hint: TOTP_HINT,
+                hint: copy.totpHint,
                 error: state?.fieldErrors?.totp,
               })}
               className={`${inputClassName} text-center font-mono text-base tracking-[0.35em]`}
-              placeholder="123456"
+              placeholder={copy.totpPlaceholder}
             />
           </Field>
         </div>
       ) : null}
 
       <Button type="submit" loading={pending} disabled={pending} block size="md">
-        {pending ? "Signing in…" : secondFactor ? "Verify and sign in" : "Sign in"}
+        {pending ? copy.signingIn : secondFactor ? copy.verifyAndSignIn : copy.signIn}
       </Button>
     </form>
   );

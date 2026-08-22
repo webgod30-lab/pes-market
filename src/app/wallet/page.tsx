@@ -21,18 +21,13 @@ import { DashShell } from "@/components/dashboard/dash-shell";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { Alert, Badge, Card, DetailList, Overline, SetupProblem } from "@/components/ui";
 import type { WithdrawalStatus } from "@/generated/prisma/client";
+import { getLocale } from "@/lib/locale-server";
+import { WALLET_PAGE } from "@/lib/page-copy";
 
 export const metadata = { title: "Your balance" };
 
 // Reads the signed-in user's money, so it can never be prerendered or cached.
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL: Record<WithdrawalStatus, string> = {
-  requested: "Waiting to be sent",
-  sent: "Sent",
-  rejected: "Refused",
-  cancelled: "Cancelled",
-};
 
 export default async function WalletPage() {
   const auth = await requireUserOrProblem(null, "/wallet");
@@ -40,6 +35,15 @@ export default async function WalletPage() {
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
   const user = auth.user;
+  const locale = await getLocale();
+  const copy = WALLET_PAGE[locale];
+
+  const STATUS_LABEL: Record<WithdrawalStatus, string> = {
+    requested: copy.statusRequested,
+    sent: copy.statusSent,
+    rejected: copy.statusRejected,
+    cancelled: copy.statusCancelled,
+  };
 
   const [balance, earnings, withdrawals, preferredMethod] = await Promise.all([
     getBalance(user.id),
@@ -60,24 +64,24 @@ export default async function WalletPage() {
   return (
     <DashShell
       groups={sectionsFor(user.role, {})}
-      title="Your balance"
-      description="What you have earned from the people you brought to the site, and what you have taken out."
+      title={copy.title}
+      description={copy.description}
     >
       <div className="max-w-3xl">
       {/* --- the number, and what it is made of --- */}
       <Card elevation="raised">
-        <Overline>Available to withdraw</Overline>
+        <Overline>{copy.availableToWithdraw}</Overline>
         <p className="mt-1 text-4xl font-semibold tracking-tight">
           {formatCents(balance.availableCents, balance.currency)}
         </p>
 
         <dl className="mt-5 grid gap-3 border-t border-[var(--border)] pt-4 text-sm sm:grid-cols-2">
           <div className="flex justify-between gap-4">
-            <dt className="text-[var(--muted)]">Earned from referrals</dt>
+            <dt className="text-[var(--muted)]">{copy.earnedFromReferrals}</dt>
             <dd className="tabular-nums">{formatCents(balance.earnedCents, balance.currency)}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-[var(--muted)]">Requested or already sent</dt>
+            <dt className="text-[var(--muted)]">{copy.requestedOrSent}</dt>
             <dd className="tabular-nums">−{formatCents(balance.committedCents, balance.currency)}</dd>
           </div>
         </dl>
@@ -88,13 +92,11 @@ export default async function WalletPage() {
         <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] p-4">
           {balance.meetsMinimum ? (
             <>
-              <p className="text-overline uppercase text-[var(--tone-info)]">Ready to request</p>
+              <p className="text-overline uppercase text-[var(--tone-info)]">{copy.readyToRequest}</p>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-                You are over the {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)} minimum.
-                Request a payout whenever you like — payouts are sent in one batch on the 1st of
-                each month, so the next one goes out on{" "}
+                {copy.readyBody(formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency))}{" "}
                 <strong className="text-[var(--foreground)]">
-                  {balance.nextPayoutAt.toLocaleDateString("en-GB", {
+                  {balance.nextPayoutAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB", {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
@@ -107,15 +109,12 @@ export default async function WalletPage() {
           ) : (
             <>
               <p className="text-overline uppercase text-[var(--tone-info)]">
-                {formatCents(shortfallCents, balance.currency)} to go
+                {copy.toGo(formatCents(shortfallCents, balance.currency))}
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-                The smallest payout is {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)}.
-                That is{" "}
-                <strong className="text-[var(--foreground)]">
-                  {dealsToGo} more completed {dealsToGo === 1 ? "deal" : "deals"}
-                </strong>{" "}
-                by the people you brought in. Payouts are sent on the 1st of each month.
+                {copy.notReadyBody(formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency))}{" "}
+                <strong className="text-[var(--foreground)]">{copy.moreCompletedDeal(dealsToGo)}</strong>{" "}
+                {copy.notReadyTail}
               </p>
             </>
           )}
@@ -125,41 +124,37 @@ export default async function WalletPage() {
             out. Saying so plainly beats showing a zero and no explanation. */}
         {balance.netCents < 0 ? (
           <Alert tone="danger" className="mt-4">
-            Your balance is {formatCents(balance.netCents, balance.currency)}. A deal was reversed
-            after you had been paid for it. Credits from the next deals your people complete go
-            towards clearing that before anything can be withdrawn again.
+            {copy.negativeBalance(formatCents(balance.netCents, balance.currency))}
           </Alert>
         ) : null}
       </Card>
 
       {/* --- request, or the one already in flight --- */}
       <Card className="mt-3">
-        <h2 className="text-sm font-semibold">Withdraw</h2>
+        <h2 className="text-sm font-semibold">{copy.withdraw}</h2>
 
         {open ? (
           <div className="mt-3">
             <p className="text-sm text-[var(--muted)]">
-              You have a withdrawal of{" "}
+              {copy.hasOpenLead}{" "}
               <strong className="text-[var(--foreground)]">
                 {formatCents(open.amountCents, open.currency)}
               </strong>{" "}
-              waiting to be sent. You can only have one at a time.
+              {copy.hasOpenTail}
             </p>
             <DetailList rows={destinationFields(open)} labelWidth="w-40" className="mt-2" />
 
             {/* The $1 test, on a first payout. Nothing else moves until they
                 say it arrived — see lib/wallet.ts. */}
             {open.testSentAt && !open.testConfirmedAt ? (
-              <ConfirmTestButton withdrawalId={open.id} reference={open.testReference} />
+              <ConfirmTestButton withdrawalId={open.id} reference={open.testReference} locale={locale} />
             ) : null}
 
             {open.testConfirmedAt ? (
-              <p className="mt-2 text-xs text-[var(--tone-success)]">
-                Test confirmed. The rest goes out in the next batch.
-              </p>
+              <p className="mt-2 text-xs text-[var(--tone-success)]">{copy.testConfirmed}</p>
             ) : null}
 
-            <CancelWithdrawalButton withdrawalId={open.id} />
+            <CancelWithdrawalButton withdrawalId={open.id} locale={locale} />
           </div>
         ) : (
           <div className="mt-3">
@@ -168,6 +163,7 @@ export default async function WalletPage() {
               minimumCents={MINIMUM_WITHDRAWAL_CENTS}
               currency={balance.currency}
               preferredMethod={preferredMethod}
+              locale={locale}
             />
           </div>
         )}
@@ -175,14 +171,12 @@ export default async function WalletPage() {
 
       {/* --- history --- */}
       <Card className="mt-3">
-        <h2 className="text-sm font-semibold">Withdrawals</h2>
+        <h2 className="text-sm font-semibold">{copy.withdrawals}</h2>
 
         {withdrawals.length === 0 ? (
           <div className="mt-3">
-            <EmptyPanel icon="payout" title="Nothing withdrawn yet">
-              Once your referral earnings reach{" "}
-              {formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency)}, you can request a payout
-              here.
+            <EmptyPanel icon="payout" title={copy.nothingWithdrawnTitle}>
+              {copy.nothingWithdrawnBody(formatCents(MINIMUM_WITHDRAWAL_CENTS, balance.currency))}
             </EmptyPanel>
           </div>
         ) : (
@@ -202,9 +196,9 @@ export default async function WalletPage() {
                 </div>
 
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Requested {withdrawal.requestedAt.toLocaleString("en-GB")}
+                  {copy.requested} {withdrawal.requestedAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}
                   {withdrawal.decidedAt
-                    ? ` · ${withdrawal.status === "sent" ? "sent" : "closed"} ${withdrawal.decidedAt.toLocaleString("en-GB")}`
+                    ? ` · ${withdrawal.status === "sent" ? copy.sent : copy.closed} ${withdrawal.decidedAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}`
                     : ""}
                 </p>
 
@@ -217,7 +211,7 @@ export default async function WalletPage() {
                 {withdrawal.note ? (
                   <p className="mt-1.5 text-xs">
                     <span className="text-[var(--muted)]">
-                      {withdrawal.status === "sent" ? "Reference: " : "Reason: "}
+                      {withdrawal.status === "sent" ? copy.reference : copy.reason}
                     </span>
                     {withdrawal.note}
                   </p>
@@ -230,20 +224,18 @@ export default async function WalletPage() {
 
       {/* --- where the money came from --- */}
       <Card className="mt-3">
-        <h2 className="text-sm font-semibold">What is in the balance</h2>
+        <h2 className="text-sm font-semibold">{copy.whatsInBalance}</h2>
         <p className="mt-1 mb-3 text-xs text-[var(--muted)]">
-          Every {formatCents(REFERRAL_REWARD_CENTS, balance.currency)} credit, and the deal that
-          earned it. This is the balance above, itemised — so you can check it rather than trust it.
+          {copy.whatsInBalanceCaption(formatCents(REFERRAL_REWARD_CENTS, balance.currency))}
         </p>
 
         {earnings.length === 0 ? (
-          <EmptyPanel icon="folder" title="No referral earnings yet">
-            You earn {formatCents(REFERRAL_REWARD_CENTS, balance.currency)} each time someone who
-            signed up with your code completes a swap.{" "}
+          <EmptyPanel icon="folder" title={copy.noEarningsTitle}>
+            {copy.noEarningsBody(formatCents(REFERRAL_REWARD_CENTS, balance.currency))}{" "}
             <Link href="/referrals" className="underline">
-              Share your code
+              {copy.shareCode}
             </Link>{" "}
-            to get started.
+            {copy.toGetStarted}
           </EmptyPanel>
         ) : (
           <ul className="space-y-2">
@@ -259,8 +251,8 @@ export default async function WalletPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  {earning.traderName} completed a swap ·{" "}
-                  {earning.createdAt.toLocaleDateString("en-GB")}
+                  {earning.traderName} {copy.completedSwap} ·{" "}
+                  {earning.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB")}
                 </p>
               </li>
             ))}

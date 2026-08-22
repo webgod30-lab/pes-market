@@ -4,9 +4,10 @@
 // page all describe a status the same way.
 import type { DealStatus, TradeKind } from "@/generated/prisma/client";
 import type { MessageKey } from "@/lib/dictionary";
+import type { Locale } from "@/lib/locale";
 import type { Tone } from "@/components/ui";
 
-export const DEAL_STATUS_LABEL: Record<DealStatus, string> = {
+const dealStatusLabelEn: Record<DealStatus, string> = {
   awaiting_counterparty: "Waiting for the other party",
   awaiting_credentials: "Waiting for account details",
   awaiting_payment: "Waiting for payment",
@@ -19,6 +20,24 @@ export const DEAL_STATUS_LABEL: Record<DealStatus, string> = {
   refunded: "Refunded",
   cancelled: "Cancelled",
 };
+
+const dealStatusLabelAr: Record<DealStatus, string> = {
+  awaiting_counterparty: "بانتظار الطرف الآخر",
+  awaiting_credentials: "بانتظار بيانات الحساب",
+  awaiting_payment: "بانتظار الدفع",
+  payment_submitted: "الدفع قيد المراجعة",
+  admin_verifying: "المشرف يتحقق من الحساب",
+  credentials_released: "تم تسليم بيانات الحساب",
+  claiming: "المشتري يستلم الحساب",
+  completed: "مكتملة",
+  disputed: "متنازع عليها",
+  refunded: "مستردة",
+  cancelled: "ملغاة",
+};
+
+export function dealStatusLabel(locale: Locale = "en"): Record<DealStatus, string> {
+  return locale === "ar" ? dealStatusLabelAr : dealStatusLabelEn;
+}
 
 export const DEAL_STATUS_TONE: Record<DealStatus, Tone> = {
   awaiting_counterparty: "neutral",

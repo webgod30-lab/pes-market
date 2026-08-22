@@ -8,7 +8,7 @@ import { getReputation } from "@/lib/reviews";
 import { ReputationLine } from "@/components/reputation";
 import { formatCents } from "@/lib/money";
 import { getBalance, MINIMUM_WITHDRAWAL_CENTS } from "@/lib/wallet";
-import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, isTurnOf, OPEN_STATUSES } from "@/lib/deal-status";
+import { DEAL_STATUS_TONE, dealStatusLabel, isTurnOf, OPEN_STATUSES } from "@/lib/deal-status";
 import { Breakdown, type Segment } from "@/components/dashboard/breakdown";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
@@ -17,6 +17,9 @@ import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
 import { Badge, ButtonLink, SetupProblem } from "@/components/ui";
 import type { DealStatus } from "@/generated/prisma/client";
+import { getLocale } from "@/lib/locale-server";
+import { DASHBOARD_PAGE } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 export const metadata = { title: "Your deals" };
 
@@ -32,6 +35,8 @@ export default async function DashboardPage() {
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
   const user = auth.user;
+  const locale = await getLocale();
+  const copy = DASHBOARD_PAGE[locale];
 
   // The admin has a purpose-built console.
   if (user.role === "admin") redirect("/admin");
@@ -62,52 +67,50 @@ export default async function DashboardPage() {
   return (
     <DashShell
       groups={traderSections({ waiting: waitingOnYou })}
-      title={`Hello, ${user.displayName}`}
+      title={copy.hello(user.displayName)}
       description={
         <>
-          <span className="block">Every deal you are part of, on either side.</span>
-          <ReputationLine reputation={reputation} />
+          <span className="block">{copy.everyDeal}</span>
+          <ReputationLine reputation={reputation} locale={locale} />
         </>
       }
       actions={
         <>
           <ButtonLink href="/deals/new" size="sm">
-            Open a deal
+            {copy.openDeal}
           </ButtonLink>
           <ButtonLink href="/deals/join" variant="secondary" size="sm">
-            I have a code
+            {copy.haveCode}
           </ButtonLink>
         </>
       }
     >
       <StatGrid columns={4}>
         <StatCard
-          label="Open deals"
+          label={copy.openDeals}
           value={openCount}
-          caption={openCount === 1 ? "still running" : "still running"}
+          caption={copy.stillRunning}
           icon="folder"
         />
         <StatCard
-          label="Waiting on you"
+          label={copy.waitingOnYou}
           value={waitingOnYou}
-          caption="your move next"
+          caption={copy.yourMoveNext}
           icon="route"
           urgent
         />
         <StatCard
-          label="Unread messages"
+          label={copy.unreadMessages}
           value={unread}
-          caption="across all deals"
+          caption={copy.acrossAllDeals}
           icon="mail"
           urgent
         />
         <StatCard
-          label="Referral earnings"
+          label={copy.referralEarnings}
           value={formatCents(balance.availableCents)}
           caption={
-            balance.meetsMinimum
-              ? "ready to withdraw"
-              : `${formatCents(MINIMUM_WITHDRAWAL_CENTS)} minimum`
+            balance.meetsMinimum ? copy.readyToWithdraw : copy.minimum(formatCents(MINIMUM_WITHDRAWAL_CENTS))
           }
           icon="wallet"
           href="/referrals"
@@ -117,38 +120,37 @@ export default async function DashboardPage() {
       {deals.length > 0 ? (
         <div className="mt-3">
           <Breakdown
-            title="Where your deals stand"
-            caption="Every deal you have ever been part of, by stage."
-            segments={statusSegments(deals)}
+            title={copy.whereDealsStand}
+            caption={copy.everyDealByStage}
+            segments={statusSegments(deals, locale)}
           />
         </div>
       ) : null}
 
-      <h2 className="mb-3 mt-8 text-sm font-semibold">Your deals</h2>
+      <h2 className="mb-3 mt-8 text-sm font-semibold">{copy.yourDeals}</h2>
 
       <DataTable
-        caption="Every deal you are part of"
+        caption={copy.yourDeals}
         rows={deals}
         rowKey={(deal) => deal.id}
         rowHref={(deal) => `/deals/${deal.id}`}
-        columns={dealColumns(sideOf, isYourTurn)}
+        columns={dealColumns(sideOf, isYourTurn, copy, locale)}
         empty={
           <EmptyPanel
             icon="folder"
-            title="No deals yet"
-            action={{ href: "/deals/new", label: "Open a deal" }}
-            secondaryAction={{ href: "/deals/join", label: "I have a code" }}
+            title={copy.noDealsTitle}
+            action={{ href: "/deals/new", label: copy.openDeal }}
+            secondaryAction={{ href: "/deals/join", label: copy.haveCode }}
           >
-            Open one and send the invite code to the other person, or join a deal you were invited
-            to. Nothing is bought or sold here — you bring a deal you have already agreed.
+            {copy.noDealsBody}
           </EmptyPanel>
         }
       />
 
       <p className="mt-6 text-xs text-[var(--muted)]">
-        Not sure what happens next?{" "}
+        {copy.notSureLead}{" "}
         <Link href="/how-it-works" className="text-[var(--accent)] hover:underline">
-          Read how a trade works
+          {copy.notSureLink}
         </Link>
         .
       </p>
@@ -157,7 +159,7 @@ export default async function DashboardPage() {
 }
 
 /** The status mix, from the rows already on the page. No extra query. */
-function statusSegments(deals: DealRow[]): Segment[] {
+function statusSegments(deals: DealRow[], locale: Locale): Segment[] {
   const counts = new Map<DealStatus, number>();
 
   for (const deal of deals) {
@@ -166,7 +168,7 @@ function statusSegments(deals: DealRow[]): Segment[] {
 
   return [...counts.entries()]
     .map(([status, value]) => ({
-      label: DEAL_STATUS_LABEL[status],
+      label: dealStatusLabel(locale)[status],
       value,
       tone: DEAL_STATUS_TONE[status],
     }))
@@ -176,17 +178,19 @@ function statusSegments(deals: DealRow[]): Segment[] {
 function dealColumns(
   sideOf: (deal: DealRow) => "seller" | "buyer",
   isYourTurn: (deal: DealRow) => boolean,
+  copy: (typeof DASHBOARD_PAGE)["en"],
+  locale: Locale,
 ): Column<DealRow>[] {
   return [
     {
       key: "reference",
-      header: "Reference",
+      header: copy.colReference,
       primary: true,
       cell: (deal) => <span className="font-mono text-sm">{deal.reference}</span>,
     },
     {
       key: "account",
-      header: "Account",
+      header: copy.colAccount,
       cell: (deal) => (
         <span className="line-clamp-2 max-w-md text-xs text-[var(--muted)]">
           {deal.accountSummary}
@@ -195,14 +199,16 @@ function dealColumns(
     },
     {
       key: "side",
-      header: "Your side",
+      header: copy.colSide,
       cell: (deal) => {
         const side = sideOf(deal);
 
         return (
           <span className="flex flex-wrap items-center gap-1.5">
-            <Badge tone={side === "seller" ? "info" : "success"}>{side}</Badge>
-            {isYourTurn(deal) ? <Badge tone="warning">your turn</Badge> : null}
+            <Badge tone={side === "seller" ? "info" : "success"}>
+              {side === "seller" ? copy.sideSeller : copy.sideBuyer}
+            </Badge>
+            {isYourTurn(deal) ? <Badge tone="warning">{copy.yourTurn}</Badge> : null}
           </span>
         );
       },
@@ -212,14 +218,14 @@ function dealColumns(
       // there is no amount — so it now says what the trade actually is, and
       // only shows a figure for the archived cash deals that really had one.
       key: "trade",
-      header: "Trade",
+      header: copy.colTrade,
       align: "end",
       cell: (deal) => {
         if (deal.tradeKind === "swap") {
           return (
             <span className="whitespace-nowrap">
-              <span className="font-semibold">Swap</span>
-              <span className="block text-xs text-[var(--muted)]">account for account</span>
+              <span className="font-semibold">{copy.swap}</span>
+              <span className="block text-xs text-[var(--muted)]">{copy.swapCaption}</span>
             </span>
           );
         }
@@ -232,7 +238,7 @@ function dealColumns(
               {formatCents(isSeller ? deal.sellerPayoutCents : deal.agreedPriceCents, deal.currency)}
             </span>
             <span className="block text-xs text-[var(--muted)]">
-              {isSeller ? "you received" : "you paid"}
+              {isSeller ? copy.youReceived : copy.youPaid}
             </span>
           </span>
         );
@@ -240,11 +246,9 @@ function dealColumns(
     },
     {
       key: "status",
-      header: "Status",
+      header: copy.colStatus,
       align: "end",
-      cell: (deal) => (
-        <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABEL[deal.status]}</Badge>
-      ),
+      cell: (deal) => <Badge tone={DEAL_STATUS_TONE[deal.status]}>{dealStatusLabel(locale)[deal.status]}</Badge>,
     },
   ];
 }

@@ -8,11 +8,8 @@ import { AuthFormError } from "@/components/auth/form-alert";
 import { PasswordInput } from "@/components/auth/password-input";
 import { PasswordStrength } from "@/components/auth/password-strength";
 import { Button, Field, fieldDescribedBy, inputClassName } from "@/components/ui";
-
-/** Named once so the visible hint and its aria-describedby cannot disagree. */
-const NAME_HINT = "What the other party and the admin will see.";
-const PASSWORD_HINT = "At least 8 characters. Length matters more than symbols.";
-const REFERRAL_HINT = "Looks like PES-7F3K9Q. Whoever invited you has one.";
+import { REGISTER_FORM } from "@/lib/auth-copy";
+import type { Locale } from "@/lib/locale";
 
 /**
  * Create an account.
@@ -26,8 +23,15 @@ const REFERRAL_HINT = "Looks like PES-7F3K9Q. Whoever invited you has one.";
  * arriving that way should not have to copy anything by hand, and someone
  * arriving without it still gets an empty box they can paste into.
  */
-export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode?: string }) {
+export function RegisterForm({
+  initialReferralCode = "",
+  locale = "en",
+}: {
+  initialReferralCode?: string;
+  locale?: Locale;
+}) {
   const [state, formAction, pending] = useActionState(registerAction, undefined);
+  const copy = REGISTER_FORM[locale];
 
   // Held only to draw the meter. It is never submitted separately, never sent
   // anywhere, and dies with the component.
@@ -41,10 +45,10 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
           effort if the person does not have one, and finding that out after
           choosing a password is the worst moment to be told. */}
       <Field
-        label="Promoter's code"
+        label={copy.referralLabel}
         name="referralCode"
         error={state?.fieldErrors?.referralCode}
-        hint={REFERRAL_HINT}
+        hint={copy.referralHint}
       >
         <input
           id="referralCode"
@@ -57,19 +61,19 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
           defaultValue={state?.values?.referralCode ?? initialReferralCode}
           aria-invalid={Boolean(state?.fieldErrors?.referralCode) || undefined}
           aria-describedby={fieldDescribedBy("referralCode", {
-            hint: REFERRAL_HINT,
+            hint: copy.referralHint,
             error: state?.fieldErrors?.referralCode,
           })}
           className={`${inputClassName} font-mono uppercase tracking-wider`}
-          placeholder="PES-XXXXXX"
+          placeholder={copy.referralPlaceholder}
         />
       </Field>
 
       <Field
-        label="Display name"
+        label={copy.nameLabel}
         name="displayName"
         error={state?.fieldErrors?.displayName}
-        hint={NAME_HINT}
+        hint={copy.nameHint}
       >
         <input
           id="displayName"
@@ -80,15 +84,15 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
           defaultValue={state?.values?.displayName ?? ""}
           aria-invalid={Boolean(state?.fieldErrors?.displayName) || undefined}
           aria-describedby={fieldDescribedBy("displayName", {
-            hint: NAME_HINT,
+            hint: copy.nameHint,
             error: state?.fieldErrors?.displayName,
           })}
           className={inputClassName}
-          placeholder="Your name or handle"
+          placeholder={copy.namePlaceholder}
         />
       </Field>
 
-      <Field label="Email" name="email" error={state?.fieldErrors?.email}>
+      <Field label={copy.emailLabel} name="email" error={state?.fieldErrors?.email}>
         <input
           id="email"
           name="email"
@@ -99,15 +103,15 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
           aria-invalid={Boolean(state?.fieldErrors?.email) || undefined}
           aria-describedby={fieldDescribedBy("email", { error: state?.fieldErrors?.email })}
           className={inputClassName}
-          placeholder="you@example.com"
+          placeholder={copy.emailPlaceholder}
         />
       </Field>
 
       <Field
-        label="Password"
+        label={copy.passwordLabel}
         name="password"
         error={state?.fieldErrors?.password}
-        hint={PASSWORD_HINT}
+        hint={copy.passwordHint}
       >
         <PasswordInput
           name="password"
@@ -115,7 +119,7 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
           minLength={8}
           invalid={Boolean(state?.fieldErrors?.password)}
           describedBy={fieldDescribedBy("password", {
-            hint: PASSWORD_HINT,
+            hint: copy.passwordHint,
             error: state?.fieldErrors?.password,
           })}
           onValueChange={setPassword}
@@ -127,22 +131,18 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
           service, so choosing something memorable is not a preference — it is
           the difference between keeping the account and losing it. */}
       <p className="rounded-[var(--radius-control)] border border-[var(--tone-warning-border)] bg-[var(--tone-warning-bg)] px-3 py-2.5 text-xs leading-relaxed text-[var(--tone-warning)]">
-        <strong className="font-semibold">There is no password reset yet.</strong> Use a password
-        manager, or pick something you will not forget —{" "}
+        <strong className="font-semibold">{copy.noResetBold}</strong> {copy.noResetBody}{" "}
         <Link href="/forgot-password" className="underline">
-          recovering an account
+          {copy.noResetLink}
         </Link>{" "}
-        currently means contacting us.
+        {copy.noResetTail}
       </p>
 
       <Button type="submit" loading={pending} disabled={pending} block size="md">
-        {pending ? "Creating account…" : "Create account"}
+        {pending ? copy.creatingAccount : copy.createAccount}
       </Button>
 
-      <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
-        One account covers both sides of a swap — and comes with a promoter code of your own, so you
-        can earn from everyone you bring in.
-      </p>
+      <p className="text-center text-xs leading-relaxed text-[var(--muted)]">{copy.footNote}</p>
     </form>
   );
 }

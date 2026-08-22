@@ -6,6 +6,8 @@ import { adminSections } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { Alert, Card, SetupProblem } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_PAYMENT_METHODS_PAGE } from "@/lib/page-copy";
 
 export const metadata = { title: "Payment methods — admin" };
 
@@ -14,25 +16,22 @@ export default async function PaymentMethodsPage() {
 
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
+  const locale = await getLocale();
+  const copy = ADMIN_PAYMENT_METHODS_PAGE[locale];
+
   const methods = await listAllPaymentMethods();
   const providers = listProviders();
 
   return (
-    <DashShell
-      groups={adminSections({})}
-      title="Payment methods"
-      description="What buyers are told to pay to. There is no gateway — you check the wallet or bank account yourself and confirm each payment by hand."
-    >
+    <DashShell groups={adminSections({})} title={copy.title} description={copy.description}>
       <div className="max-w-3xl">
         <Alert tone="warning" className="mb-4">
-          The seeded addresses are placeholders. Replace them with your own before taking real money
-          — a buyer paying a placeholder address loses their funds permanently.
+          {copy.placeholderWarning}
         </Alert>
 
         {methods.length === 0 ? (
-          <EmptyPanel icon="card" title="No payment methods yet">
-            Until one is active, a buyer opening a deal has nowhere to send money. Add your first
-            below.
+          <EmptyPanel icon="card" title={copy.noneYetTitle}>
+            {copy.noneYetBody}
           </EmptyPanel>
         ) : (
           <div className="space-y-3">
@@ -43,7 +42,7 @@ export default async function PaymentMethodsPage() {
         )}
 
         <Card className="mt-6">
-          <h2 className="mb-4 text-sm font-semibold">Add a method</h2>
+          <h2 className="mb-4 text-sm font-semibold">{copy.addMethod}</h2>
           <PaymentMethodForm providers={providers} />
         </Card>
       </div>

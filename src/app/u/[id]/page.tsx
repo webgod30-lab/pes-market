@@ -8,6 +8,8 @@ import { Breakdown, type Segment } from "@/components/dashboard/breakdown";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
 import { Card } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { PROFILE_PAGE } from "@/lib/page-copy";
 
 /** Per request, not prerendered — see the note in /reviews. */
 export const dynamic = "force-dynamic";
@@ -62,6 +64,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   if (!profile) notFound();
 
   const { reputation } = profile;
+  const locale = await getLocale();
+  const copy = PROFILE_PAGE[locale];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -71,38 +75,34 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{profile.displayName}</h1>
           <p className="mt-0.5 text-sm text-[var(--muted)]">
-            Trading here since{" "}
+            {copy.tradingSince}{" "}
             <time dateTime={profile.joinedAt.toISOString()}>
-              {profile.joinedAt.toLocaleDateString("en-GB")}
+              {profile.joinedAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB")}
             </time>
           </p>
           <div className="mt-1.5">
-            <ReputationLine reputation={reputation} />
+            <ReputationLine reputation={reputation} locale={locale} />
           </div>
         </div>
       </header>
 
       <StatGrid columns={3}>
         <StatCard
-          label="Overall"
+          label={copy.overall}
           value={reputation.average ? `${reputation.average.toFixed(1)} ★` : "—"}
-          caption={`${reputation.count} review${reputation.count === 1 ? "" : "s"}`}
+          caption={copy.reviewCount(reputation.count)}
           icon="star"
         />
         <StatCard
-          label="As a seller"
+          label={copy.asSeller}
           value={reputation.asSeller.average ? `${reputation.asSeller.average.toFixed(1)} ★` : "—"}
-          caption={`${reputation.completedSales} sale${
-            reputation.completedSales === 1 ? "" : "s"
-          } completed`}
+          caption={copy.salesCompleted(reputation.completedSales)}
           icon="payout"
         />
         <StatCard
-          label="As a buyer"
+          label={copy.asBuyer}
           value={reputation.asBuyer.average ? `${reputation.asBuyer.average.toFixed(1)} ★` : "—"}
-          caption={`${reputation.completedPurchases} purchase${
-            reputation.completedPurchases === 1 ? "" : "s"
-          } completed`}
+          caption={copy.purchasesCompleted(reputation.completedPurchases)}
           icon="wallet"
         />
       </StatGrid>
@@ -110,19 +110,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       {profile.reviews.length > 0 ? (
         <div className="mt-3">
           <Breakdown
-            title="How the ratings fall"
-            caption="An average hides whether the low ones are rare or routine."
-            segments={ratingSpread(profile.reviews)}
+            title={copy.ratingSpreadTitle}
+            caption={copy.ratingSpreadCaption}
+            segments={ratingSpread(profile.reviews, copy)}
           />
         </div>
       ) : null}
 
-      <h2 className="mb-3 mt-8 text-sm font-semibold">Reviews</h2>
+      <h2 className="mb-3 mt-8 text-sm font-semibold">{copy.reviewsHeading}</h2>
 
       {profile.reviews.length === 0 ? (
-        <EmptyPanel icon="star" title={`No reviews for ${profile.displayName} yet`}>
-          That is not a bad sign on its own — it just means there is no record to go on. Both sides
-          review each other after every completed deal, so this fills up once they trade.
+        <EmptyPanel icon="star" title={copy.noReviewsTitle(profile.displayName)}>
+          {copy.noReviewsBody}
         </EmptyPanel>
       ) : (
         <ul className="space-y-2">
@@ -132,9 +131,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Stars rating={review.rating} />
                   <span className="text-xs text-[var(--muted)]">
-                    as {review.subjectSide} ·{" "}
+                    {copy.asSide} {review.subjectSide === "seller" ? copy.seller : copy.buyer} ·{" "}
                     <time dateTime={review.createdAt.toISOString()}>
-                      {review.createdAt.toLocaleDateString("en-GB")}
+                      {review.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB")}
                     </time>
                   </span>
                 </div>
@@ -142,10 +141,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                 {review.comment ? (
                   <blockquote className="mt-2 text-sm leading-relaxed">{review.comment}</blockquote>
                 ) : (
-                  <p className="mt-2 text-sm italic text-[var(--muted)]">No comment left.</p>
+                  <p className="mt-2 text-sm italic text-[var(--muted)]">{copy.noComment}</p>
                 )}
 
-                <p className="mt-2 text-xs text-[var(--muted)]">by {review.authorName}</p>
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  {copy.by} {review.authorName}
+                </p>
               </Card>
             </li>
           ))}
@@ -160,7 +161,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           href="/reviews"
           className="inline-flex min-h-9 items-center text-[var(--accent)] hover:underline"
         >
-          All reviews across the service
+          {copy.allReviewsLink}
         </Link>
       </p>
     </div>
@@ -168,9 +169,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 }
 
 /** Five buckets, best first, from the reviews already fetched. */
-function ratingSpread(reviews: { rating: number }[]): Segment[] {
+function ratingSpread(reviews: { rating: number }[], copy: (typeof PROFILE_PAGE)["en"]): Segment[] {
   return [5, 4, 3, 2, 1].map((rating) => ({
-    label: `${rating} star${rating === 1 ? "" : "s"}`,
+    label: copy.star(rating),
     value: reviews.filter((review) => review.rating === rating).length,
     // Anything at three or below is what a reader is scanning for, so it is not
     // drawn in the same colour as a good review.

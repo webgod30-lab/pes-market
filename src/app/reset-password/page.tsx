@@ -3,6 +3,8 @@ import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { NoResetNotice, RecoveryRoutes } from "@/components/auth/recovery-routes";
 import { Alert } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { RESET_PASSWORD_PAGE } from "@/lib/auth-copy";
 
 export const metadata = {
   title: "Reset password",
@@ -45,41 +47,38 @@ export default async function ResetPasswordPage({
   // into the document body.
   const arrivedFromLink = typeof token === "string" && token.length > 0;
 
+  const locale = await getLocale();
+  const copy = RESET_PASSWORD_PAGE[locale];
+
   return (
     <AuthShell
-      title={arrivedFromLink ? "That link did not come from us" : "Reset your password"}
-      subtitle={
-        arrivedFromLink
-          ? "Do not enter your password on the page that sent you here."
-          : "There is no automated reset on this service — here is what does work."
-      }
+      title={arrivedFromLink ? copy.titleForged : copy.titleDefault}
+      subtitle={arrivedFromLink ? copy.subtitleForged : copy.subtitleDefault}
       footer={
         <>
-          Go to{" "}
+          {copy.goTo}{" "}
           <Link href="/login" className="font-medium text-[var(--accent)] hover:underline">
-            sign in
+            {copy.signInInstead}
           </Link>{" "}
-          instead
+          {copy.instead}
         </>
       }
-      aside="Your password is only ever typed on pesescrow.com. Check the address bar before you type it anywhere."
+      aside={copy.aside}
     >
       <div className="space-y-4">
         {arrivedFromLink ? (
-          <Alert tone="danger" title="This service has never sent a password reset email.">
-            It cannot — there is no mail provider connected to it and no reset link is ever
-            generated. Whatever sent you here is impersonating us. Do not enter your password or
-            your recovery codes anywhere it asks. If you already have, change your password from{" "}
+          <Alert tone="danger" title={copy.alertTitle}>
+            {copy.alertBody}{" "}
             <Link href="/settings/security" className="underline">
-              your security settings
+              {copy.alertSecurity}
             </Link>{" "}
-            as soon as you can sign in, and tell us.
+            {copy.alertTail}
           </Alert>
         ) : (
-          <NoResetNotice />
+          <NoResetNotice locale={locale} />
         )}
 
-        <RecoveryRoutes />
+        <RecoveryRoutes locale={locale} />
       </div>
     </AuthShell>
   );

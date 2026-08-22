@@ -8,7 +8,7 @@ import type { Locale } from "@/lib/locale";
 import { loadDealForViewer, type DealView, type DealViewerRole } from "@/lib/deals";
 import { listActivePaymentMethods, type PaymentMethodView } from "@/lib/payment-methods";
 import { formatCents } from "@/lib/money";
-import { DEAL_STATUS_LABEL, PRE_PAYMENT_STATUSES } from "@/lib/deal-status";
+import { PRE_PAYMENT_STATUSES, dealStatusLabel } from "@/lib/deal-status";
 import { DealTimeline } from "@/components/trade/timeline";
 import { TradeHistory } from "@/components/trade/history";
 import { StatusBadge, TurnBadge } from "@/components/trade/status-badge";
@@ -130,15 +130,22 @@ export default async function DealPage({
           </p>
           {counterparty && counterpartyReputation ? (
             <div className="mt-1.5">
-              <ReputationLine reputation={counterpartyReputation} name={counterparty.displayName} />
+              <ReputationLine reputation={counterpartyReputation} name={counterparty.displayName} locale={locale} />
             </div>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isParty ? <Badge tone={role === "seller" ? "info" : "success"}>you are the {role}</Badge> : null}
           {role === "admin" ? <Badge tone="warning">admin view</Badge> : null}
-          <StatusBadge status={deal.status} side={isParty ? role : undefined} tradeKind={deal.tradeKind} />
-          {isParty ? <TurnBadge status={deal.status} side={role} tradeKind={deal.tradeKind} /> : null}
+          <StatusBadge
+            status={deal.status}
+            side={isParty ? role : undefined}
+            tradeKind={deal.tradeKind}
+            locale={locale}
+          />
+          {isParty ? (
+            <TurnBadge status={deal.status} side={role} tradeKind={deal.tradeKind} locale={locale} />
+          ) : null}
         </div>
       </div>
 
@@ -716,7 +723,7 @@ function NextStep({
     default:
       return (
         <Card>
-          <h2 className="text-sm font-semibold">{DEAL_STATUS_LABEL[deal.status]}</h2>
+          <h2 className="text-sm font-semibold">{dealStatusLabel(locale)[deal.status]}</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">The admin is handling this deal.</p>
         </Card>
       );

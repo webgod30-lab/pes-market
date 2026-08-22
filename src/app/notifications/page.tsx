@@ -11,6 +11,9 @@ import { NavIcon, type NavIconName } from "@/components/nav/nav-icons";
 import { StatusBadge } from "@/components/trade/status-badge";
 import { cn, SetupProblem } from "@/components/ui";
 import type { DealStatus } from "@/generated/prisma/client";
+import { getLocale } from "@/lib/locale-server";
+import { NOTIFICATIONS_PAGE } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 export const metadata = { title: "Notifications" };
 
@@ -41,6 +44,8 @@ export default async function NotificationsPage() {
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
   const user = auth.user;
+  const locale = await getLocale();
+  const copy = NOTIFICATIONS_PAGE[locale];
 
   const [deals, unread] = await Promise.all([
     listDealsForUser(user.id),
@@ -62,17 +67,12 @@ export default async function NotificationsPage() {
   return (
     <DashShell
       groups={traderSections({ waiting: yourTurn.length })}
-      title="Notifications"
-      description={
-        total === 0
-          ? "Nothing is waiting on you."
-          : `${total} thing${total === 1 ? "" : "s"} want your attention.`
-      }
+      title={copy.title}
+      description={total === 0 ? copy.nothingWaiting : copy.thingsWantAttention(total)}
     >
       {total === 0 && awaitingJoin.length === 0 ? (
-        <EmptyPanel icon="inbox" title="You are all caught up" tone="positive">
-          No deal is waiting on you, nothing is frozen, and there are no unread messages. Anything
-          still running is waiting on the other person or on the admin.
+        <EmptyPanel icon="inbox" title={copy.caughtUpTitle} tone="positive">
+          {copy.caughtUpBody}
         </EmptyPanel>
       ) : (
         <div className="space-y-2">
@@ -82,10 +82,11 @@ export default async function NotificationsPage() {
               href={`/deals/${deal.id}`}
               icon="scales"
               tone="danger"
-              title={`${deal.reference} is frozen by a dispute`}
-              body="Nothing moves — no credentials, no payout — until the admin decides it. Anything you can add to the record helps."
+              title={copy.disputedTitle(deal.reference)}
+              body={copy.disputedBody}
               status={deal.status}
               side={sideOf(deal)}
+              locale={locale}
             />
           ))}
 
@@ -94,10 +95,11 @@ export default async function NotificationsPage() {
               href="/dashboard"
               icon="mail"
               tone="warning"
-              title={`${unread} unread message${unread === 1 ? "" : "s"}`}
+              title={copy.unreadTitle(unread)}
               // Deliberately not per-deal: the count available here is a total,
               // and inventing a breakdown from it would be a guess.
-              body="Across all your deals. Open the deal to read them — messages on a deal are part of its record."
+              body={copy.unreadBody}
+              locale={locale}
             />
           ) : null}
 
@@ -107,10 +109,11 @@ export default async function NotificationsPage() {
               href={`/deals/${deal.id}`}
               icon="route"
               tone="warning"
-              title={`${deal.reference} — ${ACTION[deal.status] ?? "your move"}`}
+              title={`${deal.reference} — ${action(copy, deal.status) ?? copy.yourMove}`}
               body={deal.accountSummary}
               status={deal.status}
               side={sideOf(deal)}
+              locale={locale}
             />
           ))}
 
@@ -120,35 +123,38 @@ export default async function NotificationsPage() {
               href={`/deals/${deal.id}`}
               icon="ticket"
               tone="neutral"
-              title={`${deal.reference} is waiting for the other person`}
-              body="Send them the invite code from the deal page. Nothing happens until they join."
+              title={copy.awaitingJoinTitle(deal.reference)}
+              body={copy.awaitingJoinBody}
               status={deal.status}
               side={sideOf(deal)}
+              locale={locale}
             />
           ))}
         </div>
       )}
 
       <p className="mt-6 text-xs leading-relaxed text-[var(--muted)]">
-        This page is built from the current state of your deals, not from stored alerts — there is
-        nothing to mark as read, and items disappear once the thing they describe is done. This
-        service does not send email; see{" "}
+        {copy.footLead}{" "}
         <Link href="/faq" className="text-[var(--accent)] hover:underline">
-          the FAQ
+          {copy.footLink}
         </Link>{" "}
-        for what that means if you go quiet mid-deal.
+        {copy.footTail}
       </p>
     </DashShell>
   );
 }
 
 /** What "your turn" concretely means, per status. */
-const ACTION: Partial<Record<DealStatus, string>> = {
-  awaiting_credentials: "deposit the account",
-  awaiting_payment: "pay into escrow",
-  credentials_released: "claim the account",
-  claiming: "confirm you have it",
-};
+function action(copy: (typeof NOTIFICATIONS_PAGE)["en"], status: DealStatus): string | undefined {
+  const map: Partial<Record<DealStatus, string>> = {
+    awaiting_credentials: copy.actionDepositAccount,
+    awaiting_payment: copy.actionPayEscrow,
+    credentials_released: copy.actionClaimAccount,
+    claiming: copy.actionConfirm,
+  };
+
+  return map[status];
+}
 
 const TONE_RING: Record<string, string> = {
   danger: "border-[var(--tone-danger-border)] bg-[var(--tone-danger-bg)] text-[var(--tone-danger)]",
@@ -165,6 +171,7 @@ function Item({
   body,
   status,
   side,
+  locale = "en",
 }: {
   href: string;
   icon: NavIconName;
@@ -173,6 +180,7 @@ function Item({
   body: string;
   status?: DealStatus;
   side?: "seller" | "buyer";
+  locale?: Locale;
 }) {
   return (
     <Link
@@ -192,7 +200,7 @@ function Item({
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">{title}</span>
-          {status && side ? <StatusBadge status={status} side={side} size="sm" /> : null}
+          {status && side ? <StatusBadge status={status} side={side} size="sm" locale={locale} /> : null}
         </span>
         <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-[var(--muted)]">
           {body}

@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/login-form";
 import { getCurrentUserQuietly } from "@/lib/dal";
+import { getLocale } from "@/lib/locale-server";
+import { LOGIN_PAGE } from "@/lib/auth-copy";
 
 export const metadata = {
   title: "Sign in",
@@ -35,25 +37,24 @@ export default async function LoginPage({
   // dumping you on the dashboard.
   if (user) redirect(safeNext ?? (user.role === "admin" ? "/admin" : "/dashboard"));
 
+  const locale = await getLocale();
+  const copy = LOGIN_PAGE[locale];
+
   return (
     <AuthShell
-      title="Welcome back"
-      subtitle={
-        safeNext
-          ? "Sign in to continue to where you were headed."
-          : "Sign in to see your deals and what each one is waiting on."
-      }
+      title={copy.title}
+      subtitle={safeNext ? copy.subtitleNext : copy.subtitleDefault}
       footer={
         <>
-          No account yet?{" "}
+          {copy.noAccount}{" "}
           <Link href="/register" className="font-medium text-[var(--accent)] hover:underline">
-            Create one
+            {copy.createOne}
           </Link>
         </>
       }
-      aside="We will never ask for your password anywhere except this page. Check the address bar before typing it."
+      aside={copy.aside}
     >
-      <LoginForm next={safeNext} />
+      <LoginForm next={safeNext} locale={locale} />
     </AuthShell>
   );
 }

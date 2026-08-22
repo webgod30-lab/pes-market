@@ -1,6 +1,22 @@
-import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE, isTurnOf, nextActorFor } from "@/lib/deal-status";
+import { DEAL_STATUS_TONE, dealStatusLabel, isTurnOf, nextActorFor } from "@/lib/deal-status";
 import { cn, TONE_SURFACE, type Tone } from "@/components/ui";
 import type { DealSide, DealStatus, TradeKind } from "@/generated/prisma/client";
+import type { Locale } from "@/lib/locale";
+
+const TURN_BADGE_TEXT: Record<Locale, { yourTurn: string; withAdmin: string; waitingCounterparty: string; waitingOther: string }> = {
+  en: {
+    yourTurn: "Your turn",
+    withAdmin: "With the admin",
+    waitingCounterparty: "Waiting for them to join",
+    waitingOther: "Waiting on the other person",
+  },
+  ar: {
+    yourTurn: "دورك الآن",
+    withAdmin: "لدى المشرف",
+    waitingCounterparty: "بانتظار انضمامهم",
+    waitingOther: "بانتظار الطرف الآخر",
+  },
+};
 
 /**
  * The status of a deal, said properly.
@@ -20,6 +36,7 @@ export function StatusBadge({
   side,
   size = "md",
   tradeKind = "cash",
+  locale = "en",
 }: {
   status: DealStatus;
   /** The viewer's side, when they are a party. Omitted for the admin view. */
@@ -27,6 +44,7 @@ export function StatusBadge({
   size?: "sm" | "md";
   /** A swap waits on both sides at once, which changes whose turn it is. */
   tradeKind?: TradeKind;
+  locale?: Locale;
 }) {
   const tone = DEAL_STATUS_TONE[status];
   const yourTurn = isTurnOf(status, side, tradeKind);
@@ -40,7 +58,7 @@ export function StatusBadge({
       )}
     >
       <StatusDot tone={tone} pulse={yourTurn} settled={isSettled(status)} />
-      {DEAL_STATUS_LABEL[status]}
+      {dealStatusLabel(locale)[status]}
     </span>
   );
 }
@@ -88,12 +106,15 @@ export function TurnBadge({
   status,
   side,
   tradeKind = "cash",
+  locale = "en",
 }: {
   status: DealStatus;
   side: DealSide;
   tradeKind?: TradeKind;
+  locale?: Locale;
 }) {
   const actor = nextActorFor(status, tradeKind);
+  const say = TURN_BADGE_TEXT[locale];
 
   if (actor === side || actor === "both") {
     return (
@@ -102,20 +123,20 @@ export function TurnBadge({
           <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-60 motion-reduce:animate-none" />
           <span className="size-2 rounded-full bg-current" />
         </span>
-        Your turn
+        {say.yourTurn}
       </span>
     );
   }
 
-  if (actor === "admin") return <Waiting>With the admin</Waiting>;
+  if (actor === "admin") return <Waiting>{say.withAdmin}</Waiting>;
 
   // null means the deal has stopped — settled, refunded or cancelled. Nobody is
   // being waited on, so saying "waiting" would be wrong.
   if (actor === null) return null;
 
-  if (actor === "counterparty") return <Waiting>Waiting for them to join</Waiting>;
+  if (actor === "counterparty") return <Waiting>{say.waitingCounterparty}</Waiting>;
 
-  return <Waiting>Waiting on the other person</Waiting>;
+  return <Waiting>{say.waitingOther}</Waiting>;
 }
 
 function Waiting({ children }: { children: React.ReactNode }) {

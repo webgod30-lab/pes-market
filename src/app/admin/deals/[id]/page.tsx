@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUserOrProblem } from "@/lib/dal";
 import { loadDealForViewer } from "@/lib/deals";
 import { formatCents } from "@/lib/money";
-import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE } from "@/lib/deal-status";
+import { DEAL_STATUS_TONE, dealStatusLabel } from "@/lib/deal-status";
 import { revealCounterForAdminAction, revealForAdminAction } from "@/app/actions/admin-actions";
 import { listMessages } from "@/lib/messages";
 import { getDisputeForDeal } from "@/lib/disputes";
@@ -28,6 +28,8 @@ import {
   RefundButton,
 } from "@/components/admin-deal-actions";
 import { Badge, Card, SetupProblem } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_DEAL_DETAIL } from "@/lib/page-copy";
 
 export const metadata = { title: "Deal — admin" };
 
@@ -42,6 +44,8 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
   if (!result) notFound();
 
   const { deal } = result;
+  const locale = await getLocale();
+  const copy = ADMIN_DEAL_DETAIL[locale];
 
   const [messages, dispute, sellerReputation, buyerReputation, transferCodes] = await Promise.all([
     listMessages(deal.id, auth.user),
@@ -63,16 +67,19 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
     >
       <div className="max-w-3xl">
       <div className="mb-6 flex flex-wrap gap-2">
-        <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABEL[deal.status]}</Badge>
+        <Badge tone={DEAL_STATUS_TONE[deal.status]}>{dealStatusLabel(locale)[deal.status]}</Badge>
         {deal.tradeKind === "swap" ? (
-          <Badge tone="info">account for account · no money, no fee</Badge>
+          <Badge tone="info">{copy.swapBadge}</Badge>
         ) : (
           // A deal from the retired cash flow. The figures are shown as they
           // were actually charged at the time, not as today's rules would have
           // it — this is the record of what these two people agreed to.
           <Badge tone="neutral">
-            archived cash deal · {formatCents(deal.agreedPriceCents, deal.currency)} · cut{" "}
-            {formatCents(deal.feeCents, deal.currency)} ({(deal.feeBps / 100).toFixed(1)}%)
+            {copy.archivedBadge(
+              formatCents(deal.agreedPriceCents, deal.currency),
+              formatCents(deal.feeCents, deal.currency),
+              (deal.feeBps / 100).toFixed(1),
+            )}
           </Badge>
         )}
       </div>
@@ -81,7 +88,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
           arbitrating a dispute actually needs — who did what, and when. */}
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-3 text-sm font-semibold">Progress</h2>
+          <h2 className="mb-3 text-sm font-semibold">{copy.progress}</h2>
           <DealTimeline
             status={deal.status}
             tradeKind={deal.tradeKind}
@@ -96,7 +103,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold">History</h2>
+          <h2 className="mb-3 text-sm font-semibold">{copy.history}</h2>
           <TradeHistory facts={deal} />
         </Card>
       </div>
@@ -105,18 +112,18 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       {dispute ? (
         <Card className="mt-6 border-red-500/30">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Dispute: {dispute.reason}</h2>
+            <h2 className="text-sm font-semibold">{copy.disputeTitle(dispute.reason)}</h2>
             <Badge tone={disputeIsOpen ? "danger" : "neutral"}>{dispute.status}</Badge>
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Opened by {dispute.openedBy.displayName} on{" "}
-            {dispute.createdAt.toLocaleString("en-GB")}
+            {copy.openedBy(dispute.openedBy.displayName)}{" "}
+            {dispute.createdAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}
           </p>
           <p className="mt-3 whitespace-pre-line text-sm">{dispute.description}</p>
 
           {dispute.resolution ? (
             <div className="mt-4 border-t border-[var(--border)] pt-4">
-              <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Your decision</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--muted)]">{copy.yourDecision}</p>
               <p className="mt-1 whitespace-pre-line text-sm">{dispute.resolution}</p>
             </div>
           ) : null}
@@ -126,8 +133,8 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
               <div className="mt-5 border-t border-[var(--border)] pt-4">
                 <ResolveDisputeForm
                   dealId={deal.id}
-                  buyerName={deal.buyer?.displayName ?? "the buyer"}
-                  sellerName={deal.seller?.displayName ?? "the seller"}
+                  buyerName={deal.buyer?.displayName ?? copy.theBuyer}
+                  sellerName={deal.seller?.displayName ?? copy.theSeller}
                   refundLabel={formatCents(deal.agreedPriceCents, deal.currency)}
                   payoutLabel={formatCents(deal.sellerPayoutCents, deal.currency)}
                 />
@@ -142,23 +149,23 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
 
       {/* --- who these two are --- */}
       <Card className="mt-3">
-        <h2 className="text-sm font-semibold">The parties</h2>
+        <h2 className="text-sm font-semibold">{copy.theParties}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
-            <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Seller</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--muted)]">{copy.seller}</p>
             <p className="mt-1 text-sm font-medium">{deal.seller?.displayName ?? "—"}</p>
             {sellerReputation ? (
               <div className="mt-1">
-                <ReputationLine reputation={sellerReputation} />
+                <ReputationLine reputation={sellerReputation} locale={locale} />
               </div>
             ) : null}
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Buyer</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--muted)]">{copy.buyer}</p>
             <p className="mt-1 text-sm font-medium">{deal.buyer?.displayName ?? "—"}</p>
             {buyerReputation ? (
               <div className="mt-1">
-                <ReputationLine reputation={buyerReputation} />
+                <ReputationLine reputation={buyerReputation} locale={locale} />
               </div>
             ) : null}
           </div>
@@ -166,7 +173,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       </Card>
 
       <Card className="mt-3">
-        <h2 className="text-sm font-semibold">What the seller promised</h2>
+        <h2 className="text-sm font-semibold">{copy.sellerPromised}</h2>
         <p className="mt-2 text-sm leading-relaxed">{deal.accountSummary}</p>
         <p className="mt-2 text-xs text-[var(--muted)]">
           {deal.game}
@@ -177,13 +184,11 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
         {/* On a swap there is a second promise to check against. */}
         {deal.tradeKind === "swap" ? (
           <div className="mt-4 border-t border-[var(--border)] pt-4">
-            <h3 className="text-sm font-semibold">What the buyer promised</h3>
+            <h3 className="text-sm font-semibold">{copy.buyerPromised}</h3>
             <p className="mt-2 text-sm leading-relaxed">
-              {deal.counterAccountSummary ?? "Not described."}
+              {deal.counterAccountSummary ?? copy.notDescribed}
             </p>
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              Account-for-account swap — no money, no fee. Both accounts release together.
-            </p>
+            <p className="mt-2 text-xs text-[var(--muted)]">{copy.swapNote}</p>
           </div>
         ) : null}
       </Card>
@@ -191,16 +196,18 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       {/* --- payment --- */}
       {deal.paymentSubmittedAt ? (
         <Card className="mt-3">
-          <h2 className="text-sm font-semibold">What the buyer says they sent</h2>
+          <h2 className="text-sm font-semibold">{copy.buyerSentTitle}</h2>
           <dl className="mt-3 space-y-1.5 text-xs">
-            <Row label="Submitted">{deal.paymentSubmittedAt.toLocaleString("en-GB")}</Row>
+            <Row label={copy.submitted}>
+              {deal.paymentSubmittedAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}
+            </Row>
             {deal.paymentTxHash ? (
-              <Row label="Transaction">
+              <Row label={copy.transaction}>
                 <span className="break-all font-mono">{deal.paymentTxHash}</span>
               </Row>
             ) : null}
             {deal.paymentReference ? (
-              <Row label="Reference">
+              <Row label={copy.reference}>
                 <span className="break-all">{deal.paymentReference}</span>
               </Row>
             ) : null}
@@ -208,7 +215,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
           {deal.paymentInstructionsSnapshot ? (
             <details className="mt-3">
               <summary className="cursor-pointer text-xs text-[var(--muted)]">
-                What they were told to pay (frozen at submission)
+                {copy.whatTheyPaidSnapshot}
               </summary>
               <pre className="mt-2 whitespace-pre-wrap rounded-md bg-[var(--surface-2)] p-3 text-xs">
                 {deal.paymentInstructionsSnapshot}
@@ -221,7 +228,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       {/* --- the actions, in the order they happen --- */}
       {deal.status === "payment_submitted" ? (
         <Card className="mt-3">
-          <h2 className="mb-3 text-sm font-semibold">1. Confirm the money arrived</h2>
+          <h2 className="mb-3 text-sm font-semibold">{copy.step1ConfirmPayment}</h2>
           <ConfirmPaymentButton dealId={deal.id} />
         </Card>
       ) : null}
@@ -229,34 +236,25 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       {deal.status === "admin_verifying" ? (
         <>
           <Card className="mt-3">
-            <h2 className="text-sm font-semibold">2. Check the account works</h2>
-            <p className="mt-2 mb-4 text-sm text-[var(--muted)]">
-              Log in and confirm it matches the description above. This is the only protection the
-              buyer has.
-            </p>
+            <h2 className="text-sm font-semibold">{copy.step2CheckAccount}</h2>
+            <p className="mt-2 mb-4 text-sm text-[var(--muted)]">{copy.step2Body}</p>
             <CredentialsPanel
               dealId={deal.id}
               action={revealForAdminAction}
-              revealLabel={
-                deal.tradeKind === "swap"
-                  ? "Reveal the seller's account"
-                  : "Reveal the account details"
-              }
-              note="Decrypted only for this request. Not logged, not stored anywhere else."
+              revealLabel={deal.tradeKind === "swap" ? copy.revealSeller : copy.revealAccount}
+              note={copy.decryptNote}
             />
 
             {/* A swap has two accounts and both are released at once, so both
                 have to be checked before either moves. */}
             {deal.tradeKind === "swap" ? (
               <div className="mt-4 border-t border-[var(--border)] pt-4">
-                <p className="mb-3 text-sm text-[var(--muted)]">
-                  This is a swap. Check the buyer&apos;s account too — both are handed over together.
-                </p>
+                <p className="mb-3 text-sm text-[var(--muted)]">{copy.swapCheckBuyerToo}</p>
                 <CredentialsPanel
                   dealId={deal.id}
                   action={revealCounterForAdminAction}
-                  revealLabel="Reveal the buyer's account"
-                  note="Decrypted only for this request. Not logged, not stored anywhere else."
+                  revealLabel={copy.revealBuyer}
+                  note={copy.decryptNote}
                 />
               </div>
             ) : null}
@@ -267,7 +265,7 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
           </Card>
 
           <Card className="mt-3">
-            <h2 className="mb-3 text-sm font-semibold">3. Release it to the buyer</h2>
+            <h2 className="mb-3 text-sm font-semibold">{copy.step3Release}</h2>
             <ApproveDeliveryButton dealId={deal.id} />
           </Card>
         </>
@@ -275,9 +273,9 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
 
       {deal.verification?.lastVerifiedAt ? (
         <Card className="mt-3">
-          <h2 className="text-sm font-semibold">Your verification note</h2>
+          <h2 className="text-sm font-semibold">{copy.yourVerificationNote}</h2>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            {deal.verification.lastVerifiedAt.toLocaleString("en-GB")}
+            {deal.verification.lastVerifiedAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}
           </p>
           <p className="mt-2 whitespace-pre-line text-sm">{deal.verification.note}</p>
         </Card>
@@ -287,21 +285,17 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
           the code lands in the seller's inbox, so only they can supply it. */}
       {transferCodes ? (
         <Card className="mt-3">
-          <h2 className="text-sm font-semibold">Konami verification codes</h2>
-          <p className="mt-1 mb-4 text-xs text-[var(--muted)]">
-            The buyer cannot finish the transfer without these, and only the seller receives them.
-            If one has gone unanswered, chase the seller — do not invent a code.
-          </p>
+          <h2 className="text-sm font-semibold">{copy.konamiCodesTitle}</h2>
+          <p className="mt-1 mb-4 text-xs text-[var(--muted)]">{copy.konamiCodesBody}</p>
           <TransferCodePanel dealId={deal.id} codes={transferCodes} role="admin" />
         </Card>
       ) : null}
 
       {deal.status === "completed" && !deal.payoutAt ? (
         <Card className="mt-3">
-          <h2 className="mb-3 text-sm font-semibold">4. Pay the seller</h2>
+          <h2 className="mb-3 text-sm font-semibold">{copy.step4PaySeller}</h2>
           <p className="mb-4 text-sm text-[var(--muted)]">
-            The buyer confirmed. Send {formatCents(deal.sellerPayoutCents, deal.currency)} to{" "}
-            {deal.seller?.displayName}, then record it.
+            {copy.step4Body(formatCents(deal.sellerPayoutCents, deal.currency), deal.seller?.displayName ?? "")}
           </p>
           <MarkPayoutForm
             dealId={deal.id}
@@ -312,10 +306,10 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
 
       {deal.payoutAt ? (
         <Card className="mt-3">
-          <h2 className="text-sm font-semibold">Settled</h2>
+          <h2 className="text-sm font-semibold">{copy.settled}</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Paid out {deal.payoutAt.toLocaleString("en-GB")}
-            {deal.payoutReference ? ` · ref ${deal.payoutReference}` : ""}
+            {copy.paidOut(deal.payoutAt.toLocaleString(locale === "ar" ? "ar" : "en-GB"))}
+            {deal.payoutReference ? ` · ${copy.ref} ${deal.payoutReference}` : ""}
           </p>
         </Card>
       ) : null}
@@ -325,14 +319,14 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
         deal.status,
       ) ? (
         <Card className="mt-3 border-red-500/20">
-          <h2 className="mb-3 text-sm font-semibold">Something went wrong?</h2>
+          <h2 className="mb-3 text-sm font-semibold">{copy.somethingWrong}</h2>
           <RefundButton dealId={deal.id} />
         </Card>
       ) : null}
 
       {deal.status === "completed" && !deal.payoutAt ? (
         <Card className="mt-3 border-red-500/20">
-          <h2 className="mb-3 text-sm font-semibold">Override</h2>
+          <h2 className="mb-3 text-sm font-semibold">{copy.override}</h2>
           <ForceRefundForm
             dealId={deal.id}
             amountLabel={formatCents(deal.agreedPriceCents, deal.currency)}
@@ -342,18 +336,15 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
 
       {PRE_PAYMENT_STATUSES.includes(deal.status) ? (
         <Card className="mt-3 border-[var(--border)]">
-          <h2 className="mb-3 text-sm font-semibold">Stalled deal</h2>
+          <h2 className="mb-3 text-sm font-semibold">{copy.stalledDeal}</h2>
           <ForceCancelForm dealId={deal.id} />
         </Card>
       ) : null}
 
       {messages ? (
         <Card className="mt-3">
-          <h2 className="text-sm font-semibold">Messages</h2>
-          <p className="mt-1 mb-4 text-xs text-[var(--muted)]">
-            Everything the two parties have said, plus your internal notes. Notes marked internal are
-            never shown to them.
-          </p>
+          <h2 className="text-sm font-semibold">{copy.messages}</h2>
+          <p className="mt-1 mb-4 text-xs text-[var(--muted)]">{copy.messagesBody}</p>
           <DealChat dealId={deal.id} messages={messages} canPostAdminNote />
         </Card>
       ) : null}

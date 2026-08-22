@@ -10,30 +10,35 @@ import {
 } from "@/app/actions/wallet-actions";
 import { formatCents } from "@/lib/money";
 import { Button, Field, FormError, inputClassName } from "@/components/ui";
+import { WITHDRAW_FORM } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
-const METHODS = [
-  { value: "crypto", label: "Crypto" },
-  { value: "card", label: "PayPal / wallet" },
-  { value: "gift_card", label: "Gift card" },
-  { value: "bank_transfer", label: "Bank transfer" },
-] as const;
-
-type Method = (typeof METHODS)[number]["value"];
+type Method = "crypto" | "card" | "gift_card" | "bank_transfer";
 
 export function WithdrawForm({
   availableCents,
   minimumCents,
   currency,
   preferredMethod,
+  locale = "en",
 }: {
   availableCents: number;
   minimumCents: number;
   currency: string;
   /** What they chose when they applied. A default, not a commitment. */
   preferredMethod?: Method | null;
+  locale?: Locale;
 }) {
   const [state, formAction, pending] = useActionState(requestWithdrawalAction, undefined);
   const [method, setMethod] = useState<Method>(preferredMethod ?? "crypto");
+  const copy = WITHDRAW_FORM[locale];
+
+  const METHODS: { value: Method; label: string }[] = [
+    { value: "crypto", label: copy.methodCrypto },
+    { value: "card", label: copy.methodCard },
+    { value: "gift_card", label: copy.methodGiftCard },
+    { value: "bank_transfer", label: copy.methodBankTransfer },
+  ];
 
   // Typed twice, and they have to match.
   //
@@ -49,10 +54,7 @@ export function WithdrawForm({
 
   if (belowMinimum) {
     return (
-      <p className="text-sm text-[var(--muted)]">
-        You can withdraw once your balance reaches {formatCents(minimumCents, currency)}. Anything
-        smaller costs more in transfer fees than it is worth.
-      </p>
+      <p className="text-sm text-[var(--muted)]">{copy.belowMinimum(formatCents(minimumCents, currency))}</p>
     );
   }
 
@@ -61,10 +63,10 @@ export function WithdrawForm({
       <FormError message={state?.message} />
 
       <Field
-        label="How much"
+        label={copy.howMuch}
         name="amount"
         error={state?.fieldErrors?.amountCents}
-        hint={`Up to ${formatCents(availableCents, currency)}.`}
+        hint={copy.upTo(formatCents(availableCents, currency))}
       >
         <input
           id="amount"
@@ -78,7 +80,7 @@ export function WithdrawForm({
       </Field>
 
       <fieldset>
-        <legend className="mb-1.5 block text-sm font-medium">How you want it</legend>
+        <legend className="mb-1.5 block text-sm font-medium">{copy.howYouWantIt}</legend>
         <div className="flex flex-wrap gap-2">
           {METHODS.map((option) => (
             <label
@@ -113,7 +115,7 @@ export function WithdrawForm({
       {method === "crypto" ? (
         <>
           <Field
-            label="Wallet address"
+            label={copy.walletAddress}
             name="destinationAccount"
             error={state?.fieldErrors?.destinationAccount}
           >
@@ -131,10 +133,10 @@ export function WithdrawForm({
           </Field>
 
           <Field
-            label="Network"
+            label={copy.network}
             name="destinationNetwork"
             error={state?.fieldErrors?.destinationNetwork}
-            hint="TRC-20, ERC-20, BEP-20… the same address on the wrong network loses the money."
+            hint={copy.networkHint}
           >
             <input
               id="destinationNetwork"
@@ -151,7 +153,7 @@ export function WithdrawForm({
       {method === "bank_transfer" ? (
         <>
           <Field
-            label="IBAN or account number"
+            label={copy.ibanOrAccount}
             name="destinationAccount"
             error={state?.fieldErrors?.destinationAccount}
           >
@@ -168,7 +170,7 @@ export function WithdrawForm({
             />
           </Field>
 
-          <Field label="Bank" name="destinationBank" error={state?.fieldErrors?.destinationBank}>
+          <Field label={copy.bank} name="destinationBank" error={state?.fieldErrors?.destinationBank}>
             <input
               id="destinationBank"
               name="destinationBank"
@@ -180,10 +182,10 @@ export function WithdrawForm({
           </Field>
 
           <Field
-            label="SWIFT / BIC"
+            label={copy.swiftBic}
             name="destinationBic"
             error={state?.fieldErrors?.destinationBic}
-            hint="Only needed for international transfers. Leave it blank if you do not have one."
+            hint={copy.swiftBicHint}
           >
             <input
               id="destinationBic"
@@ -201,7 +203,7 @@ export function WithdrawForm({
       {method === "card" ? (
         <>
           <Field
-            label="Service"
+            label={copy.service}
             name="destinationProvider"
             error={state?.fieldErrors?.destinationProvider}
           >
@@ -216,7 +218,7 @@ export function WithdrawForm({
           </Field>
 
           <Field
-            label="Email or handle on the account"
+            label={copy.emailOrHandle}
             name="destinationAccount"
             error={state?.fieldErrors?.destinationAccount}
           >
@@ -238,10 +240,10 @@ export function WithdrawForm({
       {method === "gift_card" ? (
         <>
           <Field
-            label="Which card"
+            label={copy.whichCard}
             name="destinationProvider"
             error={state?.fieldErrors?.destinationProvider}
-            hint="Steam, Amazon or Google Play."
+            hint={copy.whichCardHint}
           >
             <input
               id="destinationProvider"
@@ -254,10 +256,10 @@ export function WithdrawForm({
           </Field>
 
           <Field
-            label="Where to send the code"
+            label={copy.whereToSend}
             name="destinationAccount"
             error={state?.fieldErrors?.destinationAccount}
-            hint="An email address. Nothing is charged to it — the code is just sent there."
+            hint={copy.whereToSendHint}
           >
             <input
               id="destinationAccount"
@@ -279,10 +281,10 @@ export function WithdrawForm({
           nobody can reach, and the person who typed it will be certain they
           typed it correctly. Re-entry is the cheapest place to catch that. */}
       <Field
-        label={method === "crypto" ? "Wallet address again" : "Confirm where it goes"}
+        label={method === "crypto" ? copy.walletAddressAgain : copy.confirmWhereItGoes}
         name="destinationConfirm"
-        error={destinationMismatch ? "These do not match. Check both, character for character." : undefined}
-        hint="Paste or type it a second time. We compare the two before submitting."
+        error={destinationMismatch ? copy.mismatchError : undefined}
+        hint={copy.confirmHint}
       >
         <input
           id="destinationConfirm"
@@ -298,10 +300,10 @@ export function WithdrawForm({
       </Field>
 
       <Field
-        label="Name on the account"
+        label={copy.nameOnAccount}
         name="destinationName"
         error={state?.fieldErrors?.destinationName}
-        hint="Banks and most wallets refuse a transfer where the name does not match."
+        hint={copy.nameOnAccountHint}
       >
         <input
           id="destinationName"
@@ -309,25 +311,29 @@ export function WithdrawForm({
           required
           defaultValue={state?.values?.destinationName ?? ""}
           className={inputClassName}
-          placeholder="As it appears on the account"
+          placeholder={copy.namePlaceholder}
         />
       </Field>
 
       <Button type="submit" disabled={pending || destinationMismatch || destinationAgain === ""}>
-        {pending ? "Requesting…" : "Request payout"}
+        {pending ? copy.requesting : copy.requestPayout}
       </Button>
 
-      <p className="text-xs text-[var(--muted)]">
-        Check the destination twice. The admin sends exactly what you put here, and a transfer to the
-        wrong address cannot be pulled back.
-      </p>
+      <p className="text-xs text-[var(--muted)]">{copy.checkTwice}</p>
     </form>
   );
 }
 
 /** Pulls a request back while it is still waiting. */
-export function CancelWithdrawalButton({ withdrawalId }: { withdrawalId: string }) {
+export function CancelWithdrawalButton({
+  withdrawalId,
+  locale = "en",
+}: {
+  withdrawalId: string;
+  locale?: Locale;
+}) {
   const [state, formAction, pending] = useActionState(cancelWithdrawalAction, undefined);
+  const copy = WITHDRAW_FORM[locale];
 
   return (
     <form action={formAction} className="mt-2">
@@ -338,7 +344,7 @@ export function CancelWithdrawalButton({ withdrawalId }: { withdrawalId: string 
         disabled={pending}
         className="text-xs text-[var(--tone-danger)] hover:underline disabled:opacity-60"
       >
-        {pending ? "Cancelling…" : "Cancel this request"}
+        {pending ? copy.cancelling : copy.cancelRequest}
       </button>
     </form>
   );
@@ -354,11 +360,14 @@ export function CancelWithdrawalButton({ withdrawalId }: { withdrawalId: string 
 export function ConfirmTestButton({
   withdrawalId,
   reference,
+  locale = "en",
 }: {
   withdrawalId: string;
   reference: string | null;
+  locale?: Locale;
 }) {
   const [state, formAction, pending] = useActionState(confirmTestTransferAction, undefined);
+  const copy = WITHDRAW_FORM[locale];
 
   if (state?.success) {
     return <p className="mt-2 text-xs text-[var(--tone-success)]">{state.success}</p>;
@@ -369,18 +378,15 @@ export function ConfirmTestButton({
       <FormError message={state?.message} />
       <input type="hidden" name="withdrawalId" value={withdrawalId} />
 
-      <p className="text-xs font-medium text-[var(--tone-info)]">We sent you a $1 test</p>
-      <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-        Check it arrived before we send the rest. If it did not, do not confirm — tell us, and we
-        will check the address rather than send the balance after it.
-      </p>
+      <p className="text-xs font-medium text-[var(--tone-info)]">{copy.testSentTitle}</p>
+      <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{copy.testSentBody}</p>
 
       {reference ? (
         <p className="mt-2 break-all font-mono text-[0.6875rem] text-[var(--muted)]">{reference}</p>
       ) : null}
 
       <Button type="submit" size="sm" loading={pending} disabled={pending} className="mt-2.5">
-        {pending ? "Confirming…" : "Yes, the $1 arrived"}
+        {pending ? copy.confirming : copy.yesArrived}
       </Button>
     </form>
   );

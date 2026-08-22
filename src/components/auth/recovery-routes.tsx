@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { NavIcon, type NavIconName } from "@/components/nav/nav-icons";
 import { Alert } from "@/components/ui";
 import { SITE } from "@/lib/site";
+import { RECOVERY_COPY } from "@/lib/auth-copy";
+import type { Locale } from "@/lib/locale";
 
 /**
  * Why there is no reset form.
@@ -12,11 +14,12 @@ import { SITE } from "@/lib/site";
  * were leading with two near-identical paragraphs. One wording, so the promise
  * cannot end up softer on one page than the other.
  */
-export function NoResetNotice() {
+export function NoResetNotice({ locale = "en" }: { locale?: Locale }) {
+  const copy = RECOVERY_COPY[locale];
+
   return (
-    <Alert tone="warning" title="There is no automated reset yet.">
-      This service does not send email, so it cannot send you a reset link. Recovering an account is
-      done by hand, by a person. It is not fast, but it is not lost either.
+    <Alert tone="warning" title={copy.noticeTitle}>
+      {copy.noticeBody}
     </Alert>
   );
 }
@@ -31,34 +34,32 @@ export function NoResetNotice() {
  * Ordered by how quickly they work rather than how common they are — a recovery
  * code gets you in this minute, everything else takes a human.
  */
-export function RecoveryRoutes() {
+export function RecoveryRoutes({ locale = "en" }: { locale?: Locale }) {
+  const copy = RECOVERY_COPY[locale];
+
   return (
     <ol className="space-y-2">
       <Route
         step={1}
         icon="shield"
-        title="Lost your authenticator, but know your password"
-        action={{ href: "/login", label: "Sign in with a recovery code" }}
+        title={copy.step1Title}
+        action={{ href: "/login", label: copy.step1Action }}
       >
-        Enter your email and password as usual. When the code is asked for, type one of the recovery
-        codes you saved when you turned two-factor on — each works once, in place of a code from the
-        app.
+        {copy.step1Body}
       </Route>
 
       <Route
         step={2}
         icon="mail"
-        title="Forgotten your password"
-        action={{ href: "/contact", label: "Get in touch" }}
+        title={copy.step2Title}
+        action={{ href: "/contact", label: copy.step2Action }}
       >
-        Message us from the address on the account{SITE.supportEmail ? ` — ${SITE.supportEmail}` : ""}.
-        Have a deal reference to hand if you have ever opened one; it is the fastest way to show the
-        account is yours.
+        {copy.step2Body}
+        {SITE.supportEmail ? ` — ${SITE.supportEmail}` : ""}. {copy.step2BodyTail}
       </Route>
 
-      <Route step={3} icon="help" title="A deal is waiting on you right now">
-        Say so in that first message. A deal you cannot reach is not running out of time silently —
-        tell us and it gets held while this is sorted.
+      <Route step={3} icon="help" title={copy.step3Title}>
+        {copy.step3Body}
       </Route>
     </ol>
   );

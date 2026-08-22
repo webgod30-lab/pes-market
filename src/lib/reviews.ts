@@ -380,6 +380,73 @@ export async function getTrustStats(): Promise<TrustStats> {
   };
 }
 
+export type ReviewsPageStats = {
+  averageRating: number;
+  reviewCount: number;
+  completedDeals: number;
+  settledCleanPercent: number;
+};
+
+export type ReviewsPageEntry = {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorRole: "buyer" | "seller";
+  dealReference: string;
+  rating: number;
+  comment: string | null;
+  createdAt: Date;
+};
+
+/** Data for the public "/reviews" wall: headline stats plus recent reviews. */
+export async function getPublicReviewsPageData(): Promise<{
+  stats: ReviewsPageStats;
+  reviews: ReviewsPageEntry[];
+}> {
+  const [reviews, completedDeals, disputedDeals] = await Promise.all([
+    prisma.review.findMany({
+      where: { deal: { status: "completed" } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+        subjectSide: true,
+        author: { select: { id: true, displayName: true } },
+        deal: { select: { reference: true } },
+      },
+    }),
+    prisma.deal.count({ where: { status: "completed" } }),
+    prisma.deal.count({ where: { status: "completed", disputes: { some: {} } } }),
+  ]);
+
+  const reviewCount = reviews.length;
+  const averageRating =
+    reviewCount > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount : 0;
+
+  const settledCleanPercent =
+    completedDeals > 0
+      ? Math.round(((completedDeals - disputedDeals) / completedDeals) * 100)
+      : 0;
+
+  return {
+    stats: { averageRating, reviewCount, completedDeals, settledCleanPercent },
+    reviews: reviews.map((r) => ({
+      id: r.id,
+      authorId: r.author.id,
+      authorName: r.author.displayName,
+      // subjectSide records who was reviewed, so the author took the other side.
+      authorRole: r.subjectSide === "seller" ? "buyer" : "seller",
+      dealReference: r.deal.reference,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+    })),
+  };
+}
+
 export type PublicProfile = {
   id: string;
   displayName: string;

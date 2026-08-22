@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { RegisterForm } from "@/components/register-form";
 import { getCurrentUserQuietly } from "@/lib/dal";
+import { getLocale } from "@/lib/locale-server";
+import { REGISTER_PAGE } from "@/lib/auth-copy";
 
 export const metadata = {
   title: "Create an account",
@@ -26,33 +28,36 @@ export default async function RegisterPage({
   // the field, and looking it up now would only mean checking it twice.
   const { ref } = await searchParams;
 
+  const locale = await getLocale();
+  const copy = REGISTER_PAGE[locale];
+
   return (
     <AuthShell
-      title="Create your account"
-      subtitle="Everyone here arrived through somebody. Paste their code to join."
+      title={copy.title}
+      subtitle={copy.subtitle}
       footer={
         <>
-          Already registered?{" "}
+          {copy.alreadyRegistered}{" "}
           <Link href="/login" className="font-medium text-[var(--accent)] hover:underline">
-            Sign in
+            {copy.signIn}
           </Link>
         </>
       }
       aside={
         <>
-          By creating an account you agree to the{" "}
+          {copy.asideLead}{" "}
           <Link href="/terms" className="text-[var(--muted)] underline hover:text-[var(--accent)]">
-            terms
+            {copy.asideTerms}
           </Link>{" "}
-          and the{" "}
+          {copy.asideAnd}{" "}
           <Link href="/privacy" className="text-[var(--muted)] underline hover:text-[var(--accent)]">
-            privacy policy
+            {copy.asidePrivacy}
           </Link>
           .
         </>
       }
     >
-      <RegisterForm initialReferralCode={ref ?? ""} />
+      <RegisterForm initialReferralCode={ref ?? ""} locale={locale} />
     </AuthShell>
   );
 }

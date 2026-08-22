@@ -7,6 +7,8 @@ import { TwoFactorSetup } from "@/components/two-factor-setup";
 import { SettingsSection, SettingsShell } from "@/components/settings/settings-shell";
 import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
 import { SetupProblem } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { SECURITY_PAGE } from "@/lib/page-copy";
 
 export const metadata = { title: "Security" };
 
@@ -33,6 +35,8 @@ export default async function SecurityPage() {
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
   const user = auth.user;
+  const locale = await getLocale();
+  const copy = SECURITY_PAGE[locale];
 
   const [enabled, recoveryCodesLeft] = await Promise.all([
     totpIsEnabled(user.id),
@@ -40,26 +44,22 @@ export default async function SecurityPage() {
   ]);
 
   return (
-    <SettingsShell
-      user={user}
-      title="Security"
-      description="What stands between someone with your password and your deals."
-    >
+    <SettingsShell user={user} title={copy.title} description={copy.description}>
       {/* The state of the account at a glance, before the controls that change
           it. "Two codes left" is the sort of thing you want to find out on this
           page rather than at a login prompt with a dead phone. */}
       <StatGrid columns={2}>
         <StatCard
-          label="Two-factor"
-          value={enabled ? "On" : "Off"}
-          caption={enabled ? "a code is required to sign in" : "your password is the only lock"}
+          label={copy.twoFactor}
+          value={enabled ? copy.on : copy.off}
+          caption={enabled ? copy.onCaption : copy.offCaption}
           icon="shield"
           urgent={!enabled}
         />
         <StatCard
-          label="Recovery codes left"
+          label={copy.recoveryCodesLeft}
           value={enabled ? recoveryCodesLeft : "—"}
-          caption={enabled ? "each works once, in place of the app" : "issued when you turn 2FA on"}
+          caption={enabled ? copy.recoveryCodesLeftCaption : copy.recoveryCodesIssuedCaption}
           icon="ticket"
           // Running low matters; having none while 2FA is on is how an account
           // becomes permanently unreachable.
@@ -69,37 +69,33 @@ export default async function SecurityPage() {
 
       <div className="mt-3">
         <SettingsSection
-          title="Two-factor authentication"
+          title={copy.twoFactorSectionTitle}
           description={
             <>
-              A code from your phone on top of your password. Worth doing on any account here — a
-              stolen password otherwise gives someone your deal history and anything mid-trade.
+              {copy.twoFactorSectionBody}
               {user.role === "admin" ? (
                 <>
                   {" "}
-                  <strong className="text-[var(--foreground)]">
-                    On this account it matters more than most:
-                  </strong>{" "}
-                  it approves every payout and can decrypt any account being traded.
+                  <strong className="text-[var(--foreground)]">{copy.twoFactorAdminNote}</strong>{" "}
+                  {copy.twoFactorAdminBody}
                 </>
               ) : null}
             </>
           }
         >
-          <TwoFactorSetup enabled={enabled} recoveryCodesLeft={recoveryCodesLeft} qrFor={qrFor} />
+          <TwoFactorSetup enabled={enabled} recoveryCodesLeft={recoveryCodesLeft} qrFor={qrFor} locale={locale} />
         </SettingsSection>
 
         {/* Dashed and quieter on purpose: this is not a setting you can change,
             it is a statement that the feature does not exist yet. */}
         <SettingsSection
-          title="Password"
+          title={copy.passwordSectionTitle}
           tone="muted"
           description={
             <>
-              There is no way to change or reset your password yet, and no email is sent from this
-              service. If you are locked out,{" "}
+              {copy.passwordSectionBody}{" "}
               <Link href="/forgot-password" className="text-[var(--accent)] hover:underline">
-                here is what does work
+                {copy.passwordSectionLink}
               </Link>
               .
             </>

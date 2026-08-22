@@ -10,24 +10,12 @@ import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { FilterChips } from "@/components/dashboard/filter-chips";
 import { Alert, Badge, Card, DetailList, Overline, SetupProblem } from "@/components/ui";
 import type { PaymentMethod, WithdrawalStatus } from "@/generated/prisma/client";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_WITHDRAWALS_PAGE } from "@/lib/page-copy";
 
 export const metadata = { title: "Withdrawals — admin" };
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL: Record<WithdrawalStatus, string> = {
-  requested: "Waiting on you",
-  sent: "Sent",
-  rejected: "Refused",
-  cancelled: "Cancelled by promoter",
-};
-
-const METHOD_LABEL: Record<PaymentMethod, string> = {
-  crypto: "Crypto",
-  bank_transfer: "Bank transfer",
-  card: "Card / wallet",
-  gift_card: "Gift card",
-};
 
 /**
  * Deliberately cards, not a table.
@@ -47,6 +35,23 @@ export default async function AdminWithdrawalsPage({
 
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
+  const locale = await getLocale();
+  const copy = ADMIN_WITHDRAWALS_PAGE[locale];
+
+  const STATUS_LABEL: Record<WithdrawalStatus, string> = {
+    requested: copy.statusRequested,
+    sent: copy.statusSent,
+    rejected: copy.statusRejected,
+    cancelled: copy.statusCancelled,
+  };
+
+  const METHOD_LABEL: Record<PaymentMethod, string> = {
+    crypto: copy.methodCrypto,
+    bank_transfer: copy.methodBankTransfer,
+    card: copy.methodCard,
+    gift_card: copy.methodGiftCard,
+  };
+
   const { show } = await searchParams;
   const onlyOpen = show !== "all";
 
@@ -55,26 +60,24 @@ export default async function AdminWithdrawalsPage({
   return (
     <DashShell
       groups={adminSections({ withdrawals: onlyOpen ? withdrawals.length : undefined })}
-      title="Withdrawals"
-      description="Promoters taking their referral earnings off the site. Payouts go out in one batch on the 1st of each month — you send the money by hand, then record it here."
+      title={copy.title}
+      description={copy.description}
     >
       <FilterChips
         options={[
-          { label: "Waiting on you", href: "/admin/withdrawals", active: onlyOpen },
-          { label: "Everything", href: "/admin/withdrawals?show=all", active: !onlyOpen },
+          { label: copy.waitingOnYou, href: "/admin/withdrawals", active: onlyOpen },
+          { label: copy.everything, href: "/admin/withdrawals?show=all", active: !onlyOpen },
         ]}
       />
 
       {withdrawals.length === 0 ? (
         onlyOpen ? (
-          <EmptyPanel icon="payout" title="No payouts waiting" tone="positive">
-            Nobody is owed a transfer right now. Requested money stays reserved against the
-            promoter&apos;s balance until you send or refuse it, so an empty list means nothing is
-            held up.
+          <EmptyPanel icon="payout" title={copy.noPayoutsWaitingTitle} tone="positive">
+            {copy.noPayoutsWaitingBody}
           </EmptyPanel>
         ) : (
-          <EmptyPanel icon="payout" title="No payouts requested yet">
-            A promoter can request one once their referral earnings reach $40.
+          <EmptyPanel icon="payout" title={copy.noPayoutsYetTitle}>
+            {copy.noPayoutsYetBody}
           </EmptyPanel>
         )
       ) : (
@@ -114,10 +117,7 @@ export default async function AdminWithdrawalsPage({
                     have a claim to. */}
                 {withdrawal.promoterNetCents < 0 ? (
                   <Alert tone="danger" className="mt-3">
-                    This promoter&apos;s balance is{" "}
-                    {formatCents(withdrawal.promoterNetCents, withdrawal.currency)} — a deal they
-                    earned from was reversed after they withdrew. Do not send this without checking
-                    why.
+                    {copy.negativeBalance(formatCents(withdrawal.promoterNetCents, withdrawal.currency))}
                   </Alert>
                 ) : null}
 
@@ -127,13 +127,12 @@ export default async function AdminWithdrawalsPage({
                     the transfer goes out. 60% is a prompt, not a threshold. */}
                 {withdrawal.topTraderShare >= 0.6 && withdrawal.status === "requested" ? (
                   <Alert tone="warning" className="mt-3">
-                    {Math.round(withdrawal.topTraderShare * 100)}% of this promoter&apos;s earnings
-                    came from a single person. Worth checking those deals were real before sending.
+                    {copy.concentrationWarning(Math.round(withdrawal.topTraderShare * 100))}
                   </Alert>
                 ) : null}
 
                 <div className="mt-3">
-                  <Overline>Send it to</Overline>
+                  <Overline>{copy.sendItTo}</Overline>
                   {/* One labelled row per field, so each value can be copied on
                       its own instead of being picked out of a paragraph while
                       typing a transfer. */}
@@ -141,16 +140,16 @@ export default async function AdminWithdrawalsPage({
                 </div>
 
                 <p className="mt-2 text-xs text-[var(--muted)]">
-                  Requested {withdrawal.requestedAt.toLocaleString("en-GB")}
+                  {copy.requested} {withdrawal.requestedAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}
                   {withdrawal.decidedAt
-                    ? ` · closed ${withdrawal.decidedAt.toLocaleString("en-GB")}`
+                    ? ` · ${copy.closed} ${withdrawal.decidedAt.toLocaleString(locale === "ar" ? "ar" : "en-GB")}`
                     : ""}
                 </p>
 
                 {withdrawal.note ? (
                   <p className="mt-2 text-sm">
                     <span className="text-[var(--muted)]">
-                      {withdrawal.status === "sent" ? "Reference: " : "Reason: "}
+                      {withdrawal.status === "sent" ? copy.reference : copy.reason}
                     </span>
                     <span className="break-all font-mono text-xs">{withdrawal.note}</span>
                   </p>

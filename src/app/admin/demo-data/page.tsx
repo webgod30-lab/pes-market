@@ -8,6 +8,8 @@ import { DashShell } from "@/components/dashboard/dash-shell";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { StatCard, StatGrid } from "@/components/dashboard/stat-card";
 import { Alert, Card, Overline, SetupProblem } from "@/components/ui";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_DEMO_DATA_PAGE } from "@/lib/page-copy";
 
 export const metadata = { title: "Demo data — admin" };
 
@@ -27,47 +29,38 @@ export default async function AdminDemoDataPage() {
 
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
+  const locale = await getLocale();
+  const copy = ADMIN_DEMO_DATA_PAGE[locale];
+
   const survey = await surveyDemoData();
   const clean = survey.accounts === 0;
 
   return (
-    <DashShell
-      groups={adminSections({})}
-      title="Demo data"
-      description="Accounts invented by the seed or the deal bot, and everything they produced. Fabricated reviews on a trust service are the one failure that cannot be walked back — this is how you remove them."
-    >
+    <DashShell groups={adminSections({})} title={copy.title} description={copy.description}>
       <div className="max-w-3xl">
         {clean ? (
-          <EmptyPanel icon="shield" title="No demo data on this database" tone="positive">
-            Nothing here was invented by the seed or the bot. Every review on the site came from a
-            real account.
+          <EmptyPanel icon="shield" title={copy.cleanTitle} tone="positive">
+            {copy.cleanBody}
           </EmptyPanel>
         ) : (
           <>
             <Alert tone="danger">
-              <p className="font-medium">
-                This database is serving {survey.reviews} fabricated review
-                {survey.reviews === 1 ? "" : "s"}.
-              </p>
-              <p className="mt-1.5 text-sm">
-                They were written by accounts that do not belong to anyone, about deals that never
-                happened, and several describe paying money — which this service no longer does.
-                Anyone who reads the product pages and then the reviews will notice.
-              </p>
+              <p className="font-medium">{copy.servingFabricated(survey.reviews)}</p>
+              <p className="mt-1.5 text-sm">{copy.fabricatedBody}</p>
             </Alert>
 
             <div className="mt-3">
               <StatGrid columns={4}>
-                <StatCard label="Invented accounts" value={survey.accounts} icon="users" urgent />
-                <StatCard label="Deals" value={survey.deals} icon="folder" urgent />
-                <StatCard label="Reviews" value={survey.reviews} icon="star" urgent />
-                <StatCard label="Referral credits" value={survey.earnings} icon="wallet" urgent />
+                <StatCard label={copy.inventedAccounts} value={survey.accounts} icon="users" urgent />
+                <StatCard label={copy.deals} value={survey.deals} icon="folder" urgent />
+                <StatCard label={copy.reviews} value={survey.reviews} icon="star" urgent />
+                <StatCard label={copy.referralCredits} value={survey.earnings} icon="wallet" urgent />
               </StatGrid>
             </div>
 
             {survey.sample.length > 0 ? (
               <Card className="mt-3">
-                <Overline>A few of the reviews this would remove</Overline>
+                <Overline>{copy.sampleTitle}</Overline>
                 <ul className="mt-2.5 space-y-2">
                   {survey.sample.map((review, index) => (
                     <li
@@ -76,7 +69,7 @@ export default async function AdminDemoDataPage() {
                     >
                       <p className="leading-relaxed">&ldquo;{review.comment}&rdquo;</p>
                       <p className="mt-1.5 text-xs text-[var(--muted)]">
-                        {review.authorName} · {review.createdAt.toLocaleDateString("en-GB")}
+                        {review.authorName} · {review.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB")}
                       </p>
                     </li>
                   ))}
@@ -86,33 +79,22 @@ export default async function AdminDemoDataPage() {
 
             {survey.realReviewsAtRisk > 0 ? (
               <Alert tone="warning" className="mt-3">
-                {survey.realReviewsAtRisk} of these reviews were written by an account that is{" "}
-                <strong>not</strong> demo data. Check those before deleting — they may be genuine.
+                {copy.realAtRisk(survey.realReviewsAtRisk)} <strong>{locale === "ar" ? "ليست" : "not"}</strong>{" "}
+                {copy.realAtRiskTail}
               </Alert>
             ) : null}
 
             <Card className="mt-3">
-              <h2 className="text-sm font-semibold">What survives</h2>
+              <h2 className="text-sm font-semibold">{copy.survivesTitle}</h2>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-                {survey.realReviewsRemaining} review
-                {survey.realReviewsRemaining === 1 ? "" : "s"} and{" "}
-                {survey.realCompletedDealsRemaining} completed deal
-                {survey.realCompletedDealsRemaining === 1 ? "" : "s"} from real accounts.
-                {survey.realReviewsRemaining === 0 ? (
-                  <>
-                    {" "}
-                    That is zero — and an empty reviews page you can defend beats a full one you
-                    cannot. Being visibly new is survivable; being caught inventing a track record
-                    is not.
-                  </>
-                ) : null}
+                {copy.survivesBody(survey.realReviewsRemaining, survey.realCompletedDealsRemaining)}
+                {survey.realReviewsRemaining === 0 ? <> {copy.zeroSurvives}</> : null}
               </p>
 
               {survey.adminsKept.length > 0 ? (
                 <p className="mt-3 border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
-                  Kept regardless:{" "}
-                  {survey.adminsKept.map((admin) => admin.email).join(", ")} — an admin account is
-                  never deleted here. Losing the only one locks the console permanently.
+                  {copy.keptRegardless} {survey.adminsKept.map((admin) => admin.email).join(", ")}{" "}
+                  {copy.keptRegardlessTail}
                 </p>
               ) : null}
 
@@ -122,11 +104,8 @@ export default async function AdminDemoDataPage() {
         )}
 
         <Card className="mt-3">
-          <Overline>How demo data is recognised</Overline>
-          <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
-            By email domain, not by guesswork. Everything the seed and the bot create lives on a
-            reserved domain that can never resolve to a real inbox:
-          </p>
+          <Overline>{copy.howRecognisedTitle}</Overline>
+          <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{copy.howRecognisedBody}</p>
           <ul className="mt-2 space-y-1">
             {DEMO_EMAIL_SUFFIXES.map((suffix) => (
               <li key={suffix} className="font-mono text-xs text-[var(--muted)]">
@@ -135,18 +114,17 @@ export default async function AdminDemoDataPage() {
             ))}
           </ul>
           <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-            The same check runs from a terminal as{" "}
-            <code className="font-mono">npm run purge:demo</code>, which reports without deleting
-            unless you pass <code className="font-mono">--apply</code>. To stop this happening
-            again, never run <code className="font-mono">db:seed</code> or{" "}
-            <code className="font-mono">bot:deals</code> with{" "}
-            <code className="font-mono">ALLOW_REMOTE_SEED=1</code> against the live database.
+            {copy.terminalNote} <code className="font-mono">npm run purge:demo</code>
+            {copy.terminalNoteMid} <code className="font-mono">--apply</code>
+            {copy.terminalNoteTail} <code className="font-mono">db:seed</code> {copy.terminalNoteTail2}{" "}
+            <code className="font-mono">bot:deals</code> {copy.terminalNoteTail3}{" "}
+            <code className="font-mono">ALLOW_REMOTE_SEED=1</code> {copy.terminalNoteTail4}
           </p>
         </Card>
 
         <p className="mt-6 text-xs text-[var(--muted)]">
           <Link href="/reviews" className="text-[var(--accent)] hover:underline">
-            See what the public reviews page currently shows
+            {copy.seeReviews}
           </Link>
           .
         </p>

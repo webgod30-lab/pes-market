@@ -11,6 +11,9 @@ import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { Alert, Badge, Button, inputClassName, SearchInput, SetupProblem } from "@/components/ui";
 import type { getReputation } from "@/lib/reviews";
+import { getLocale } from "@/lib/locale-server";
+import { ADMIN_USERS_PAGE } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 export const metadata = { title: "Users — admin" };
 
@@ -26,6 +29,9 @@ export default async function AdminUsersPage({
 
   if (auth.problem) return <SetupProblem title={auth.problem.title} fix={auth.problem.fix} />;
 
+  const locale = await getLocale();
+  const copy = ADMIN_USERS_PAGE[locale];
+
   const params = await searchParams;
   const search = params.q ?? "";
 
@@ -35,46 +41,40 @@ export default async function AdminUsersPage({
   const reputations = await getReputationsFor(users.map((user) => user.id));
 
   return (
-    <DashShell
-      groups={adminSections({})}
-      title="Users"
-      description="Banning takes effect on the person's next request — the session is re-checked against the database, not trusted."
-    >
+    <DashShell groups={adminSections({})} title={copy.title} description={copy.description}>
       <form method="get" className="mb-4 flex flex-wrap gap-2">
         <SearchInput
-          label="Search users"
+          label={copy.searchLabel}
           name="q"
           defaultValue={search}
-          placeholder="Search name or email"
+          placeholder={copy.searchPlaceholder}
           className={`${inputClassName} max-w-md flex-1`}
         />
         <Button type="submit" variant="secondary" size="sm">
-          Search
+          {copy.search}
         </Button>
         {search ? (
           <Link
             href="/admin/users"
             className="inline-flex min-h-9 items-center self-center text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
           >
-            Clear
+            {copy.clear}
           </Link>
         ) : null}
       </form>
 
       <DataTable
-        caption="Registered accounts"
+        caption={copy.caption}
         rows={users}
         rowKey={(user) => user.id}
-        columns={userColumns(reputations)}
+        columns={userColumns(reputations, copy, locale)}
         empty={
           <EmptyPanel
             icon="users"
-            title={search ? "Nobody matches that search" : "No users yet"}
-            secondaryAction={search ? { href: "/admin/users", label: "Clear the search" } : undefined}
+            title={search ? copy.noMatchTitle : copy.noUsersTitle}
+            secondaryAction={search ? { href: "/admin/users", label: copy.clearSearch } : undefined}
           >
-            {search
-              ? "Try part of a display name or an email address."
-              : "Accounts appear here as soon as somebody registers."}
+            {search ? copy.tryLead : copy.appearHere}
           </EmptyPanel>
         }
       />
@@ -82,18 +82,22 @@ export default async function AdminUsersPage({
   );
 }
 
-function userColumns(reputations: Map<string, Reputation>): Column<UserRow>[] {
+function userColumns(
+  reputations: Map<string, Reputation>,
+  copy: (typeof ADMIN_USERS_PAGE)["en"],
+  locale: Locale,
+): Column<UserRow>[] {
   return [
     {
       key: "who",
-      header: "User",
+      header: copy.colUser,
       primary: true,
       cell: (user) => (
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-semibold">{user.displayName}</span>
-            {user.role === "admin" ? <Badge tone="warning">admin</Badge> : null}
-            {user.isBanned ? <Badge tone="danger">banned</Badge> : null}
+            {user.role === "admin" ? <Badge tone="warning">{copy.admin}</Badge> : null}
+            {user.isBanned ? <Badge tone="danger">{copy.banned}</Badge> : null}
           </span>
           <span className="mt-0.5 block truncate text-xs font-normal text-[var(--muted)]">
             {user.email}
@@ -103,12 +107,12 @@ function userColumns(reputations: Map<string, Reputation>): Column<UserRow>[] {
     },
     {
       key: "reputation",
-      header: "Reputation",
+      header: copy.colReputation,
       cell: (user) => {
         const reputation = reputations.get(user.id);
 
         return reputation ? (
-          <ReputationLine reputation={reputation} />
+          <ReputationLine reputation={reputation} locale={locale} />
         ) : (
           <span className="text-xs text-[var(--muted)]">—</span>
         );
@@ -116,31 +120,31 @@ function userColumns(reputations: Map<string, Reputation>): Column<UserRow>[] {
     },
     {
       key: "activity",
-      header: "Activity",
+      header: copy.colActivity,
       hideOnMobile: true,
       cell: (user) => (
         <span className="text-xs text-[var(--muted)]">
-          sold {user.dealsAsSeller} · bought {user.dealsAsBuyer}
-          <span className="block">joined {user.createdAt.toLocaleDateString("en-GB")}</span>
+          {copy.sold} {user.dealsAsSeller} · {copy.bought} {user.dealsAsBuyer}
+          <span className="block">
+            {copy.joined} {user.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-GB")}
+          </span>
         </span>
       ),
     },
     {
       key: "inflight",
-      header: "In flight",
+      header: copy.colInFlight,
       align: "end",
       cell: (user) =>
         user.openDeals > 0 ? (
-          <Badge tone="info">
-            {user.openDeals} deal{user.openDeals === 1 ? "" : "s"}
-          </Badge>
+          <Badge tone="info">{copy.deal(user.openDeals)}</Badge>
         ) : (
           <span className="text-xs text-[var(--muted)]">—</span>
         ),
     },
     {
       key: "actions",
-      header: "Actions",
+      header: copy.colActions,
       align: "end",
       cell: (user) => (
         <span className="flex flex-wrap items-center justify-end gap-2">
@@ -148,11 +152,11 @@ function userColumns(reputations: Map<string, Reputation>): Column<UserRow>[] {
             href={`/admin/deals?filter=all&q=${encodeURIComponent(user.displayName)}`}
             className="inline-flex min-h-9 items-center rounded-[var(--radius-control)] border border-[var(--border)] px-3 text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
           >
-            Their deals
+            {copy.theirDeals}
           </Link>
 
           {user.role === "admin" ? (
-            <span className="text-xs text-[var(--muted)]">admins cannot be banned</span>
+            <span className="text-xs text-[var(--muted)]">{copy.adminsCannotBeBanned}</span>
           ) : user.isBanned ? (
             <UnbanUserForm userId={user.id} />
           ) : (
@@ -165,7 +169,10 @@ function userColumns(reputations: Map<string, Reputation>): Column<UserRow>[] {
 
           {user.isBanned && user.banReason ? (
             <Alert tone="danger" className="mt-1 w-full text-xs">
-              Banned {user.bannedAt?.toLocaleDateString("en-GB")}: {user.banReason}
+              {copy.bannedOn(
+                user.bannedAt?.toLocaleDateString(locale === "ar" ? "ar" : "en-GB") ?? "",
+                user.banReason,
+              )}
             </Alert>
           ) : null}
         </span>

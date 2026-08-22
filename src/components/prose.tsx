@@ -42,6 +42,10 @@ export function Notice({ children, tone = "warning" }: { children: ReactNode; to
   );
 }
 
-export function LastUpdated({ date }: { date: string }) {
-  return <p className="mt-2 text-xs text-[var(--muted)]">Last updated {date}</p>;
+export function LastUpdated({ date, locale = "en" }: { date: string; locale?: "en" | "ar" }) {
+  return (
+    <p className="mt-2 text-xs text-[var(--muted)]">
+      {locale === "ar" ? `آخر تحديث ${date}` : `Last updated ${date}`}
+    </p>
+  );
 }

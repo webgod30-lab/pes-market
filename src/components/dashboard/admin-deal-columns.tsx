@@ -1,8 +1,10 @@
 import { formatCents } from "@/lib/money";
-import { DEAL_STATUS_LABEL, DEAL_STATUS_TONE } from "@/lib/deal-status";
+import { DEAL_STATUS_TONE, dealStatusLabel } from "@/lib/deal-status";
 import type { Column } from "@/components/dashboard/data-table";
 import { Badge } from "@/components/ui";
 import type { DealStatus } from "@/generated/prisma/client";
+import { ADMIN_DEAL_COLUMNS } from "@/lib/page-copy";
+import type { Locale } from "@/lib/locale";
 
 /**
  * What an admin needs to see about a deal in a list.
@@ -46,17 +48,19 @@ export function isBuyerOverdue(deal: AdminDealRowData, now: Date): boolean {
   );
 }
 
-export function adminDealColumns(now: Date): Column<AdminDealRowData>[] {
+export function adminDealColumns(now: Date, locale: Locale = "en"): Column<AdminDealRowData>[] {
+  const copy = ADMIN_DEAL_COLUMNS[locale];
+
   return [
     {
       key: "reference",
-      header: "Reference",
+      header: copy.reference,
       primary: true,
       cell: (deal) => <span className="font-mono text-sm">{deal.reference}</span>,
     },
     {
       key: "parties",
-      header: "Seller → Buyer",
+      header: copy.sellerToBuyer,
       cell: (deal) => (
         <span className="text-xs text-[var(--muted)]">
           {deal.seller?.displayName ?? "—"} → {deal.buyer?.displayName ?? "—"}
@@ -65,7 +69,7 @@ export function adminDealColumns(now: Date): Column<AdminDealRowData>[] {
     },
     {
       key: "account",
-      header: "Account",
+      header: copy.account,
       hideOnMobile: true,
       cell: (deal) => (
         <span className="line-clamp-2 max-w-xs text-xs text-[var(--muted)]">
@@ -75,7 +79,7 @@ export function adminDealColumns(now: Date): Column<AdminDealRowData>[] {
     },
     {
       key: "amount",
-      header: "Amount",
+      header: copy.amount,
       align: "end",
       cell: (deal) => (
         <span className="whitespace-nowrap">
@@ -84,21 +88,21 @@ export function adminDealColumns(now: Date): Column<AdminDealRowData>[] {
           </span>
           <span className="block text-xs text-[var(--muted)]">
             {isPayoutDue(deal)
-              ? `pay seller ${formatCents(deal.sellerPayoutCents, deal.currency)}`
-              : `your cut ${formatCents(deal.feeCents, deal.currency)}`}
+              ? copy.paySeller(formatCents(deal.sellerPayoutCents, deal.currency))
+              : copy.yourCut(formatCents(deal.feeCents, deal.currency))}
           </span>
         </span>
       ),
     },
     {
       key: "status",
-      header: "Status",
+      header: copy.status,
       align: "end",
       cell: (deal) => (
         <span className="flex flex-wrap justify-end gap-1.5">
-          <Badge tone={DEAL_STATUS_TONE[deal.status]}>{DEAL_STATUS_LABEL[deal.status]}</Badge>
-          {isPayoutDue(deal) ? <Badge tone="warning">payout due</Badge> : null}
-          {isBuyerOverdue(deal, now) ? <Badge tone="danger">buyer overdue</Badge> : null}
+          <Badge tone={DEAL_STATUS_TONE[deal.status]}>{dealStatusLabel(locale)[deal.status]}</Badge>
+          {isPayoutDue(deal) ? <Badge tone="warning">{copy.payoutDue}</Badge> : null}
+          {isBuyerOverdue(deal, now) ? <Badge tone="danger">{copy.buyerOverdue}</Badge> : null}
         </span>
       ),
     },

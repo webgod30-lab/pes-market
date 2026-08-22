@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { NoResetNotice, RecoveryRoutes } from "@/components/auth/recovery-routes";
+import { getLocale } from "@/lib/locale-server";
+import { FORGOT_PASSWORD_PAGE } from "@/lib/auth-copy";
 
 export const metadata = {
   title: "Forgot password",
@@ -25,25 +27,28 @@ export const metadata = {
  * When a mail provider and a reset token do land, this page becomes the form
  * and the shell around it does not change.
  */
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage() {
+  const locale = await getLocale();
+  const copy = FORGOT_PASSWORD_PAGE[locale];
+
   return (
     <AuthShell
-      title="Locked out?"
-      subtitle="What to do depends on which part you have lost."
+      title={copy.title}
+      subtitle={copy.subtitle}
       footer={
         <>
-          Remembered it?{" "}
+          {copy.remembered}{" "}
           <Link href="/login" className="font-medium text-[var(--accent)] hover:underline">
-            Back to sign in
+            {copy.backToSignIn}
           </Link>
         </>
       }
-      aside="We will never email you a password reset link. If you receive one, it did not come from us — do not open it."
+      aside={copy.aside}
     >
       <div className="space-y-4">
-        <NoResetNotice />
+        <NoResetNotice locale={locale} />
 
-        <RecoveryRoutes />
+        <RecoveryRoutes locale={locale} />
       </div>
     </AuthShell>
   );
