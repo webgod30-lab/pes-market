@@ -395,7 +395,8 @@ export type ReviewsPageEntry = {
   dealReference: string;
   rating: number;
   comment: string | null;
-  createdAt: Date;
+  /** Null for imported reviews, which carry no verifiable date. */
+  createdAt: Date | null;
 };
 
 /** Data for the public "/reviews" wall: headline stats plus recent reviews. */

@@ -151,6 +151,7 @@ const reviewsPageEn = {
   emptyFilteredBody: (filter: "buyer" | "seller") =>
     `There are reviews, but none from ${filter === "buyer" ? "buyers" : "sellers"}. Switch to "All" to see them.`,
   noRating: "—",
+  loadMoreCustomerReviews: (n: number) => `Load more customer reviews (${n} left)`,
 };
 
 const reviewsPageAr: typeof reviewsPageEn = {
@@ -174,6 +175,7 @@ const reviewsPageAr: typeof reviewsPageEn = {
   emptyFilteredBody: (filter: "buyer" | "seller") =>
     `توجد تقييمات، لكن لا شيء من ${filter === "buyer" ? "المشترين" : "البائعين"}. بدّل إلى "الكل" لرؤيتها.`,
   noRating: "—",
+  loadMoreCustomerReviews: (n: number) => `تحميل المزيد من تقييمات العملاء (تبقّى ${n})`,
 };
 
 export const REVIEWS_PAGE: Record<Locale, typeof reviewsPageEn> = {

@@ -12,7 +12,19 @@ import { Card } from "@/components/ui";
 
 /** The filter toggle and the review grid — split out from the page because
  * only this part needs client-side state. */
-export function ReviewsFilter({ reviews, locale }: { reviews: ReviewsPageEntry[]; locale: Locale }) {
+export function ReviewsFilter({
+  reviews,
+  locale,
+  legacyRemaining = 0,
+  loadMoreHref,
+}: {
+  reviews: ReviewsPageEntry[];
+  locale: Locale;
+  /** Imported reviews not yet included in `reviews`, still sitting in the archive. */
+  legacyRemaining?: number;
+  /** Where "load more" points to fetch the next batch of imported reviews. */
+  loadMoreHref?: string;
+}) {
   const copy = REVIEWS_PAGE[locale];
   const [filter, setFilter] = useState<"all" | "buyer" | "seller">("all");
 
@@ -80,7 +92,7 @@ export function ReviewsFilter({ reviews, locale }: { reviews: ReviewsPageEntry[]
                 <p className="mt-3 text-sm leading-relaxed text-[var(--text)]">{review.comment}</p>
               ) : null}
 
-              {review.authorId ? (
+              {review.authorId && review.createdAt ? (
                 <p className="mt-3 text-xs text-[var(--muted)]">
                   {review.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-US", {
                     year: "numeric",
@@ -93,6 +105,17 @@ export function ReviewsFilter({ reviews, locale }: { reviews: ReviewsPageEntry[]
           ))}
         </div>
       )}
+
+      {filter === "all" && legacyRemaining > 0 && loadMoreHref ? (
+        <div className="mt-6 flex justify-center">
+          <Link
+            href={loadMoreHref}
+            className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)]/40"
+          >
+            {copy.loadMoreCustomerReviews(legacyRemaining)}
+          </Link>
+        </div>
+      ) : null}
     </>
   );
 }
