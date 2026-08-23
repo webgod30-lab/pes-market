@@ -67,18 +67,12 @@ export default async function ReviewsPage({
     <main className="mx-auto max-w-5xl px-4 py-8 md:px-6">
       <PageHeading title={copy.title} description={copy.intro} />
 
-      <StatGrid columns={3}>
+      <StatGrid columns={2}>
         <StatCard
           label={copy.averageRating}
           value={combinedAverage > 0 ? `${combinedAverage.toFixed(1)} / 5` : copy.noRating}
           caption={copy.reviewsSuffix(totalReviewCount)}
           icon="star"
-        />
-        <StatCard
-          label={copy.dealsCompleted}
-          value={stats.completedDeals}
-          caption={copy.dealsCompletedCaption}
-          icon="folder"
         />
         <StatCard
           label={copy.settledClean}
