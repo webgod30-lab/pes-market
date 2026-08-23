@@ -16,7 +16,7 @@ export function ReviewsFilter({ reviews, locale }: { reviews: ReviewsPageEntry[]
   const copy = REVIEWS_PAGE[locale];
   const [filter, setFilter] = useState<"all" | "buyer" | "seller">("all");
 
-  const filtered = filter === "all" ? reviews : reviews.filter((r) => r.authorRole === filter);
+  const filtered = filter === "all" ? reviews : reviews.filter((r) => r.authorId && r.authorRole === filter);
 
   return (
     <>
@@ -54,14 +54,20 @@ export function ReviewsFilter({ reviews, locale }: { reviews: ReviewsPageEntry[]
             <Card key={review.id}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <Link
-                    href={`/u/${review.authorId}`}
-                    className="truncate font-medium text-[var(--accent)] hover:underline"
-                  >
-                    {review.authorName}
-                  </Link>
+                  {review.authorId ? (
+                    <Link
+                      href={`/u/${review.authorId}`}
+                      className="truncate font-medium text-[var(--accent)] hover:underline"
+                    >
+                      {review.authorName}
+                    </Link>
+                  ) : (
+                    <span className="truncate font-medium text-[var(--accent)]">{review.authorName}</span>
+                  )}
                   <p className="text-xs text-[var(--muted)]">
-                    {review.authorRole === "buyer" ? copy.buyerLabel : copy.sellerLabel} · {review.dealReference}
+                    {review.authorId
+                      ? `${review.authorRole === "buyer" ? copy.buyerLabel : copy.sellerLabel} · ${review.dealReference}`
+                      : "Customer review"}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -74,13 +80,15 @@ export function ReviewsFilter({ reviews, locale }: { reviews: ReviewsPageEntry[]
                 <p className="mt-3 text-sm leading-relaxed text-[var(--text)]">{review.comment}</p>
               ) : null}
 
-              <p className="mt-3 text-xs text-[var(--muted)]">
-                {review.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </p>
+              {review.authorId ? (
+                <p className="mt-3 text-xs text-[var(--muted)]">
+                  {review.createdAt.toLocaleDateString(locale === "ar" ? "ar" : "en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              ) : null}
             </Card>
           ))}
         </div>

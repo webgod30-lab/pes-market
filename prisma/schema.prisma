@@ -884,3 +884,21 @@ model VisitCounter {
 
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// LegacyCustomerReview — historical customer reviews supplied by the site owner
+// ---------------------------------------------------------------------------
+
+/// Historical customer reviews whose source export contains names, ratings and
+/// comments but no user/deal identifiers. These remain separate from Review so
+/// the application never invents a completed deal or a reputation relationship.
+model LegacyCustomerReview {
+  id         String   @id
+  sourceOrder Int     @unique
+  authorName String
+  rating     Int
+  comment    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([sourceOrder])
+}

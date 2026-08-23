@@ -1,4 +1,5 @@
 import { getPublicReviewsPageData } from "@/lib/reviews";
+import { listLegacyCustomerReviews } from "@/lib/legacy-reviews";
 import { getLocale } from "@/lib/locale-server";
 import { REVIEWS_PAGE } from "@/lib/page-copy";
 import { ReviewsFilter } from "@/components/reviews-filter";
@@ -17,7 +18,27 @@ export const dynamic = "force-dynamic";
 export default async function ReviewsPage() {
   const locale = await getLocale();
   const copy = REVIEWS_PAGE[locale];
-  const { stats, reviews } = await getPublicReviewsPageData();
+  const [{ stats, reviews }, legacyReviews] = await Promise.all([
+    getPublicReviewsPageData(),
+    listLegacyCustomerReviews(25),
+  ]);
+
+  const importedEntries = legacyReviews.map((review) => ({
+    id: review.id,
+    authorId: "",
+    authorName: review.authorName,
+    authorRole: "buyer" as const,
+    dealReference: "",
+    rating: review.rating,
+    comment: review.comment,
+    createdAt: new Date(0),
+  }));
+
+  const combinedReviews = [...reviews.slice(0, 25), ...importedEntries].slice(0, 50);
+  const combinedAverage =
+    combinedReviews.length > 0
+      ? combinedReviews.reduce((sum, review) => sum + review.rating, 0) / combinedReviews.length
+      : 0;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 md:px-6">
@@ -26,8 +47,8 @@ export default async function ReviewsPage() {
       <StatGrid columns={3}>
         <StatCard
           label={copy.averageRating}
-          value={stats.averageRating > 0 ? `${stats.averageRating.toFixed(1)} / 5` : copy.noRating}
-          caption={copy.reviewsSuffix(stats.reviewCount)}
+          value={combinedAverage > 0 ? `${combinedAverage.toFixed(1)} / 5` : copy.noRating}
+          caption={copy.reviewsSuffix(combinedReviews.length)}
           icon="star"
         />
         <StatCard
@@ -44,7 +65,7 @@ export default async function ReviewsPage() {
         />
       </StatGrid>
 
-      <ReviewsFilter reviews={reviews} locale={locale} />
+      <ReviewsFilter reviews={combinedReviews} locale={locale} />
     </main>
   );
 }

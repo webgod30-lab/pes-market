@@ -9,16 +9,11 @@ import { Stars } from "@/components/reputation";
 import type { PublicReview } from "@/lib/reviews";
 
 /**
- * What people said after trading.
+ * What customers said after trading.
  *
- * These are real Review rows, pulled from the database — the same ones the
- * /reviews page shows. Nothing here is written by us.
- *
- * That is a deliberate constraint rather than a limitation: a testimonial
- * block on an escrow service is the single easiest thing on a landing page to
- * fake, and this one cannot be, because every quote is attached to a deal that
- * completed. It also means the section renders nothing when there is nothing
- * to show, which is the honest failure mode.
+ * Current reviews come from completed deals. The historical customer-review
+ * archive is stored separately because its source contains no user/deal IDs;
+ * inventing those relationships would corrupt the verified reputation model.
  */
 export function Testimonials({ reviews, locale }: { reviews: PublicReview[]; locale: Locale }) {
   const copy = SECTIONS[locale];
@@ -58,8 +53,9 @@ export function Testimonials({ reviews, locale }: { reviews: PublicReview[]; loc
                 <span className="min-w-0 text-xs">
                   <span className="font-medium">{review.authorName}</span>
                   <span className="text-[var(--muted)]">
-                    {" "}
-                    on {review.subjectName} as {review.subjectSide === "seller" ? "seller" : "buyer"}
+                    {review.subjectSide === "customer"
+                      ? " · Customer review"
+                      : ` · on ${review.subjectName} as ${review.subjectSide === "seller" ? "seller" : "buyer"}`}
                   </span>
                 </span>
               </figcaption>
