@@ -111,11 +111,20 @@ const en = {
   "deal.counter.hint":
     "The account coming the other way. Checked the same way as yours before anything is released.",
 
-  "deal.account.legend": "The account itself",
   "deal.account.game": "Game",
   "deal.account.platform": "Platform",
   "deal.account.level": "Level",
-  "deal.account.optional": "Optional",
+  "deal.account.allOptional": "The rest is optional, but the more you fill in the less there is to argue about later.",
+  "deal.account.description": "Description",
+  "deal.account.strength": "Team strength",
+  "deal.account.epics": "Epics",
+  "deal.account.epicPlayers": "Which epics",
+  "deal.strength.hint": "Squad rating, e.g. 3280",
+  "deal.epics.hint": "How many",
+  "deal.epicPlayers.hint": "Names, separated by commas",
+  // {n} is the bar itself, so the number is never written twice.
+  "deal.strength.note":
+    "Both squad ratings have to be above {n} for the finished swap to pay the two promoters $2 each. Leave either box empty and it pays nobody — an unrecorded rating cannot be checked. It changes nothing about the swap itself: any two accounts are escrowed the same way, free.",
 
   "deal.submit": "Create swap and get invite code",
   "deal.submitting": "Creating swap…",
@@ -241,11 +250,19 @@ const ar: Record<MessageKey, string> = {
   "deal.counter.label": "الحساب الذي ستستلمه",
   "deal.counter.hint": "الحساب القادم في الاتجاه الآخر. يُفحص مثل حسابك تمامًا قبل تسليم أي شيء.",
 
-  "deal.account.legend": "تفاصيل الحساب",
   "deal.account.game": "اللعبة",
   "deal.account.platform": "المنصة",
   "deal.account.level": "المستوى",
-  "deal.account.optional": "اختياري",
+  "deal.account.allOptional": "الباقي اختياري، لكن كلما ملأت أكثر قلّ ما يمكن الاختلاف عليه لاحقًا.",
+  "deal.account.description": "الوصف",
+  "deal.account.strength": "قوة الفريق",
+  "deal.account.epics": "الإيبيك",
+  "deal.account.epicPlayers": "أي لاعبي إيبيك",
+  "deal.strength.hint": "تقييم التشكيلة، مثل 3280",
+  "deal.epics.hint": "كم عددهم",
+  "deal.epicPlayers.hint": "الأسماء، مفصولة بفواصل",
+  "deal.strength.note":
+    "يجب أن تكون قوة الفريقين أعلى من {n} حتى تدفع المبادلة المكتملة ٢ دولار لكل من الداعيين. اترك أي خانة فارغة ولن يُدفع لأحد — التقييم غير المسجَّل لا يمكن التحقق منه. وهذا لا يغيّر شيئًا في المبادلة نفسها: أي حسابين يُحفظان بالضمان بنفس الطريقة، مجانًا.",
 
   "deal.submit": "أنشئ المبادلة واحصل على رمز الدعوة",
   "deal.submitting": "جارٍ إنشاء المبادلة…",

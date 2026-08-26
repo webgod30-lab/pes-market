@@ -4,6 +4,7 @@ import { CreateDealForm } from "@/components/create-deal-form";
 import { traderSections } from "@/components/dashboard/dash-nav";
 import { DashShell } from "@/components/dashboard/dash-shell";
 import { ESCROW_STEPS } from "@/lib/escrow-flow";
+import { MINIMUM_TEAM_STRENGTH } from "@/lib/referrals";
 import { Card, SetupProblem } from "@/components/ui";
 
 export const metadata = { title: "Open a deal" };
@@ -23,7 +24,7 @@ export default async function NewDealPage() {
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
         <Card>
-          <CreateDealForm locale={locale} />
+          <CreateDealForm locale={locale} minimumTeamStrength={MINIMUM_TEAM_STRENGTH} />
         </Card>
 
         {/* What happens after the form. Someone opening their first deal is

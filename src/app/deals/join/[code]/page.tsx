@@ -5,6 +5,7 @@ import { findInvite } from "@/lib/deals";
 import { getReputation } from "@/lib/reviews";
 import { formatCents } from "@/lib/money";
 import { JoinDealForm } from "@/components/join-deal-form";
+import { AccountFactList } from "@/components/trade/account-facts";
 import { ReputationLine } from "@/components/reputation";
 import { Badge, Card, PageHeading, SetupProblem } from "@/components/ui";
 import { getLocale } from "@/lib/locale-server";
@@ -76,11 +77,26 @@ export default async function JoinByCodePage({
 
         <p className="mt-3 text-sm leading-relaxed">{invite.accountSummary}</p>
 
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          {invite.game}
-          {invite.platform ? ` · ${invite.platform}` : ""}
-          {invite.level !== null ? ` · level ${invite.level}` : ""}
-        </p>
+        <p className="mt-2 text-xs text-[var(--muted)]">{invite.game}</p>
+
+        <AccountFactList facts={invite} locale={locale} />
+
+        {/* What the opener wrote down for the side you would be taking. Worth
+            showing in full: it is what you are being asked to match, and the
+            place a swap goes wrong is a expectation nobody wrote down. */}
+        <div className="mt-4 border-t border-[var(--border)] pt-3">
+          <p className="text-xs text-[var(--muted)]">{copy.expectedOfYours}</p>
+          <AccountFactList
+            facts={{
+              platform: invite.counterPlatform,
+              level: invite.counterLevel,
+              teamStrength: invite.counterTeamStrength,
+              epics: invite.counterEpics,
+              epicPlayers: invite.counterEpicPlayers,
+            }}
+            locale={locale}
+          />
+        </div>
 
         <dl className="mt-4 space-y-1.5 border-t border-[var(--border)] pt-4 text-sm">
           <div className="flex justify-between">

@@ -344,20 +344,36 @@ const DEMO_TRADERS = [
   email: `${name.toLowerCase()}@demo.pesescrow.test`,
 }));
 
-const DEMO_ACCOUNTS = [
-  { summary: "eFootball 2026 mobile, 3 Legends and a 3100-rated squad. Original email included.", game: "eFootball", platform: "Mobile", level: 38, price: 12_000 },
-  { summary: "eFootball 2026 PS5 account, 1.2M GP, barely played.", game: "eFootball", platform: "PS5", level: 15, price: 5_500 },
-  { summary: "PES 2021 Steam account with most base Legends unlocked.", game: "PES 2021", platform: "PC", level: 66, price: 21_000 },
-  { summary: "eFootball 2026 mobile, Epic Zidane and Epic Henry, 2900 rating.", game: "eFootball", platform: "Mobile", level: 33, price: 14_500 },
-  { summary: "eFootball 2026 Xbox, 800k GP and a full first team.", game: "eFootball", platform: "Xbox", level: 24, price: 7_200 },
-  { summary: "eFootball 2026 mobile starter, level 9, untouched coins.", game: "eFootball", platform: "Mobile", level: 9, price: 2_800 },
-  { summary: "eFootball 2026 mobile, 5 Legends, squad rating 3400. No bans.", game: "eFootball", platform: "Mobile", level: 51, price: 26_000 },
-  { summary: "PES 2021 PS4 account, complete Legends collection.", game: "PES 2021", platform: "PS4", level: 72, price: 18_500 },
-  { summary: "eFootball 2026 PC account, 600k GP, clean history.", game: "eFootball", platform: "PC", level: 19, price: 4_900 },
-  { summary: "eFootball 2026 mobile, Prime Ronaldinho maxed, 3250 rating.", game: "eFootball", platform: "Mobile", level: 44, price: 16_800 },
-  { summary: "eFootball 2026 Xbox, 2M GP stockpile for squad building.", game: "eFootball", platform: "Xbox", level: 28, price: 9_400 },
-  { summary: "eFootball 2026 mobile, 2 Epics and 400k GP.", game: "eFootball", platform: "Mobile", level: 22, price: 6_300 },
-  { summary: "PES 2021 PC, fully trained squad, original purchase receipt.", game: "PES 2021", platform: "PC", level: 58, price: 15_200 },
+// `strength` is the squad rating, and on a swap it is what decides whether the
+// completed deal credits the two promoters. Written to match the number each
+// summary already quotes, and left deliberately mixed: some of these accounts
+// are under the bar, because a demo database where every single deal pays is
+// not what the real one looks like.
+const DEMO_ACCOUNTS: {
+  summary: string;
+  game: string;
+  platform: string;
+  level: number;
+  strength: number;
+  epics: number | null;
+  epicPlayers: string | null;
+  price: number;
+}[] = [
+  { summary: "eFootball 2026 mobile, 3 Legends and a 3100-rated squad. Original email included.", game: "eFootball", platform: "Mobile", level: 38, strength: 3_100, epics: 3, epicPlayers: "Zidane, Nedvěd, Cannavaro", price: 12_000 },
+  { summary: "eFootball 2026 PS5 account, 1.2M GP, barely played.", game: "eFootball", platform: "PS5", level: 15, strength: 3_040, epics: 1, epicPlayers: "Cruyff", price: 5_500 },
+  // The PES 2021 accounts leave the epics unset: that game has no Epic cards,
+  // which is the honest reason a field is ever blank on a real deal.
+  { summary: "PES 2021 Steam account with most base Legends unlocked.", game: "PES 2021", platform: "PC", level: 66, strength: 3_180, epics: null, epicPlayers: null, price: 21_000 },
+  { summary: "eFootball 2026 mobile, Epic Zidane and Epic Henry, 2900 rating.", game: "eFootball", platform: "Mobile", level: 33, strength: 2_900, epics: 2, epicPlayers: "Zidane, Henry", price: 14_500 },
+  { summary: "eFootball 2026 Xbox, 800k GP and a full first team.", game: "eFootball", platform: "Xbox", level: 24, strength: 3_060, epics: 2, epicPlayers: "Vieira, Ronaldinho", price: 7_200 },
+  { summary: "eFootball 2026 mobile starter, level 9, untouched coins.", game: "eFootball", platform: "Mobile", level: 9, strength: 2_410, epics: 0, epicPlayers: null, price: 2_800 },
+  { summary: "eFootball 2026 mobile, 5 Legends, squad rating 3400. No bans.", game: "eFootball", platform: "Mobile", level: 51, strength: 3_400, epics: 5, epicPlayers: "R9 Ronaldo, Batistuta, Van Basten, Zico, Ronaldinho", price: 26_000 },
+  { summary: "PES 2021 PS4 account, complete Legends collection.", game: "PES 2021", platform: "PS4", level: 72, strength: 3_290, epics: null, epicPlayers: null, price: 18_500 },
+  { summary: "eFootball 2026 PC account, 600k GP, clean history.", game: "eFootball", platform: "PC", level: 19, strength: 3_020, epics: 1, epicPlayers: "Henry", price: 4_900 },
+  { summary: "eFootball 2026 mobile, Prime Ronaldinho maxed, 3250 rating.", game: "eFootball", platform: "Mobile", level: 44, strength: 3_250, epics: 3, epicPlayers: "Ronaldinho, Zidane, Cruyff", price: 16_800 },
+  { summary: "eFootball 2026 Xbox, 2M GP stockpile for squad building.", game: "eFootball", platform: "Xbox", level: 28, strength: 3_120, epics: 2, epicPlayers: "Beckenbauer, Cannavaro", price: 9_400 },
+  { summary: "eFootball 2026 mobile, 2 Epics and 400k GP.", game: "eFootball", platform: "Mobile", level: 22, strength: 2_960, epics: 2, epicPlayers: "Nedvěd, Vieira", price: 6_300 },
+  { summary: "PES 2021 PC, fully trained squad, original purchase receipt.", game: "PES 2021", platform: "PC", level: 58, strength: 3_210, epics: null, epicPlayers: null, price: 15_200 },
 ];
 
 /** Comments a buyer leaves about a seller. */
@@ -691,11 +707,26 @@ async function main() {
       buyerId,
       inviteCode: null,
       inviteAcceptedAt: at,
-      accountSummary: account.summary,
-      counterAccountSummary: counterAccount.summary,
       game: account.game,
+
+      // The two accounts, each described by the same set of fields. The
+      // ratings are what the referral bar is checked against:
+      // creditReferralsForDeal below reads both columns and writes nothing
+      // when either is under, so some of this demo history is deliberately
+      // unpaid.
+      accountSummary: account.summary,
       platform: account.platform,
       level: account.level,
+      teamStrength: account.strength,
+      epics: account.epics,
+      epicPlayers: account.epicPlayers,
+
+      counterAccountSummary: counterAccount.summary,
+      counterPlatform: counterAccount.platform,
+      counterLevel: counterAccount.level,
+      counterTeamStrength: counterAccount.strength,
+      counterEpics: counterAccount.epics,
+      counterEpicPlayers: counterAccount.epicPlayers,
       // Swaps carry no money at all. Written explicitly rather than left to
       // the column defaults, because this is an upsert: a database seeded
       // before the cash flow was retired already has figures in these columns,

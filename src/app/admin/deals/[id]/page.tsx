@@ -8,8 +8,10 @@ import { revealCounterForAdminAction, revealForAdminAction } from "@/app/actions
 import { listMessages } from "@/lib/messages";
 import { getDisputeForDeal } from "@/lib/disputes";
 import { getReputation } from "@/lib/reviews";
+import { meetsStrengthBar, MINIMUM_TEAM_STRENGTH } from "@/lib/referrals";
 import { listTransferCodes, CODE_EXCHANGE_STATUSES } from "@/lib/transfer-codes";
 import { TransferCodePanel } from "@/components/transfer-code-panel";
+import { AccountFactList } from "@/components/trade/account-facts";
 import { DealTimeline } from "@/components/trade/timeline";
 import { TradeHistory } from "@/components/trade/history";
 import { DealChat } from "@/components/deal-chat";
@@ -58,6 +60,10 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
   ]);
 
   const disputeIsOpen = dispute?.status === "open" || dispute?.status === "under_review";
+
+  // Asked through the same function that writes the credits, so the console
+  // cannot say one thing while the crediting pass does another.
+  const paysPromoters = meetsStrengthBar(deal.teamStrength, deal.counterTeamStrength);
 
   return (
     <DashShell
@@ -175,11 +181,11 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
       <Card className="mt-3">
         <h2 className="text-sm font-semibold">{copy.sellerPromised}</h2>
         <p className="mt-2 text-sm leading-relaxed">{deal.accountSummary}</p>
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          {deal.game}
-          {deal.platform ? ` · ${deal.platform}` : ""}
-          {deal.level !== null ? ` · level ${deal.level}` : ""}
-        </p>
+        <p className="mt-2 text-xs text-[var(--muted)]">{deal.game}</p>
+
+        {/* The checkable half of what was promised. This is the list the admin
+            works down while logged into the account. */}
+        <AccountFactList facts={deal} locale={locale} />
 
         {/* On a swap there is a second promise to check against. */}
         {deal.tradeKind === "swap" ? (
@@ -188,7 +194,33 @@ export default async function AdminDealPage({ params }: { params: Promise<{ id: 
             <p className="mt-2 text-sm leading-relaxed">
               {deal.counterAccountSummary ?? copy.notDescribed}
             </p>
-            <p className="mt-2 text-xs text-[var(--muted)]">{copy.swapNote}</p>
+
+            <AccountFactList
+              facts={{
+                platform: deal.counterPlatform,
+                level: deal.counterLevel,
+                teamStrength: deal.counterTeamStrength,
+                epics: deal.counterEpics,
+                epicPlayers: deal.counterEpicPlayers,
+              }}
+              locale={locale}
+            />
+
+            <p className="mt-3 text-xs text-[var(--muted)]">{copy.swapNote}</p>
+
+            {/* Whether this deal owes the two promoters anything, stated on the
+                deal rather than left to be worked out from two numbers. */}
+            <p
+              className={
+                paysPromoters
+                  ? "mt-2 text-xs text-[var(--tone-success)]"
+                  : "mt-2 text-xs text-[var(--muted)]"
+              }
+            >
+              {paysPromoters
+                ? copy.creditQualifies(MINIMUM_TEAM_STRENGTH)
+                : copy.creditBlocked(MINIMUM_TEAM_STRENGTH)}
+            </p>
           </div>
         ) : null}
       </Card>

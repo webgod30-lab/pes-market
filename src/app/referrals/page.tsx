@@ -8,6 +8,7 @@ import {
   listReferralEarnings,
   listReferredUsers,
   MINIMUM_PAYOUT_CENTS,
+  MINIMUM_TEAM_STRENGTH,
   nextPayoutDate,
   REFERRAL_REWARD_CENTS,
 } from "@/lib/referrals";
@@ -134,6 +135,12 @@ export default async function ReferralsPage() {
             <li>
               <strong className="text-[var(--foreground)]">{copy.paysDateBold}</strong>{" "}
               {copy.paysDateBody} {payoutDay}.
+            </li>
+            <li>
+              <strong className="text-[var(--foreground)]">
+                {copy.paysStrengthBold.replace("{n}", String(MINIMUM_TEAM_STRENGTH))}
+              </strong>{" "}
+              {copy.paysStrengthBody}
             </li>
             <li>{copy.paysOwnDeals}</li>
           </ul>

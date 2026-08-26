@@ -175,6 +175,42 @@ const accountPool = shuffled(ACCOUNTS);
 const sellerReviewPool = shuffled(SELLER_REVIEWS);
 const buyerReviewPool = shuffled(BUYER_REVIEWS);
 
+/** The names that turn up in the account descriptions the pool is built from. */
+const EPIC_NAMES = [
+  "Zidane",
+  "Henry",
+  "Nedvěd",
+  "Cannavaro",
+  "Vieira",
+  "Ronaldinho",
+  "R9 Ronaldo",
+  "Batistuta",
+  "Van Basten",
+  "Beckenbauer",
+  "Cruyff",
+  "Zico",
+];
+
+/**
+ * A count of Epics and a matching list of names, as form strings.
+ *
+ * Derived from the index rather than parsed out of the description: the pool's
+ * summaries mention Epics in prose, and a bot that guessed at parsing them
+ * would put its own bugs into the fixture data. What matters here is that the
+ * two fields agree with each other, which they do by construction.
+ */
+function epicsFor(index: number, prefix: "" | "counter" = ""): Record<string, string> {
+  const count = between(2, 6);
+  const names = Array.from(
+    { length: count },
+    (_, i) => EPIC_NAMES[(index * 3 + i) % EPIC_NAMES.length],
+  );
+
+  return prefix === ""
+    ? { epics: String(count), epicPlayers: names.join(", ") }
+    : { counterEpics: String(count), counterEpicPlayers: names.join(", ") };
+}
+
 // ---------------------------------------------------------------------------
 // Names
 // ---------------------------------------------------------------------------
@@ -391,11 +427,23 @@ async function runOneDeal(index: number, admin: CurrentUser) {
   // validation breaks this run rather than silently passing.
   const parsed = createDealSchema.safeParse({
     side: "seller",
-    accountSummary: account.summary,
-    counterAccountSummary: counterAccount.summary,
     game: account.game,
+
+    accountSummary: account.summary,
     platform: account.platform,
     level: String(between(8, 90)),
+    // Both sides above the referral bar. The bot exists to produce deals that
+    // behave like real ones end to end, and a swap under the bar completes
+    // without ever crediting a promoter — which would make the earnings side
+    // of a bot run look broken rather than deliberate.
+    teamStrength: String(between(3_050, 3_600)),
+    ...epicsFor(index),
+
+    counterAccountSummary: counterAccount.summary,
+    counterPlatform: counterAccount.platform,
+    counterLevel: String(between(8, 90)),
+    counterTeamStrength: String(between(3_050, 3_600)),
+    ...epicsFor(index + 3, "counter"),
   });
 
   if (!parsed.success) {

@@ -123,6 +123,20 @@ type Fixture = {
   game: string;
   platform: string;
   level: string;
+  /**
+   * The per-side account details, all optional in the file: a fixture written
+   * before these existed still runs. An absent rating means "not recorded",
+   * which is what the referral bar treats as under it — such a swap completes
+   * normally and credits nobody.
+   */
+  team_strength?: string;
+  epics?: string;
+  epic_players?: string;
+  counter_platform?: string;
+  counter_level?: string;
+  counter_team_strength?: string;
+  counter_epics?: string;
+  counter_epic_players?: string;
   a_account_description: string;
   a_expects_in_exchange: string;
   a_game_login_email: string;
@@ -257,16 +271,32 @@ async function runSwap(fixture: Fixture, admin: CurrentUser): Promise<Result> {
   }
 
   // --- 1. A opens the swap -------------------------------------------------
-  const level = Number(fixture.level);
+  //
+  // Number(undefined) is NaN, so a fixture that omits any of these lands on
+  // null — the same as a trader leaving the box empty on the form.
+  const number = (raw: string | undefined) => {
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  };
 
   const created = await createDeal({
     creator: a,
     side: "seller",
-    accountSummary: fixture.a_account_description,
-    counterAccountSummary: fixture.a_expects_in_exchange,
     game: fixture.game,
+
+    accountSummary: fixture.a_account_description,
     platform: fixture.platform || null,
-    level: Number.isFinite(level) ? level : null,
+    level: number(fixture.level),
+    teamStrength: number(fixture.team_strength),
+    epics: number(fixture.epics),
+    epicPlayers: fixture.epic_players || null,
+
+    counterAccountSummary: fixture.a_expects_in_exchange,
+    counterPlatform: fixture.counter_platform || null,
+    counterLevel: number(fixture.counter_level),
+    counterTeamStrength: number(fixture.counter_team_strength),
+    counterEpics: number(fixture.counter_epics),
+    counterEpicPlayers: fixture.counter_epic_players || null,
   });
 
   if (!record("create deal", created)) return result;

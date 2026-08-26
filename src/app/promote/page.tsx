@@ -4,7 +4,12 @@ import { redirect } from "next/navigation";
 import { getCurrentUserQuietly } from "@/lib/dal";
 import { getLocale } from "@/lib/locale-server";
 import { PROMOTE } from "@/lib/promoter-copy";
-import { listRecentPayouts, MINIMUM_PAYOUT_CENTS, REFERRAL_REWARD_CENTS } from "@/lib/referrals";
+import {
+  listRecentPayouts,
+  MINIMUM_PAYOUT_CENTS,
+  MINIMUM_TEAM_STRENGTH,
+  REFERRAL_REWARD_CENTS,
+} from "@/lib/referrals";
 import { formatCents } from "@/lib/money";
 import { SITE } from "@/lib/site";
 import { PromoterApplyForm } from "@/components/promoter-apply-form";
@@ -16,7 +21,7 @@ import { Prose, Section } from "@/components/prose";
 export const metadata = {
   title: "Become a promoter",
   description:
-    "Your code is the door — nobody registers on PESescrow.com without one. Earn $2 every time someone who used yours completes a swap. No code needed to apply.",
+    "Your code is the door — nobody registers on PESescrow.com without one. Earn $2 every time someone who used yours completes a swap of two 3000+ rated accounts. No code needed to apply.",
 };
 
 /**
@@ -121,7 +126,11 @@ export default async function PromotePage() {
         <div className="-mx-1 overflow-x-auto px-1">
           <table className="w-full min-w-[22rem] border-collapse text-sm">
             <tbody>
-              <Row label={copy.earnPerSwap} value={formatCents(REFERRAL_REWARD_CENTS)} />
+              <Row
+                label={copy.earnPerSwap}
+                value={formatCents(REFERRAL_REWARD_CENTS)}
+                note={copy.earnStrengthNote.replace("{n}", String(MINIMUM_TEAM_STRENGTH))}
+              />
               <Row
                 label={
                   <>

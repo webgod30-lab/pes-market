@@ -5,8 +5,9 @@
 // percentage of — so nothing here is funded by a deal. Every credit written
 // below is a cost.
 //
-// The rule, in one line: when a deal completes, each of the two traders earns
-// $2 for the promoter whose code they signed up with. Never for themselves.
+// The rule, in one line: when a swap completes, and both accounts in it were
+// rated above MINIMUM_TEAM_STRENGTH, each of the two traders earns $2 for the
+// promoter whose code they signed up with. Never for themselves.
 //
 // Everything is derived from ReferralEarning rows. Nothing keeps a running
 // total, for the same reason Withdrawal does not: a stored balance drifts away
@@ -32,6 +33,24 @@ export const REFERRAL_REWARD_CENTS = 200;
  * spent entirely on sending it.
  */
 export const MINIMUM_PAYOUT_CENTS = 4_000;
+
+/**
+ * The Team Strength both accounts in a swap have to beat before the deal earns
+ * anybody anything.
+ *
+ * This is not a rule about which swaps are allowed. Two people can trade
+ * whatever they like here, and a 900-rated account gets exactly the same
+ * escrow as a 3500 one. It is a rule about which swaps the site pays for.
+ *
+ * Every credit is a real cost with nothing funding it — there is no commission
+ * on a swap to take it out of — and a pair of throwaway accounts passed back
+ * and forth is the cheapest thing in the world to manufacture. Above 3000 is a
+ * squad somebody actually built, which is the trade this programme means to
+ * pay for.
+ *
+ * Strictly above, not "at least": 3000 exactly does not clear it.
+ */
+export const MINIMUM_TEAM_STRENGTH = 3_000;
 
 export type ReferralResult<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -95,6 +114,30 @@ export async function findPromoterByCode(rawCode: string): Promise<Promoter | nu
 // ---------------------------------------------------------------------------
 
 /**
+ * Whether a swap's two accounts both clear the bar.
+ *
+ * Blank fails, on either side. Team Strength is an optional field and always
+ * has been, so a missing rating is not evidence of a big account — it is no
+ * evidence at all, and passing it would make the bar itself optional: anybody
+ * farming credits would simply leave the box empty.
+ *
+ * Exported because the create-deal form says the same thing to somebody's face
+ * before they open a swap, and two copies of this comparison would eventually
+ * disagree.
+ */
+export function meetsStrengthBar(
+  teamStrength: number | null,
+  counterTeamStrength: number | null,
+): boolean {
+  return (
+    teamStrength !== null &&
+    counterTeamStrength !== null &&
+    teamStrength > MINIMUM_TEAM_STRENGTH &&
+    counterTeamStrength > MINIMUM_TEAM_STRENGTH
+  );
+}
+
+/**
  * Writes the $2 credits a newly completed deal owes.
  *
  * Safe to call more than once, and it has to be: a deal reaches "completed"
@@ -114,6 +157,8 @@ export async function creditReferralsForDeal(dealId: string): Promise<{ credited
       id: true,
       status: true,
       tradeKind: true,
+      teamStrength: true,
+      counterTeamStrength: true,
       sellerId: true,
       buyerId: true,
       seller: { select: { id: true, referredById: true } },
@@ -130,6 +175,13 @@ export async function creditReferralsForDeal(dealId: string): Promise<{ credited
   // a debt retroactively — which reconcileReferralCredits below would otherwise
   // do the first time it ran, for every archived deal at once.
   if (deal.tradeKind !== "swap") return { credited: 0 };
+
+  // Both accounts have to have been worth trading. A completed swap of two
+  // empty accounts looks identical to a real one from here — same statuses,
+  // same confirmations — so the rating is the only thing that separates them,
+  // and without this the programme pays $4 for a pair of accounts that cost
+  // nothing to make.
+  if (!meetsStrengthBar(deal.teamStrength, deal.counterTeamStrength)) return { credited: 0 };
 
   const traders = [deal.seller, deal.buyer];
 
@@ -176,7 +228,19 @@ export async function creditReferralsForDeal(dealId: string): Promise<{ credited
  */
 export async function reconcileReferralCredits(limit = 500): Promise<{ scanned: number; credited: number }> {
   const deals = await prisma.deal.findMany({
-    where: { status: "completed", tradeKind: "swap", referralEarnings: { none: {} } },
+    // The strength filter is not an optimisation. This scan is oldest-first and
+    // capped, and a deal that will never be credited never leaves the set it
+    // selects from — so without it, enough under-rated swaps would eventually
+    // fill every run's limit and a real deal that missed its credit would
+    // never be reached. `gt` on a nullable column also drops the blanks, so
+    // this matches meetsStrengthBar rather than merely approximating it.
+    where: {
+      status: "completed",
+      tradeKind: "swap",
+      teamStrength: { gt: MINIMUM_TEAM_STRENGTH },
+      counterTeamStrength: { gt: MINIMUM_TEAM_STRENGTH },
+      referralEarnings: { none: {} },
+    },
     orderBy: { completedAt: "asc" },
     take: limit,
     select: { id: true },

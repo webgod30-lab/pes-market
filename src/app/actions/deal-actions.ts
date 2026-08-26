@@ -31,6 +31,14 @@ export async function createDealAction(
     game: String(formData.get("game") ?? ""),
     platform: String(formData.get("platform") ?? ""),
     level: String(formData.get("level") ?? ""),
+    teamStrength: String(formData.get("teamStrength") ?? ""),
+    epics: String(formData.get("epics") ?? ""),
+    epicPlayers: String(formData.get("epicPlayers") ?? ""),
+    counterPlatform: String(formData.get("counterPlatform") ?? ""),
+    counterLevel: String(formData.get("counterLevel") ?? ""),
+    counterTeamStrength: String(formData.get("counterTeamStrength") ?? ""),
+    counterEpics: String(formData.get("counterEpics") ?? ""),
+    counterEpicPlayers: String(formData.get("counterEpicPlayers") ?? ""),
   };
 
   const echo = { ...raw };
@@ -44,15 +52,10 @@ export async function createDealAction(
   let dealId: string;
 
   try {
-    const result = await createDeal({
-      creator: user,
-      side: parsed.data.side,
-      accountSummary: parsed.data.accountSummary,
-      game: parsed.data.game,
-      platform: parsed.data.platform,
-      level: parsed.data.level,
-      counterAccountSummary: parsed.data.counterAccountSummary,
-    });
+    // The parsed shape is the input shape — same flat field names on both
+    // sides of the swap — so this spreads rather than re-listing twelve fields
+    // that would then have to be kept in step by hand.
+    const result = await createDeal({ creator: user, ...parsed.data });
 
     if (!result.ok) return { message: result.error, values: echo };
 

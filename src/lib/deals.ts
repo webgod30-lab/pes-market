@@ -49,15 +49,39 @@ export function oppositeSide(side: DealSide): DealSide {
 // Create
 // ---------------------------------------------------------------------------
 
+/**
+ * A swap, as the person opening it describes it.
+ *
+ * Deliberately two flat sets of the same fields rather than a nested pair of
+ * account objects: the columns are flat, DealView is flat, and the form posts
+ * flat names. One shape all the way through beats a prettier type that has to
+ * be unpacked twice on every path.
+ *
+ * `game` is the only fact recorded once. Everything else about the account
+ * being put up has a `counter` twin for the account coming back.
+ */
 export type CreateDealInput = {
   creator: CurrentUser;
   side: DealSide;
-  accountSummary: string;
   game: string;
+
+  accountSummary: string;
   platform: string | null;
   level: number | null;
+  /** Squad rating — eFootball's Team Strength. Decides whether the finished
+   *  deal pays the two promoters; see lib/referrals. */
+  teamStrength: number | null;
+  /** How many Epic cards, and which ones. */
+  epics: number | null;
+  epicPlayers: string | null;
+
   /** The account the other side puts up. Required: every deal is a swap. */
   counterAccountSummary: string;
+  counterPlatform: string | null;
+  counterLevel: number | null;
+  counterTeamStrength: number | null;
+  counterEpics: number | null;
+  counterEpicPlayers: string | null;
 };
 
 /**
@@ -101,12 +125,25 @@ export async function createDeal(
           createdSide: input.side,
           sellerId: isSeller ? input.creator.id : null,
           buyerId: isSeller ? null : input.creator.id,
-          accountSummary: input.accountSummary,
           tradeKind: "swap",
-          counterAccountSummary: counter,
           game: input.game,
+
+          // The two accounts, written out in the same order and the same shape
+          // as the form asks for them.
+          accountSummary: input.accountSummary,
           platform: input.platform,
           level: input.level,
+          teamStrength: input.teamStrength,
+          epics: input.epics,
+          epicPlayers: input.epicPlayers,
+
+          counterAccountSummary: counter,
+          counterPlatform: input.counterPlatform,
+          counterLevel: input.counterLevel,
+          counterTeamStrength: input.counterTeamStrength,
+          counterEpics: input.counterEpics,
+          counterEpicPlayers: input.counterEpicPlayers,
+
           currency: "USD",
           // agreedPriceCents, feeBps, feeCents and sellerPayoutCents all
           // default to 0 in the schema. A swap has no price, and the service
@@ -144,6 +181,17 @@ export type DealInvitePreview = {
   game: string;
   platform: string | null;
   level: number | null;
+  /** Squad rating of the account described above, if one was given. */
+  teamStrength: number | null;
+  epics: number | null;
+  epicPlayers: string | null;
+  /** What the opener wrote down for the side the joiner would be taking — the
+   *  account they are being asked to match. */
+  counterPlatform: string | null;
+  counterLevel: number | null;
+  counterTeamStrength: number | null;
+  counterEpics: number | null;
+  counterEpicPlayers: string | null;
   agreedPriceCents: number;
   sellerPayoutCents: number;
   feeCents: number;
@@ -172,6 +220,14 @@ export async function findInvite(code: string): Promise<DealInvitePreview | null
       game: true,
       platform: true,
       level: true,
+      teamStrength: true,
+      epics: true,
+      epicPlayers: true,
+      counterPlatform: true,
+      counterLevel: true,
+      counterTeamStrength: true,
+      counterEpics: true,
+      counterEpicPlayers: true,
       agreedPriceCents: true,
       sellerPayoutCents: true,
       feeCents: true,
@@ -192,6 +248,14 @@ export async function findInvite(code: string): Promise<DealInvitePreview | null
     game: deal.game,
     platform: deal.platform,
     level: deal.level,
+    teamStrength: deal.teamStrength,
+    epics: deal.epics,
+    epicPlayers: deal.epicPlayers,
+    counterPlatform: deal.counterPlatform,
+    counterLevel: deal.counterLevel,
+    counterTeamStrength: deal.counterTeamStrength,
+    counterEpics: deal.counterEpics,
+    counterEpicPlayers: deal.counterEpicPlayers,
     agreedPriceCents: deal.agreedPriceCents,
     sellerPayoutCents: deal.sellerPayoutCents,
     feeCents: deal.feeCents,
@@ -797,8 +861,22 @@ export type DealView = {
   /** Swap only: the account the buyer is putting up. Null on a cash deal. */
   counterAccountSummary: string | null;
   game: string;
+
+  // The seller's account, then the buyer's. Same fields, same order, so a page
+  // can render the two halves of a swap with one component.
   platform: string | null;
   level: number | null;
+  /** Squad rating of the seller's account. Null if nobody recorded one. */
+  teamStrength: number | null;
+  epics: number | null;
+  epicPlayers: string | null;
+
+  counterPlatform: string | null;
+  counterLevel: number | null;
+  counterTeamStrength: number | null;
+  counterEpics: number | null;
+  counterEpicPlayers: string | null;
+
   agreedPriceCents: number;
   feeCents: number;
   sellerPayoutCents: number;
@@ -867,6 +945,14 @@ export async function loadDealForViewer(
       game: true,
       platform: true,
       level: true,
+      teamStrength: true,
+      epics: true,
+      epicPlayers: true,
+      counterPlatform: true,
+      counterLevel: true,
+      counterTeamStrength: true,
+      counterEpics: true,
+      counterEpicPlayers: true,
       agreedPriceCents: true,
       feeCents: true,
       sellerPayoutCents: true,

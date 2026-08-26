@@ -9,6 +9,7 @@ import { loadDealForViewer, type DealView, type DealViewerRole } from "@/lib/dea
 import { listActivePaymentMethods, type PaymentMethodView } from "@/lib/payment-methods";
 import { formatCents } from "@/lib/money";
 import { PRE_PAYMENT_STATUSES, dealStatusLabel } from "@/lib/deal-status";
+import { AccountFactList } from "@/components/trade/account-facts";
 import { DealTimeline } from "@/components/trade/timeline";
 import { TradeHistory } from "@/components/trade/history";
 import { StatusBadge, TurnBadge } from "@/components/trade/status-badge";
@@ -186,11 +187,8 @@ export default async function DealPage({
             {isSwapDeal ? t("swap.sellerAccount") : "What is being traded"}
           </h2>
           <p className="mt-2 text-sm leading-relaxed">{deal.accountSummary}</p>
-          <p className="mt-3 text-xs text-[var(--muted)]">
-            {deal.game}
-            {deal.platform ? ` · ${deal.platform}` : ""}
-            {deal.level !== null ? ` · level ${deal.level}` : ""}
-          </p>
+          <p className="mt-3 text-xs text-[var(--muted)]">{deal.game}</p>
+          <AccountFactList facts={deal} locale={locale} />
         </Card>
 
         {isSwapDeal ? (
@@ -201,6 +199,20 @@ export default async function DealPage({
             <p className="mt-2 text-sm leading-relaxed">
               {deal.counterAccountSummary ?? t("swap.notDescribed")}
             </p>
+
+            {/* The same five facts as the card beside it, read out of the
+                `counter` half of the row. */}
+            <AccountFactList
+              facts={{
+                platform: deal.counterPlatform,
+                level: deal.counterLevel,
+                teamStrength: deal.counterTeamStrength,
+                epics: deal.counterEpics,
+                epicPlayers: deal.counterEpicPlayers,
+              }}
+              locale={locale}
+            />
+
             <p className="mt-3 text-xs text-[var(--muted)]">{t("swap.noMoney")}</p>
           </Card>
         ) : (

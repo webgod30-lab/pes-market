@@ -57,7 +57,8 @@ const termsPageEn = {
   s5aPoints: [
     "An account can only be created using a valid promoter code issued by an existing account.",
     "Every account receives a promoter code of its own on registration.",
-    "We credit a promoter $2 each time a person who registered with their code completes a deal. Both parties to a completed deal credit their own promoter separately.",
+    "We credit a promoter $2 each time a person who registered with their code completes a swap in which both accounts were recorded with a squad rating above 3000. Both parties to such a deal credit their own promoter separately.",
+    "A deal in which either account's rating is 3000 or below, or was not recorded at the time the deal was opened, earns no credit for anyone. This does not affect the deal itself, which is escrowed on the same terms either way.",
     "A promoter earns nothing from a deal they were themselves a party to.",
     "Credits are payable once a promoter's balance reaches $40. Requests may be made on any day and are paid in one batch on the 1st of each month.",
     "Credits for a deal are withdrawn if that deal is later reversed. If the promoter has already been paid, the amount is recovered from later credits before any further payout.",
@@ -126,7 +127,8 @@ const termsPageAr: typeof termsPageEn = {
   s5aPoints: [
     "لا يمكن إنشاء حساب إلا باستخدام رمز داعٍ صالح صادر عن حساب قائم.",
     "يحصل كل حساب على رمز داعٍ خاص به عند التسجيل.",
-    "نمنح الداعي 2 دولار في كل مرة يُتمّ فيها شخص سجّل برمزه صفقة. كلا طرفي الصفقة المكتملة يمنحان داعيهما كل على حدة.",
+    "نمنح الداعي 2 دولار في كل مرة يُتمّ فيها شخص سجّل برمزه مبادلةً يكون تقييم الحسابين المسجَّل فيها أعلى من 3000. وكلا طرفي هذه الصفقة يمنحان داعيهما كل على حدة.",
+    "الصفقة التي يكون فيها تقييم أي من الحسابين 3000 أو أقل، أو لم يُسجَّل عند فتح الصفقة، لا تمنح أحدًا أي رصيد. ولا يؤثر ذلك على الصفقة نفسها، فهي تُحفظ بالضمان بنفس الشروط في الحالتين.",
     "لا يربح الداعي شيئًا من صفقة كان هو نفسه طرفًا فيها.",
     "الأرصدة قابلة للسحب بمجرد أن يبلغ رصيد الداعي 40 دولارًا. يمكن تقديم الطلب في أي يوم، وتُدفع دفعة واحدة في الأول من كل شهر.",
     "تُسحب أرصدة الصفقة إذا أُلغيت تلك الصفقة لاحقًا. وإذا كان الداعي قد استلم دفعته بالفعل، يُسترد المبلغ من أرصدة لاحقة قبل أي دفعة أخرى.",

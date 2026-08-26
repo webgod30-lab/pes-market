@@ -53,6 +53,7 @@ import { hashPassword } from "../src/lib/passwords";
 import { generateDealReference, generateInviteCode, generateReferralCode } from "../src/lib/ids";
 import {
   creditReferralsForDeal,
+  MINIMUM_TEAM_STRENGTH,
   reconcileReferralCredits,
   REFERRAL_REWARD_CENTS,
 } from "../src/lib/referrals";
@@ -86,6 +87,27 @@ const ATTACK_CREDS = {
   recoveryEmailPassword: "",
   notes: "",
 };
+
+/**
+ * Every optional per-side account detail, unset.
+ *
+ * Most fixtures below are about who may act on a deal rather than what the
+ * deal describes, so they spread this instead of writing ten nulls each. The
+ * ones that do care — the strength-bar checks — override the two ratings after
+ * it.
+ */
+const NO_ACCOUNT_DETAILS = {
+  platform: null,
+  level: null,
+  teamStrength: null,
+  epics: null,
+  epicPlayers: null,
+  counterPlatform: null,
+  counterLevel: null,
+  counterTeamStrength: null,
+  counterEpics: null,
+  counterEpicPlayers: null,
+} as const;
 
 /** Deals this run created, removed in the finally block. */
 const fixtureIds: string[] = [];
@@ -174,11 +196,17 @@ async function makeDeal(
  * createDeal, the invite, and both deposits rather than writing rows. Returned
  * at credentials_released, because what the callers below test is what happens
  * when the two confirmations arrive.
+ *
+ * The two ratings default to comfortably above the referral bar, so a caller
+ * that does not care about it gets a swap that pays. The ones that do care pass
+ * their own — including null, which is a trader leaving the box empty.
  */
 async function makeSwap(
   seller: CurrentUser,
   buyer: CurrentUser,
   admin: CurrentUser,
+  teamStrength: number | null = 3_200,
+  counterTeamStrength: number | null = 3_100,
 ): Promise<string> {
   const created = await createDeal({
     creator: seller,
@@ -186,8 +214,9 @@ async function makeSwap(
     accountSummary: "GUARD FIXTURE — swap seller side, safe to delete.",
     counterAccountSummary: "GUARD FIXTURE — swap buyer side, safe to delete.",
     game: "eFootball",
-    platform: null,
-    level: null,
+    ...NO_ACCOUNT_DETAILS,
+    teamStrength,
+    counterTeamStrength,
   });
 
   if (!created.ok) throw new Error(`swap fixture setup failed: ${created.error}`);
@@ -268,8 +297,7 @@ async function main() {
     side: "seller",
     accountSummary: "GUARD FIXTURE — self-join check, safe to delete.",
     game: "eFootball",
-    platform: null,
-    level: null,
+    ...NO_ACCOUNT_DETAILS,
     counterAccountSummary: "GUARD FIXTURE — self-join counter side, safe to delete.",
   });
 
@@ -973,6 +1001,51 @@ async function main() {
   assert.equal((await getBalance(selfDealer.id)).earnedCents, 0);
   ok("a promoter earns nothing from a deal they traded in themselves");
 
+  // The strength bar. Two accounts nobody built produce a completed swap that
+  // looks exactly like a real one from the database's side — same statuses,
+  // same confirmations — so the ratings are the only thing separating them.
+  const atTheBar = await makeSwap(
+    traderA,
+    traderB,
+    admin,
+    MINIMUM_TEAM_STRENGTH,
+    MINIMUM_TEAM_STRENGTH + 400,
+  );
+  await confirmClaimed(traderB, atTheBar);
+  await confirmClaimed(traderA, atTheBar);
+
+  assert.equal(await prisma.referralEarning.count({ where: { dealId: atTheBar } }), 0);
+  assert.equal((await creditReferralsForDeal(atTheBar)).credited, 0);
+  ok("a swap sitting exactly on the strength bar credits nobody — it has to be above it");
+
+  // One side under is enough to stop it: the deal is a pair, and the pair is
+  // what gets paid for.
+  const oneSideUnder = await makeSwap(traderA, traderB, admin, 3_400, 900);
+  await confirmClaimed(traderB, oneSideUnder);
+  await confirmClaimed(traderA, oneSideUnder);
+
+  assert.equal(await prisma.referralEarning.count({ where: { dealId: oneSideUnder } }), 0);
+  ok("one under-rated account in a swap is enough to credit nobody");
+
+  // Blank is not a pass. If it were, the bar would be optional — anybody
+  // farming credits would simply leave the box empty.
+  const blankStrength = await makeSwap(traderA, traderB, admin, 3_400, null);
+  await confirmClaimed(traderB, blankStrength);
+  await confirmClaimed(traderA, blankStrength);
+
+  await reconcileReferralCredits();
+  assert.equal(await prisma.referralEarning.count({ where: { dealId: blankStrength } }), 0);
+  ok("an unrecorded rating credits nobody, and the reconcile pass does not pick it up later");
+
+  // And the ordinary case still pays, so the three above are proving a bar
+  // rather than a broken crediting path.
+  const aboveTheBar = await makeSwap(traderA, traderB, admin, 3_001, 3_001);
+  await confirmClaimed(traderB, aboveTheBar);
+  await confirmClaimed(traderA, aboveTheBar);
+
+  assert.equal(await prisma.referralEarning.count({ where: { dealId: aboveTheBar } }), 2);
+  ok("a single point above the bar on both sides pays both promoters");
+
   // -------------------------------------------------------------------------
   // Promoters: let in to advertise, not to trade
   // -------------------------------------------------------------------------
@@ -999,8 +1072,7 @@ async function main() {
     accountSummary: "GUARD FIXTURE — a promoter should not get this far.",
     counterAccountSummary: "GUARD FIXTURE — a promoter should not get this far either.",
     game: "eFootball",
-    platform: null,
-    level: null,
+    ...NO_ACCOUNT_DETAILS,
   });
 
   assert.equal(promoterCreate.ok, false);
@@ -1015,8 +1087,7 @@ async function main() {
     accountSummary: "GUARD FIXTURE — invite a promoter must not be able to take.",
     counterAccountSummary: "GUARD FIXTURE — the other side of it.",
     game: "eFootball",
-    platform: null,
-    level: null,
+    ...NO_ACCOUNT_DETAILS,
   });
 
   if (!openInvite.ok) throw new Error("promoter-join fixture failed");
@@ -1151,8 +1222,7 @@ async function main() {
     side: "seller",
     accountSummary: "GUARD FIXTURE — swap without a counter-offer, safe to delete.",
     game: "eFootball",
-    platform: null,
-    level: null,
+    ...NO_ACCOUNT_DETAILS,
     counterAccountSummary: "   ",
   });
   assert.equal(noCounter.ok, false);
@@ -1163,8 +1233,7 @@ async function main() {
     side: "seller",
     accountSummary: "GUARD FIXTURE — swap seller side, safe to delete.",
     game: "eFootball",
-    platform: null,
-    level: null,
+    ...NO_ACCOUNT_DETAILS,
     counterAccountSummary: "GUARD FIXTURE — swap buyer side, safe to delete.",
   });
 

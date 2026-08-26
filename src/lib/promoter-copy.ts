@@ -41,6 +41,11 @@ const promoteEn = {
 
   earnTitle: "What you earn",
   earnPerSwap: "Every completed swap by someone who used your code",
+  // {n} is the strength bar. Said on the row it qualifies rather than in a
+  // footnote further down: this is the number, and someone deciding whether to
+  // promote this deserves it beside the amount.
+  earnStrengthNote:
+    "Both squads have to be rated above {n}. A rating left blank counts as under.",
   earnBothLead: "A swap where",
   earnBothBold: "both",
   earnBothTail: "sides used your code",
@@ -138,6 +143,7 @@ const promoteAr: typeof promoteEn = {
 
   earnTitle: "ما تربحه",
   earnPerSwap: "كل مبادلة مكتملة من شخص استخدم رمزك",
+  earnStrengthNote: "يجب أن يكون تقييم الفريقين أعلى من {n}. والتقييم المتروك فارغًا يُعدّ دون الحد.",
   earnBothLead: "مبادلة استخدم فيها",
   earnBothBold: "الطرفان",
   earnBothTail: "رمزك",
@@ -479,7 +485,9 @@ const referralsEn = {
 
   statSignUps: "Signed up with your code",
   statNobody: "Nobody yet",
-  statCompletedSuffix: "have completed a swap",
+  // "that paid" rather than "completed": this figure counts credits, and a
+  // swap under the strength bar completes without producing one.
+  statCompletedSuffix: "have completed a swap that paid",
   statEarned: "Earned all time",
   statThisMonth: "this month",
   statAvailable: "Available to withdraw",
@@ -495,13 +503,18 @@ const referralsEn = {
     "before you can request a payout. Every payout is a transfer sent by hand, and smaller ones would go entirely on the fee.",
   paysDateBold: "Paid on the 1st of the month.",
   paysDateBody: "Request it on any day once you are over the minimum; it goes out in the next batch, on",
+  // {n} is the bar, filled in from the same constant the credit is checked
+  // against, so the promise on this page cannot drift from what gets paid.
+  paysStrengthBold: "Both squads above {n}.",
+  paysStrengthBody:
+    "A swap only earns anything if the accounts on both sides are rated above it. Two throwaway accounts passed back and forth are the cheapest thing in the world to manufacture, and this pays for real trades between real people. A swap where either rating was left blank counts as under.",
   paysOwnDeals:
     "You earn nothing from a deal you were part of yourself, and deals opened only to generate credits are reversed.",
   paysRequest: "Request your payout →",
   paysToGo: "{n} more completed {noun} and you can request a payout.",
   dealSingular: "deal",
   dealPlural: "deals",
-  completedDeals: "{n} completed {noun}",
+  completedDeals: "{n} {noun} that paid you",
 
   introducedTitle: "People you introduced",
   introducedBody: "Everyone who signed up with your code, and what each has earned you.",
@@ -509,7 +522,7 @@ const referralsEn = {
   introducedEmptyBody:
     "Send the link above to anyone who trades eFootball accounts. They cannot create an account without a code from someone, so yours is as good as anyone's.",
   joined: "Joined",
-  noDealsYet: "no completed deals yet",
+  noDealsYet: "no deals that paid yet",
 
   creditsTitle: "Recent credits",
   creditsLead: "The last",
@@ -533,7 +546,7 @@ const referralsAr: typeof referralsEn = {
 
   statSignUps: "سجّلوا برمزك",
   statNobody: "لا أحد بعد",
-  statCompletedSuffix: "أتمّوا مبادلة",
+  statCompletedSuffix: "أتمّوا مبادلة دفعت لك",
   statEarned: "الأرباح الإجمالية",
   statThisMonth: "هذا الشهر",
   statAvailable: "المتاح للسحب",
@@ -548,13 +561,16 @@ const referralsAr: typeof referralsEn = {
   paysMinimumBody: "قبل أن تطلب دفعة. كل دفعة تحويل يُرسَل يدويًا، والدفعات الأصغر تذهب كلها في الرسوم.",
   paysDateBold: "تُدفع في الأول من كل شهر.",
   paysDateBody: "اطلبها في أي يوم بعد تجاوزك الحد الأدنى؛ وتخرج في الدفعة التالية، في",
+  paysStrengthBold: "قوة الفريقين فوق {n}.",
+  paysStrengthBody:
+    "لا تربح المبادلة شيئًا إلا إذا كان تقييم الحسابين في الطرفين أعلى من ذلك. حسابان بلا قيمة يتبادلهما اثنان ذهابًا وإيابًا أرخص ما يمكن صنعه، وهذا البرنامج يدفع مقابل تداول حقيقي بين أشخاص حقيقيين. والمبادلة التي يُترك فيها أي تقييم فارغًا تُعدّ دون الحد.",
   paysOwnDeals:
     "لا تربح شيئًا من صفقة كنت طرفًا فيها، والصفقات التي تُفتح لمجرد توليد أرصدة تُلغى.",
   paysRequest: "اطلب دفعتك ←",
   paysToGo: "بقيت {n} {noun} ويمكنك طلب دفعة.",
   dealSingular: "صفقة مكتملة",
   dealPlural: "صفقات مكتملة",
-  completedDeals: "{n} {noun}",
+  completedDeals: "{n} {noun} دفعت لك",
 
   introducedTitle: "من أدخلتهم",
   introducedBody: "كل من سجّل برمزك، وكم ربّحك كلٌّ منهم.",
@@ -562,7 +578,7 @@ const referralsAr: typeof referralsEn = {
   introducedEmptyBody:
     "أرسل الرابط أعلاه لأي شخص يتداول حسابات eFootball. لا يستطيعون إنشاء حساب بلا رمز من أحد، فرمزك مثل أي رمز آخر تمامًا.",
   joined: "انضم في",
-  noDealsYet: "لا صفقات مكتملة بعد",
+  noDealsYet: "لا صفقات دفعت لك بعد",
 
   creditsTitle: "أحدث الأرصدة",
   creditsLead: "آخر",

@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { createDealAction } from "@/app/actions/deal-actions";
 import { NavIcon, type NavIconName } from "@/components/nav/nav-icons";
 import { translator, type MessageKey, type Translate } from "@/lib/dictionary";
+import type { FormState } from "@/lib/form-state";
 import type { Locale } from "@/lib/locale";
 import {
   Button,
@@ -38,14 +39,60 @@ type Choice = {
 };
 
 /**
+ * The form field names for one account, so the card below can be rendered
+ * twice against two sets of columns.
+ *
+ * Spelled out rather than derived by sticking "counter" in front of things: a
+ * name built at runtime is one typo away from posting a field the schema never
+ * reads, and nothing would fail — the value would just quietly not be saved.
+ */
+type AccountNames = {
+  summary: string;
+  platform: string;
+  level: string;
+  teamStrength: string;
+  epics: string;
+  epicPlayers: string;
+};
+
+const YOUR_ACCOUNT: AccountNames = {
+  summary: "accountSummary",
+  platform: "platform",
+  level: "level",
+  teamStrength: "teamStrength",
+  epics: "epics",
+  epicPlayers: "epicPlayers",
+};
+
+const THEIR_ACCOUNT: AccountNames = {
+  summary: "counterAccountSummary",
+  platform: "counterPlatform",
+  level: "counterLevel",
+  teamStrength: "counterTeamStrength",
+  epics: "counterEpics",
+  epicPlayers: "counterEpicPlayers",
+};
+
+/**
  * Open a swap.
  *
  * Every deal is account-for-account, so there is no kind to choose and no price
  * to enter — both boxes are accounts, and the only question about money is that
  * there isn't any. The side choice remains, because it decides which of the two
  * descriptions is yours and therefore which side the invite leaves open.
+ *
+ * `minimumTeamStrength` is passed in rather than imported: the bar lives in
+ * lib/referrals, which is server-only, and this file is not. The page hands it
+ * down so the number on screen and the number the credit is checked against
+ * cannot drift apart.
  */
-export function CreateDealForm({ locale }: { locale: Locale }) {
+export function CreateDealForm({
+  locale,
+  minimumTeamStrength,
+}: {
+  locale: Locale;
+  minimumTeamStrength: number;
+}) {
   const t = translator(locale);
   const [state, formAction, pending] = useActionState(createDealAction, undefined);
 
@@ -65,105 +112,48 @@ export function CreateDealForm({ locale }: { locale: Locale }) {
         t={t}
       />
 
-      <Field
-        label={t("deal.summary.swapLabel")}
-        name="accountSummary"
-        error={state?.fieldErrors?.accountSummary}
-        hint={t("deal.summary.hint")}
-      >
-        <textarea
-          id="accountSummary"
-          name="accountSummary"
-          required
-          rows={4}
-          defaultValue={state?.values?.accountSummary ?? ""}
-          aria-invalid={Boolean(state?.fieldErrors?.accountSummary) || undefined}
-          aria-describedby={fieldDescribedBy("accountSummary", {
-            hint: t("deal.summary.hint"),
-            error: state?.fieldErrors?.accountSummary,
-          })}
-          className={inputClassName}
-          placeholder="eFootball 2026 mobile account. 4 Legends (Messi, Ronaldinho, Zico, Kaka), squad rating 3200, original email included, no bans."
-        />
-      </Field>
+      {/* Asked once for the deal. Two accounts in different games cannot be
+          swapped for each other, so this is the one fact that is not a pair. */}
+      <div className="sm:max-w-56">
+        <Field label={t("deal.account.game")} name="game" error={state?.fieldErrors?.game}>
+          <input
+            id="game"
+            name="game"
+            required
+            defaultValue={state?.values?.game ?? "eFootball"}
+            aria-invalid={Boolean(state?.fieldErrors?.game) || undefined}
+            className={inputClassName}
+          />
+        </Field>
+      </div>
 
-      {/* Grouped rather than three loose inputs: only one of the three is
-          required, and saying so once beats writing "Optional" twice. */}
-      <fieldset className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
-        <legend className="px-1.5 text-sm font-medium">{t("deal.account.legend")}</legend>
+      {/* The two halves of the swap, asked for in the same shape. The symmetry
+          is the point: identical boxes on both sides are what stop one account
+          being pinned down to the card and the other left as a sentence. */}
+      <AccountCard
+        legend={t("deal.summary.swapLabel")}
+        summaryHint={t("deal.summary.hint")}
+        summaryPlaceholder="eFootball 2026 mobile account. Original email included, no bans."
+        names={YOUR_ACCOUNT}
+        state={state}
+        t={t}
+      />
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label={t("deal.account.game")} name="game" error={state?.fieldErrors?.game}>
-            <input
-              id="game"
-              name="game"
-              required
-              defaultValue={state?.values?.game ?? "eFootball"}
-              aria-invalid={Boolean(state?.fieldErrors?.game) || undefined}
-              className={inputClassName}
-            />
-          </Field>
+      <AccountCard
+        legend={t("deal.counter.label")}
+        summaryHint={t("deal.counter.hint")}
+        summaryPlaceholder="eFootball 2026 PS5 account. Original email included, no bans."
+        names={THEIR_ACCOUNT}
+        state={state}
+        t={t}
+      />
 
-          <Field
-            label={t("deal.account.platform")}
-            name="platform"
-            error={state?.fieldErrors?.platform}
-            hint={t("deal.account.optional")}
-          >
-            <input
-              id="platform"
-              name="platform"
-              defaultValue={state?.values?.platform ?? ""}
-              aria-describedby={fieldDescribedBy("platform", { hint: t("deal.account.optional") })}
-              className={inputClassName}
-              placeholder="Mobile, PS5, Xbox, PC"
-            />
-          </Field>
-
-          <Field
-            label={t("deal.account.level")}
-            name="level"
-            error={state?.fieldErrors?.level}
-            hint={t("deal.account.optional")}
-          >
-            <input
-              id="level"
-              name="level"
-              inputMode="numeric"
-              defaultValue={state?.values?.level ?? ""}
-              aria-invalid={Boolean(state?.fieldErrors?.level) || undefined}
-              aria-describedby={fieldDescribedBy("level", {
-                hint: t("deal.account.optional"),
-                error: state?.fieldErrors?.level,
-              })}
-              className={inputClassName}
-              placeholder="42"
-            />
-          </Field>
-        </div>
-      </fieldset>
-
-      <Field
-        label={t("deal.counter.label")}
-        name="counterAccountSummary"
-        error={state?.fieldErrors?.counterAccountSummary}
-        hint={t("deal.counter.hint")}
-      >
-        <textarea
-          id="counterAccountSummary"
-          name="counterAccountSummary"
-          required
-          rows={4}
-          defaultValue={state?.values?.counterAccountSummary ?? ""}
-          aria-invalid={Boolean(state?.fieldErrors?.counterAccountSummary) || undefined}
-          aria-describedby={fieldDescribedBy("counterAccountSummary", {
-            hint: t("deal.counter.hint"),
-            error: state?.fieldErrors?.counterAccountSummary,
-          })}
-          className={inputClassName}
-          placeholder="eFootball 2026 mobile account. 3 Legends (Zidane, Pirlo, Nedved), squad rating 3050, original email included, no bans."
-        />
-      </Field>
+      {/* Said once, here, where both cards have just been filled in. A rule
+          about somebody else's $2 is not worth a banner, but leaving it unsaid
+          would mean people find out by not being paid. */}
+      <p className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-3.5 text-xs leading-relaxed text-[var(--muted)]">
+        {t("deal.strength.note").replace("{n}", String(minimumTeamStrength))}
+      </p>
 
       <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-4">
         <p className="text-overline uppercase text-[var(--muted)]">{t("swap.protection.title")}</p>
@@ -187,6 +177,103 @@ export function CreateDealForm({ locale }: { locale: Locale }) {
         </p>
       </div>
     </form>
+  );
+}
+
+/**
+ * One side of the swap: a description, and the facts that can be checked.
+ *
+ * Written once and rendered twice, because the two accounts in a swap are
+ * equal — each side is handing over something the other has to take on trust.
+ * A form that asked four questions about one account and for a paragraph about
+ * the other would say the opposite, and the thinner half is always the one the
+ * admin cannot verify.
+ *
+ * Everything except the description is optional. The rating is the one that
+ * decides money (see lib/referrals), and the epics are what the admin counts
+ * inside the account before releasing anything.
+ */
+function AccountCard({
+  legend,
+  summaryHint,
+  summaryPlaceholder,
+  names,
+  state,
+  t,
+}: {
+  legend: string;
+  summaryHint: string;
+  summaryPlaceholder: string;
+  names: AccountNames;
+  state: FormState | undefined;
+  t: Translate;
+}) {
+  const error = (name: string) => state?.fieldErrors?.[name];
+  const value = (name: string) => state?.values?.[name] ?? "";
+
+  /** Every input here is the same shape; only the label and hint change. */
+  const box = (name: string, label: string, placeholder: string, hint?: string, numeric = false) => (
+    <Field label={label} name={name} error={error(name)} hint={hint}>
+      <input
+        id={name}
+        name={name}
+        inputMode={numeric ? "numeric" : undefined}
+        defaultValue={value(name)}
+        aria-invalid={Boolean(error(name)) || undefined}
+        aria-describedby={fieldDescribedBy(name, { hint, error: error(name) })}
+        className={inputClassName}
+        placeholder={placeholder}
+      />
+    </Field>
+  );
+
+  return (
+    <fieldset className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
+      <legend className="px-1.5 text-sm font-medium">{legend}</legend>
+
+      <Field
+        label={t("deal.account.description")}
+        name={names.summary}
+        error={error(names.summary)}
+        hint={summaryHint}
+      >
+        <textarea
+          id={names.summary}
+          name={names.summary}
+          required
+          rows={3}
+          defaultValue={value(names.summary)}
+          aria-invalid={Boolean(error(names.summary)) || undefined}
+          aria-describedby={fieldDescribedBy(names.summary, {
+            hint: summaryHint,
+            error: error(names.summary),
+          })}
+          className={inputClassName}
+          placeholder={summaryPlaceholder}
+        />
+      </Field>
+
+      {/* Said once above the row rather than four times inside it. */}
+      <p className="mt-4 text-xs text-[var(--muted)]">{t("deal.account.allOptional")}</p>
+
+      <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {box(names.platform, t("deal.account.platform"), "Mobile, PS5, Xbox, PC")}
+        {box(names.level, t("deal.account.level"), "42", undefined, true)}
+        {box(names.teamStrength, t("deal.account.strength"), "3280", t("deal.strength.hint"), true)}
+        {box(names.epics, t("deal.account.epics"), "5", t("deal.epics.hint"), true)}
+      </div>
+
+      {/* Its own row: a list of names needs the width, and it is the line the
+          admin reads against the squad when checking the account. */}
+      <div className="mt-4">
+        {box(
+          names.epicPlayers,
+          t("deal.account.epicPlayers"),
+          "Zidane, Henry, R9 Ronaldo",
+          t("deal.epicPlayers.hint"),
+        )}
+      </div>
+    </fieldset>
   );
 }
 

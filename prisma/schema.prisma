@@ -363,19 +363,63 @@ model Deal {
   buyerId  String?
 
   // --- what is being traded (agreed off-site, recorded here) ---
+  //
+  // A swap has two accounts, so every fact about one of them has a twin
+  // prefixed `counter` for the other, further down. `game` is the single
+  // exception: two accounts in different games are not tradeable for each
+  // other, so it is recorded once for the deal.
+  //
+  // These are columns rather than sentences inside accountSummary because a
+  // sentence cannot be compared. The referral bar reads teamStrength on both
+  // sides, and the admin verifying an account checks it against fields rather
+  // than parsing prose somebody typed at midnight.
   /// Plain description so both parties and the admin agree on the same thing.
   accountSummary String  @db.Text
   game           String  @default("eFootball")
   platform       String?
   level          Int?
 
+  /// Squad rating of the SELLER's account — what eFootball calls Team Strength.
+  /// It runs in the thousands (3280), which is what separates it from `level`
+  /// above: that is the account's own level, in tens.
+  ///
+  /// Optional, because not every game has one and nobody is made to fill it in.
+  /// But a swap that leaves it blank earns its promoters nothing — an
+  /// unrecorded rating is not a rating above the bar. See MINIMUM_TEAM_STRENGTH
+  /// in lib/referrals.ts.
+  teamStrength Int?
+
+  /// How many Epic cards the seller's account has, and which ones.
+  ///
+  /// Two columns rather than one because they answer different questions. The
+  /// count is the figure people quote and compare; the names are what the
+  /// admin checks against the squad when verifying, and what the other trader
+  /// is actually agreeing to receive.
+  epics       Int?
+  epicPlayers String?
+
   /// Always "swap" on anything created now. Rows written before the cash flow
   /// was retired keep their original value, which is why the column stays.
   tradeKind TradeKind @default(swap)
 
+  // --- the other half of the swap ---
+  //
+  // The same facts for the account the BUYER hands over. Null on a cash deal,
+  // where only one account changes hands.
   /// Swap only: what the BUYER hands over. The seller's side is
   /// accountSummary above, so a swap carries one description per party.
   counterAccountSummary String? @db.Text
+
+  counterPlatform String?
+  counterLevel    Int?
+
+  /// Swap only: Team Strength of the account the BUYER hands over. A swap has
+  /// two accounts, so the bar that decides whether a completed deal pays its
+  /// promoters is checked against both — see lib/referrals.ts.
+  counterTeamStrength Int?
+
+  counterEpics       Int?
+  counterEpicPlayers String?
 
   // --- money, in integer minor units ("cents"); never floats ---
   //

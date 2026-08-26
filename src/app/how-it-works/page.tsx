@@ -9,7 +9,7 @@ import { ButtonLink, Card, PageHeading } from "@/components/ui";
 export const metadata = {
   title: "How it works",
   description:
-    "How an escrowed eFootball account swap works, step by step: what each side deposits, what the admin checks, and when the accounts actually change hands. Free — and you earn $2 for every swap you refer.",
+    "How an escrowed eFootball account swap works, step by step: what each side deposits, what the admin checks, and when the accounts actually change hands. Free — and you earn $2 for every 3000+ swap you refer.",
 };
 
 export default async function HowItWorksPage() {

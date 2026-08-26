@@ -117,19 +117,44 @@ export type LoginInput = z.infer<typeof loginSchema>;
 // ---------------------------------------------------------------------------
 
 /** Empty input means "not specified", not zero. */
-const optionalLevelField = z
-  .string()
-  .trim()
-  .transform((raw, ctx) => {
-    if (raw === "") return null;
+const optionalWholeNumber = (message: string) =>
+  z
+    .string()
+    .trim()
+    .transform((raw, ctx) => {
+      // "3,280" and "3 280" are how people write a four-figure rating. The
+      // number is unambiguous either way, and refusing them teaches nobody
+      // anything.
+      const digits = raw.replace(/[\s,]/g, "");
 
-    if (!/^\d{1,4}$/.test(raw)) {
-      ctx.addIssue({ code: "custom", message: "Level must be a whole number." });
-      return z.NEVER;
-    }
+      if (digits === "") return null;
 
-    return Number(raw);
-  });
+      if (!/^\d{1,4}$/.test(digits)) {
+        ctx.addIssue({ code: "custom", message });
+        return z.NEVER;
+      }
+
+      return Number(digits);
+    });
+
+const optionalLevelField = optionalWholeNumber("Level must be a whole number.");
+
+/**
+ * Team Strength, one per side of the swap.
+ *
+ * Still optional. The site escrows a swap of any two accounts, and a squad
+ * rating is not something every game even has. What it decides is whether the
+ * completed deal pays the two promoters anything: both sides have to be above
+ * MINIMUM_TEAM_STRENGTH, and blank never is. The form says so beside the box,
+ * which is the honest place for it — refusing the deal here would be enforcing
+ * a payout rule as though it were a trading rule.
+ */
+const optionalTeamStrengthField = optionalWholeNumber(
+  "Team strength must be a whole number, like 3280.",
+);
+
+/** How many Epic cards. A count, not a list — the names have their own field. */
+const optionalEpicsField = optionalWholeNumber("Epics must be a whole number, like 5.");
 
 const optionalTextField = (max: number) =>
   z
@@ -165,9 +190,29 @@ export const createDealSchema = z.object({
     .trim()
     .min(20, "Describe the account you expect in exchange, in at least 20 characters.")
     .max(2000, "Keep the description under 2000 characters."),
+  /**
+   * The one fact recorded once for the deal rather than twice.
+   *
+   * Everything below it comes in pairs — the fields describing the account
+   * being put up, then the same fields prefixed `counter` for the account
+   * coming back. Two accounts in different games cannot be swapped for each
+   * other, so the game is not one of them.
+   */
   game: z.string().trim().min(1, "Which game is this account for?").max(60),
+
   platform: optionalTextField(40),
   level: optionalLevelField,
+  /** Team Strength of the account described by accountSummary. */
+  teamStrength: optionalTeamStrengthField,
+  epics: optionalEpicsField,
+  epicPlayers: optionalTextField(200),
+
+  counterPlatform: optionalTextField(40),
+  counterLevel: optionalLevelField,
+  /** Team Strength of the account expected in exchange. */
+  counterTeamStrength: optionalTeamStrengthField,
+  counterEpics: optionalEpicsField,
+  counterEpicPlayers: optionalTextField(200),
 });
 
 export const depositCredentialsSchema = z.object({

@@ -31,7 +31,7 @@ const howItWorksEn = {
 
   earnTitle: "Earning from the programme",
   earnBody:
-    "Your own code is on your promoter page from the moment you register. Every completed swap by someone who used it credits you $2 — both sides of a swap earn for their own promoter, so a deal between two people you introduced pays you twice.",
+    "Your own code is on your promoter page from the moment you register. Every completed swap by someone who used it credits you $2, as long as both accounts in it are rated above 3000 — both sides of a swap earn for their own promoter, so a deal between two people you introduced pays you twice.",
   earnPayout:
     "Payouts start at $40 and go out in one batch on the 1st of each month. You can request one on any day once you are over the minimum; it is sent on the next 1st.",
 
@@ -74,7 +74,7 @@ const howItWorksAr: typeof howItWorksEn = {
 
   earnTitle: "الربح من البرنامج",
   earnBody:
-    "رمزك الخاص موجود في صفحة الدعوة منذ لحظة تسجيلك. كل مبادلة مكتملة من شخص استخدم رمزك تمنحك 2 دولار — وكل طرف في المبادلة يربح لداعيه هو، فصفقة بين شخصين دعوتَهما تدفع لك مرتين.",
+    "رمزك الخاص موجود في صفحة الدعوة منذ لحظة تسجيلك. كل مبادلة مكتملة من شخص استخدم رمزك تمنحك 2 دولار، ما دام تقييم الحسابين فيها أعلى من 3000 — وكل طرف في المبادلة يربح لداعيه هو، فصفقة بين شخصين دعوتَهما تدفع لك مرتين.",
   earnPayout:
     "الحد الأدنى للسحب 40 دولارًا، وتُرسل المبالغ دفعة واحدة في اليوم الأول من كل شهر. يمكنك طلب السحب في أي يوم بعد تجاوز الحد الأدنى، ويُرسل في الأول القادم.",
 
@@ -353,6 +353,8 @@ const joinByCodePageEn = {
   wouldBeSeller: "you would be the seller",
   wouldBeBuyer: "you would be the buyer",
   whoInvited: "Who invited you",
+  /** What the opener wrote down for the account coming from this side. */
+  expectedOfYours: "Expected of the account you put up",
   buyerPays: "Buyer pays",
   escrowFee: "Escrow fee",
   sellerReceives: "Seller receives",
@@ -372,6 +374,7 @@ const joinByCodePageAr: typeof joinByCodePageEn = {
   wouldBeSeller: "ستكون البائع",
   wouldBeBuyer: "ستكون المشتري",
   whoInvited: "من دعاك",
+  expectedOfYours: "المتوقَّع من الحساب الذي تقدّمه",
   buyerPays: "يدفع المشتري",
   escrowFee: "رسوم الضمان",
   sellerReceives: "يستلم البائع",
@@ -627,7 +630,8 @@ const walletPageEn = {
   whatsInBalanceCaption: (amount: string) =>
     `Every ${amount} credit, and the deal that earned it. This is the balance above, itemised — so you can check it rather than trust it.`,
   noEarningsTitle: "No referral earnings yet",
-  noEarningsBody: (amount: string) => `You earn ${amount} each time someone who signed up with your code completes a swap.`,
+  noEarningsBody: (amount: string) =>
+    `You earn ${amount} each time someone who signed up with your code completes a swap of two accounts rated above 3000.`,
   shareCode: "Share your code",
   toGetStarted: "to get started.",
   completedSwap: "completed a swap",
@@ -667,7 +671,8 @@ const walletPageAr: typeof walletPageEn = {
   whatsInBalanceCaption: (amount: string) =>
     `كل رصيد ${amount}، والصفقة التي حققته. هذا هو الرصيد أعلاه، مفصّلًا — لتتحقق منه لا أن تثق به فقط.`,
   noEarningsTitle: "لا أرباح دعوة بعد",
-  noEarningsBody: (amount: string) => `تربح ${amount} في كل مرة يُتمّ فيها شخص سجّل برمزك مبادلة.`,
+  noEarningsBody: (amount: string) =>
+    `تربح ${amount} في كل مرة يُتمّ فيها شخص سجّل برمزك مبادلة بين حسابين تقييم كلٍّ منهما أعلى من 3000.`,
   shareCode: "شارك رمزك",
   toGetStarted: "لتبدأ.",
   completedSwap: "أتمّ مبادلة",
@@ -1110,6 +1115,12 @@ const adminDealDetailEn = {
   buyerPromised: "What the buyer promised",
   notDescribed: "Not described.",
   swapNote: "Account-for-account swap — no money, no fee. Both accounts release together.",
+  // Answers "why was I not paid for this one?" without anybody having to open
+  // the database — the two people asking are the two promoters behind it.
+  creditQualifies: (min: number) =>
+    `Both accounts are above ${min}, so completing this swap credits $2 to each side's promoter.`,
+  creditBlocked: (min: number) =>
+    `Not both accounts are above ${min}, so completing this swap credits nobody. A blank rating counts as under.`,
   buyerSentTitle: "What the buyer says they sent",
   submitted: "Submitted",
   transaction: "Transaction",
@@ -1157,6 +1168,10 @@ const adminDealDetailAr: typeof adminDealDetailEn = {
   buyerPromised: "ما وعد به المشتري",
   notDescribed: "لم يُوصف.",
   swapNote: "مبادلة حساب مقابل حساب — بلا مال ولا رسوم. يُسلَّم الحسابان معًا.",
+  creditQualifies: (min: number) =>
+    `كلا الحسابين أعلى من ${min}، لذلك يمنح إتمام هذه المبادلة ٢ دولار لداعي كل طرف.`,
+  creditBlocked: (min: number) =>
+    `ليس كلا الحسابين أعلى من ${min}، لذلك لا يُمنح أحد شيئًا عند إتمام هذه المبادلة. والتقييم الفارغ يُحسب كأنه دون الحد.`,
   buyerSentTitle: "ما يقول المشتري إنه أرسله",
   submitted: "أُرسل في",
   transaction: "المعاملة",

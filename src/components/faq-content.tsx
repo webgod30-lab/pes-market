@@ -94,9 +94,11 @@ export function faqGroups(): FaqGroup[] {
           featured: true,
           a: (
             <>
-              $2 every time someone who signed up with your code completes a swap. Both people in a
-              swap earn for their own promoter, so if you introduced both of them, that one deal pays
-              you twice.
+              $2 every time someone who signed up with your code completes a swap where both
+              accounts are rated above 3000. Both people in a swap earn for their own promoter, so
+              if you introduced both of them, that one deal pays you twice. A swap under that — or
+              one where either rating was left blank — is escrowed exactly the same way, it just
+              does not pay anyone.
             </>
           ),
         },

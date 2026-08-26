@@ -10,7 +10,7 @@ import { REGISTER_PAGE } from "@/lib/auth-copy";
 export const metadata = {
   title: "Create an account",
   description:
-    "Create a free PESescrow.com account to swap eFootball accounts safely. You need a promoter's code to join — and you get one of your own, worth $2 for every deal the people you bring in complete.",
+    "Create a free PESescrow.com account to swap eFootball accounts safely. You need a promoter's code to join — and you get one of your own, worth $2 for every 3000+ rated swap the people you bring in complete.",
 };
 
 export default async function RegisterPage({
